@@ -416,12 +416,46 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   }, [loadSubs]);
 
   const [snippetTab, setSnippetTab] = useState<"html" | "js" | "react" | "python">("html");
+  const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "newsletter">("plain");
 
-  const htmlSnippet = `<form method="POST" action="${endpoint}">
+  const htmlSnippet = formTemplate === "plain"
+    ? `<form method="POST" action="${endpoint}">
   <input name="email" type="email" required />
   <textarea name="message" required></textarea>
   <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
   <button type="submit">Send</button>
+</form>`
+    : formTemplate === "contact"
+    ? `<!-- FormForge Contact Form (Tailwind CSS) -->
+<form method="POST" action="${endpoint}" class="max-w-md mx-auto p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 shadow-xl text-left">
+  <div>
+    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
+    <input name="email" type="email" required placeholder="you@example.com" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition" />
+  </div>
+  <div>
+    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Your Message</label>
+    <textarea name="message" required placeholder="Type your message here..." rows="4" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"></textarea>
+  </div>
+  <!-- Honeypot Bot Trap -->
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
+  <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-xl hover:from-cyan-400 hover:to-blue-500 transition-all">
+    Send Message
+  </button>
+</form>`
+    : `<!-- FormForge Newsletter Signup (Tailwind CSS) -->
+<form method="POST" action="${endpoint}" class="max-w-lg mx-auto p-8 bg-slate-900 border border-slate-800 rounded-3xl text-center space-y-6 shadow-2xl text-left">
+  <div class="space-y-2">
+    <h3 class="text-xl font-bold text-white">Subscribe to our newsletter</h3>
+    <p class="text-sm text-slate-400">Get the latest updates and developer news right in your inbox.</p>
+  </div>
+  <div class="flex flex-col sm:flex-row gap-2">
+    <input name="email" type="email" required placeholder="Enter your email" class="flex-1 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition" />
+    <!-- Honeypot Bot Trap -->
+    <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
+    <button type="submit" class="py-3 px-6 bg-cyan-500 text-white font-semibold rounded-xl hover:bg-cyan-400 transition">
+      Subscribe
+    </button>
+  </div>
 </form>`;
 
   const jsSnippet = `fetch("${endpoint}", {
@@ -537,6 +571,20 @@ print(response.json())`;
               </button>
             ))}
           </div>
+          {snippetTab === "html" && (
+            <div className="flex gap-1 bg-black/25 p-1 rounded-xl w-fit border border-white/5">
+              {(["plain", "contact", "newsletter"] as const).map((tpl) => (
+                <button
+                  key={tpl}
+                  type="button"
+                  onClick={() => setFormTemplate(tpl)}
+                  className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${formTemplate === tpl ? "bg-cyan-500 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                >
+                  {tpl === "plain" ? "📄 Plain HTML" : tpl === "contact" ? "👤 Contact Form" : "📧 Newsletter"}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="relative">
             {snippetTab === "html" && <CodeHighlight code={htmlSnippet} lang="html" />}
             {snippetTab === "js" && <CodeHighlight code={jsSnippet} lang="js" />}

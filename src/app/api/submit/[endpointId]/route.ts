@@ -248,7 +248,14 @@ export async function POST(request: Request, context: RouteContext) {
     if (form.redirectUrl && request.headers.get("accept")?.includes("text/html")) {
       const { isSafeRedirectUrl } = await import("@/lib/url-validation");
       if (isSafeRedirectUrl(form.redirectUrl)) {
-        return Response.redirect(form.redirectUrl, 303);
+        let finalRedirectUrl = form.redirectUrl;
+        // Dynamically replace variables like {email} or {name} in redirect URL
+        for (const [key, val] of Object.entries(payload)) {
+          if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+            finalRedirectUrl = finalRedirectUrl.replace(new RegExp(`\\{${key}\\}`, "gi"), encodeURIComponent(String(val)));
+          }
+        }
+        return Response.redirect(finalRedirectUrl, 303);
       }
     }
 
