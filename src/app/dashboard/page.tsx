@@ -344,7 +344,7 @@ function CreateFormInline({ onCreated }: { onCreated: () => void }) {
 /* ─────────────────── Form Detail ─────────────────── */
 
 function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) {
-  const [view, setView] = useState<"submissions" | "settings">("submissions");
+  const [view, setView] = useState<"submissions" | "analytics" | "settings">("submissions");
   const [subs, setSubs] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -465,6 +465,15 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
         </button>
         <button
           role="tab"
+          aria-selected={view === "analytics"}
+          aria-controls="view-analytics-panel"
+          onClick={() => setView("analytics")}
+          className={`border-b-2 px-3 pb-3 text-sm font-semibold ${view === "analytics" ? "border-cyan-300 text-white" : "border-transparent text-slate-400 hover:text-white"}`}
+        >
+          Analytics
+        </button>
+        <button
+          role="tab"
           aria-selected={view === "settings"}
           aria-controls="view-settings-panel"
           onClick={() => setView("settings")}
@@ -476,7 +485,7 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
 
       {/* Content */}
       <div className="px-5 pb-5">
-        {view === "submissions" ? (
+        {view === "submissions" && (
           <div id="view-submissions-panel" role="tabpanel" aria-label="Submissions List">
             {loading ? (
               <p className="py-6 text-center text-sm text-slate-500">Loading submissions…</p>
@@ -514,13 +523,121 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
               </div>
             )}
           </div>
-        ) : (
+        )}
+        {view === "analytics" && (
+          <div id="view-analytics-panel" role="tabpanel" aria-label="Form Analytics">
+            <FormAnalyticsPanel form={form} />
+          </div>
+        )}
+        {view === "settings" && (
           <div id="view-settings-panel" role="tabpanel" aria-label="Form Settings">
             <FormSettingsPanel form={form} onSaved={onChanged} />
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+function FormAnalyticsPanel({ form }: { form: Form }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/forms/${form.id}/analytics`, { credentials: "include" });
+        const resJson = await res.json();
+        if (resJson.ok) setData(resJson.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [form.id]);
+
+  if (loading) return <p className="py-6 text-center text-sm text-slate-500">Loading analytics…</p>;
+  if (!data) return <p className="py-6 text-center text-sm text-slate-500">Failed to load analytics data.</p>;
+
+  // Prepare timeline dates
+  const timelineDates = Array.from(new Set(data.timeline.map((t: any) => t.date))).slice(-10); // last 10 days
+  const maxVal = Math.max(...data.timeline.map((t: any) => t.count), 1);
+
+  return (
+    <div className="space-y-6">
+      {/* Timeline Chart */}
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <h3 className="text-sm font-semibold text-slate-300 mb-4">Submission Timeline (Last 30 Days)</h3>
+        {data.timeline.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-6">No data available for timeline.</p>
+        ) : (
+          <div className="flex h-48 items-end gap-3 pt-6">
+            {timelineDates.map((date: any) => {
+              const accepted = data.timeline.find((t: any) => t.date === date && t.status === "accepted")?.count ?? 0;
+              const spam = data.timeline.find((t: any) => t.date === date && t.status === "spam")?.count ?? 0;
+              const total = accepted + spam;
+              const acceptedHeight = (accepted / maxVal) * 100;
+              const spamHeight = (spam / maxVal) * 100;
+
+              return (
+                <div key={date} className="group relative flex flex-1 flex-col items-center gap-1">
+                  <div className="relative w-full flex flex-col justify-end h-36 bg-white/[0.03] rounded-t-lg overflow-hidden">
+                    <div style={{ height: `${acceptedHeight}%` }} className="w-full bg-cyan-400" title={`Accepted: ${accepted}`} />
+                    <div style={{ height: `${spamHeight}%` }} className="w-full bg-amber-400" title={`Spam: ${spam}`} />
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-1">{date.slice(5)}</span>
+                  {/* Tooltip */}
+                  <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg bg-slate-950 border border-white/10 p-2 text-xs text-white group-hover:block z-10">
+                    <p className="font-semibold">{date}</p>
+                    <p className="text-cyan-300">Accepted: {accepted}</p>
+                    <p className="text-amber-300">Spam: {spam}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Referrers */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <h3 className="text-sm font-semibold text-slate-300 mb-3">Top Referrers</h3>
+          {data.referrers.length === 0 ? (
+            <p className="text-xs text-slate-500 py-2">No referrers detected.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.referrers.map((ref: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-xs">
+                  <span className="truncate text-slate-300 max-w-[200px]" title={ref.referer}>{ref.referer}</span>
+                  <span className="rounded-full bg-cyan-400/10 text-cyan-300 px-2 py-0.5">{ref.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Submitters */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <h3 className="text-sm font-semibold text-slate-300 mb-3">Top Submitters</h3>
+          {data.submitters.length === 0 ? (
+            <p className="text-xs text-slate-500 py-2">No submitters detected.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.submitters.map((sub: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-xs">
+                  <span className="truncate text-slate-300 max-w-[200px]" title={sub.email}>{sub.email}</span>
+                  <span className="rounded-full bg-cyan-400/10 text-cyan-300 px-2 py-0.5">{sub.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

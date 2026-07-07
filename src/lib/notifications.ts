@@ -60,10 +60,66 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       if (isPrivateUrl(form.webhookUrl)) {
         results.push({ channel: "webhook", status: "failed", error: "SSRF prevention: Webhook URL resolves to a private or internal IP address." });
       } else {
+        let bodyPayload = JSON.stringify({ form: { id: form.id, name: form.name }, submission });
+
+        if (form.webhookUrl.includes("discord.com/api/webhooks") || form.webhookUrl.includes("discordapp.com/api/webhooks")) {
+          const fields = Object.entries(payload).map(([k, v]) => ({
+            name: k,
+            value: String(v).slice(0, 1024) || "(empty)",
+            inline: false,
+          }));
+
+          bodyPayload = JSON.stringify({
+            username: "FormForge",
+            embeds: [
+              {
+                title: `📩 New Submission for ${form.name}`,
+                color: 1629853, // Cyan accent color
+                fields: fields.slice(0, 25),
+                timestamp: new Date(submission.createdAt).toISOString(),
+                footer: {
+                  text: `Form: ${form.name} | Sub ID: ${submission.id}`,
+                },
+              },
+            ],
+          });
+        } else if (form.webhookUrl.includes("hooks.slack.com")) {
+          const fieldsBlocks = Object.entries(payload).map(([k, v]) => ({
+            type: "mrkdwn",
+            text: `*${k}:*\n${String(v).slice(0, 500) || "_(empty)_"}`,
+          }));
+
+          bodyPayload = JSON.stringify({
+            text: `New FormForge submission for ${form.name}`,
+            blocks: [
+              {
+                type: "header",
+                text: {
+                  type: "plain_text",
+                  text: `📝 New Submission: ${form.name}`,
+                },
+              },
+              {
+                type: "section",
+                fields: fieldsBlocks.slice(0, 10),
+              },
+              {
+                type: "context",
+                elements: [
+                  {
+                    type: "mrkdwn",
+                    text: `Submitted at: ${submission.createdAt}`,
+                  },
+                ],
+              },
+            ],
+          });
+        }
+
         const response = await fetch(form.webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", "User-Agent": "FormForge/1.0" },
-          body: JSON.stringify({ form: { id: form.id, name: form.name }, submission }),
+          body: bodyPayload,
         });
 
         results.push(
