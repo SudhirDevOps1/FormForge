@@ -41,7 +41,7 @@ export default function HomePage() {
           <a className="hover:text-white" href="/docs.html">Docs</a>
           <a className="hover:text-white" href="/guide.html">Guide</a>
           <a className="hover:text-white" href="/dashboard">Dashboard</a>
-          <a className="rounded-full border border-cyan-300/30 px-4 py-2 text-cyan-100 hover:bg-cyan-300/10" href="https://github.com/adrianak2026/FormForge">GitHub ↗</a>
+          <a className="rounded-full border border-cyan-300/30 px-4 py-2 text-cyan-100 hover:bg-cyan-300/10" href="https://github.com/SudhirDevOps1/FormForge">GitHub ↗</a>
         </nav>
         {/* Mobile menu */}
         <details className="group relative md:hidden">
@@ -54,7 +54,7 @@ export default function HomePage() {
             <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="/docs.html">Docs</a>
             <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="/guide.html">Guide</a>
             <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="/dashboard">Dashboard</a>
-            <a className="block rounded-xl px-4 py-3 text-sm text-cyan-200 hover:bg-white/10" href="https://github.com/adrianak2026/FormForge">GitHub ↗</a>
+            <a className="block rounded-xl px-4 py-3 text-sm text-cyan-200 hover:bg-white/10" href="https://github.com/SudhirDevOps1/FormForge">GitHub ↗</a>
           </div>
         </details>
       </header>
@@ -77,7 +77,7 @@ export default function HomePage() {
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/adrianak2026/FormForge" className="inline-flex items-center justify-center rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 shadow-xl shadow-cyan-950/30 transition hover:-translate-y-0.5 hover:bg-cyan-200">
+            <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" className="inline-flex items-center justify-center rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 shadow-xl shadow-cyan-950/30 transition hover:-translate-y-0.5 hover:bg-cyan-200">
               Deploy to Cloudflare
             </a>
             <a href="/docs.html" className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-6 py-4 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/10">
@@ -164,7 +164,7 @@ export default function HomePage() {
               <p className="mt-5 leading-8 text-slate-300">
                 The deploy button asks the deployer to log in to their own Cloudflare and GitHub/GitLab account. They choose their Worker name, create or connect a D1 database, set their own secrets, and own the generated project.
               </p>
-              <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/adrianak2026/FormForge" className="mt-7 inline-flex rounded-2xl bg-white px-6 py-4 font-bold text-slate-950 hover:bg-cyan-100">Deploy your own FormForge</a>
+              <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" className="mt-7 inline-flex rounded-2xl bg-white px-6 py-4 font-bold text-slate-950 hover:bg-cyan-100">Deploy your own FormForge</a>
             </div>
             <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
               <ol className="space-y-4 text-slate-300">
