@@ -13,14 +13,14 @@
       --accent-hover: #0ea5e9;
       --text: #f3f4f6;
       --text-muted: #9ca3af;
-      --border: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.06);
     }
     body {
       margin: 0;
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background-color: var(--bg-color);
       background-image:
-        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), transparent 50rem),
+        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.18), transparent 50rem),
         radial-gradient(circle at 0% 100%, rgba(6, 182, 212, 0.08), transparent 40rem);
       color: var(--text);
       line-height: 1.6;
@@ -36,6 +36,8 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 80px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
     }
     .logo {
       display: flex;
@@ -45,11 +47,6 @@
       font-size: 20px;
       color: white;
       text-decoration: none;
-    }
-    .logo img {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
     }
     .nav-links a {
       color: var(--text-muted);
@@ -120,10 +117,8 @@
     }
     .btn-secondary:hover {
       background: rgba(255, 255, 255, 0.1);
-      box-shadow: none;
     }
     
-    /* Layout grid */
     .grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -139,13 +134,12 @@
       }
     }
     
-    /* Card design */
     .card {
       border: 1px solid var(--border);
       background: var(--card-bg);
       border-radius: 16px;
       padding: 32px;
-      backdrop-filter: blur(20px);
+      backdrop-filter: blur(24px);
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
     .card h3 {
@@ -155,7 +149,6 @@
       margin-bottom: 16px;
     }
     
-    /* Interactive Playground styling */
     .playground h2 {
       margin-top: 0;
       text-align: center;
@@ -217,6 +210,32 @@
       color: #f87171;
     }
 
+    /* Steps List */
+    .step-item {
+      display: flex;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+    }
+    .step-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+    .step-badge {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--accent);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
     /* Comparison Table */
     table {
       width: 100%;
@@ -245,13 +264,20 @@
       font-weight: bold;
     }
     
-    /* Footer */
     footer {
       text-align: center;
       padding-top: 60px;
-      border-t: 1px solid var(--border);
+      margin-top: 80px;
+      border-top: 1px solid var(--border);
       color: var(--text-muted);
       font-size: 13px;
+    }
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -266,6 +292,7 @@
       <nav class="nav-links">
         <a href="#features">Features</a>
         <a href="#playground">Playground</a>
+        <a href="#settings-guide">Settings Guide</a>
         <a href="#comparison">Why FormForge?</a>
         <a href="#deploy">Deploy</a>
       </nav>
@@ -347,6 +374,69 @@
       </div>
     </section>
 
+    <!-- Settings Guide Section -->
+    <section id="settings-guide" style="margin-bottom: 120px;">
+      <div style="text-align: center; margin-bottom: 60px;">
+        <span class="badge">Configuration Portal</span>
+        <h2 style="font-size: 36px; font-weight: 800; color: white; margin: 0 0 16px 0;">⚙️ Form Settings & Integration Guide</h2>
+        <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto;">Understand how to configure FormForge features directly in your dashboard.</p>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>🤖 Cloudflare Turnstile Verification</h3>
+          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Protect your endpoints from automated bots using Cloudflare Turnstile's invisible CAPTCHA checks.</p>
+          <div class="step-item">
+            <div class="step-badge">1</div>
+            <div>
+              <h5 style="margin: 0; color: white;">Get Turnstile Keys</h5>
+              <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Go to Cloudflare Dashboard -> Turnstile -> Click <strong>Add site</strong>. Enter your domain, choose Managed challenge, and click Create.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-badge">2</div>
+            <div>
+              <h5 style="margin: 0; color: white;">Configure Secret Key</h5>
+              <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Copy the **Secret Key** and paste it into the **Turnstile Secret Key** input field in FormForge settings, then save.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-badge">3</div>
+            <div>
+              <h5 style="margin: 0; color: white;">Add Script to Website</h5>
+              <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Embed Cloudflare's script tag <code>&lt;script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer&gt;&lt;/script&gt;</code> in your website HTML.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>📧 Submitter Autoresponder Email</h3>
+          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Automatically send styled thank-you emails back to users when they submit forms.</p>
+          <div class="step-item">
+            <div class="step-badge">1</div>
+            <div>
+              <h5 style="margin: 0; color: white;">Verify Resend Sender</h5>
+              <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Ensure your domain is configured in Resend.com and add the variables <code>RESEND_API_KEY</code> and <code>RESEND_FROM</code> to your Cloudflare Worker settings.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-badge">2</div>
+            <div>
+              <h5 style="margin: 0; color: white;">Setup Subject & Body</h5>
+              <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Draft your custom Autoresponder Subject and Body in FormForge. Use dynamic placeholder formatting to personalize the content.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-badge">3</div>
+            <div>
+              <h5 style="margin: 0; color: white;">Dynamic Variables</h5>
+              <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Use curly braces like <code>{name}</code>, <code>{email}</code>, or <code>{message}</code> in your body text. The backend dynamically replaces these with submitter data at runtime!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Comparison Section -->
     <section id="comparison" style="margin-bottom: 120px;">
       <div style="text-align: center; margin-bottom: 60px;">
@@ -412,22 +502,22 @@
       <div class="card" style="background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), rgba(0, 0, 0, 0)); border-color: rgba(56, 189, 248, 0.2);">
         <h2 style="font-size: 28px; font-weight: 800; color: white; margin-top: 0; margin-bottom: 24px;">🚀 Ready to Deploy to Cloudflare Pages?</h2>
         <div style="margin-bottom: 30px; display: grid; gap: 20px;">
-          <div style="display: flex; gap: 16px;">
-            <div style="background: rgba(56, 189, 248, 0.1); color: var(--accent); width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">1</div>
+          <div class="step-item">
+            <div class="step-badge">1</div>
             <div>
               <h4 style="margin: 0 0 4px 0; color: white;">Connect GitHub</h4>
               <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Go to Cloudflare Dashboard Workers & Pages -> Click Connect to Git and authorize the repository.</p>
             </div>
           </div>
-          <div style="display: flex; gap: 16px;">
-            <div style="background: rgba(56, 189, 248, 0.1); color: var(--accent); width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">2</div>
+          <div class="step-item">
+            <div class="step-badge">2</div>
             <div>
               <h4 style="margin: 0 0 4px 0; color: white;">Configure Build Settings</h4>
               <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Select <strong>Next.js</strong> framework preset. The build command will auto-run our custom <code>build-cf.js</code> loop protection script safely.</p>
             </div>
           </div>
-          <div style="display: flex; gap: 16px;">
-            <div style="background: rgba(56, 189, 248, 0.1); color: var(--accent); width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">3</div>
+          <div class="step-item">
+            <div class="step-badge">3</div>
             <div>
               <h4 style="margin: 0 0 4px 0; color: white;">Add DB Binding</h4>
               <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Bind a Cloudflare D1 database named <code>DB</code> under the Pages project settings -> Functions -> D1 Database bindings.</p>
@@ -439,7 +529,7 @@
 
     <!-- Footer -->
     <footer>
-      <p>© 2026 FormForge. Proudly running on Cloudflare Workers & D1.</p>
+      <p>© 2026 FormForge. Proudly maintained and deployed by <a href="https://github.com/SudhirDevOps1" target="_blank">Sudhir</a>. Running on Cloudflare Workers & D1.</p>
     </footer>
   </div>
 
