@@ -344,7 +344,7 @@ function FormsTab() {
 
 function StatCard({ label, value, color = "text-white" }: { label: string; value: string; color?: string }) {
   return (
-    <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-white/[0.04] to-transparent px-4 py-4 text-center hover:border-white/10 transition-all duration-200">
+    <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-white/[0.04] to-transparent px-4 py-4 text-center hover-lift">
       <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
       <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-1">{label}</p>
     </div>
@@ -417,25 +417,45 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
 
   const [snippetTab, setSnippetTab] = useState<"html" | "js" | "react" | "python">("html");
   const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "newsletter">("plain");
+  const [snippetFields, setSnippetFields] = useState<string[]>(["email", "message"]);
+  const [newFieldName, setNewFieldName] = useState("");
+
+  const addSnippetField = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = newFieldName.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (clean && !snippetFields.includes(clean)) {
+      setSnippetFields([...snippetFields, clean]);
+      setNewFieldName("");
+    }
+  };
+
+  const removeSnippetField = (field: string) => {
+    setSnippetFields(snippetFields.filter(f => f !== field));
+  };
 
   const htmlSnippet = formTemplate === "plain"
     ? `<form method="POST" action="${endpoint}">
-  <input name="email" type="email" required />
-  <textarea name="message" required></textarea>
+${snippetFields.map(f => f === "message" || f === "comments" || f === "description" ? `  <textarea name="${f}" required placeholder="Your ${f}"></textarea>` : `  <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Your ${f}" />`).join("\n")}
   <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
   <button type="submit">Send</button>
 </form>`
     : formTemplate === "contact"
     ? `<!-- FormForge Contact Form (Tailwind CSS) -->
 <form method="POST" action="${endpoint}" class="max-w-md mx-auto p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 shadow-xl text-left">
-  <div>
-    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
-    <input name="email" type="email" required placeholder="you@example.com" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition" />
-  </div>
-  <div>
-    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Your Message</label>
-    <textarea name="message" required placeholder="Type your message here..." rows="4" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"></textarea>
-  </div>
+${snippetFields.map(f => {
+  const isTextarea = f === "message" || f === "comments" || f === "description";
+  const label = f.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  if (isTextarea) {
+    return `  <div>
+    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
+    <textarea name="${f}" required placeholder="Type your ${f} here..." rows="4" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"></textarea>
+  </div>`;
+  }
+  return `  <div>
+    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
+    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${f}" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition" />
+  </div>`;
+}).join("\n")}
   <!-- Honeypot Bot Trap -->
   <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
   <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-xl hover:from-cyan-400 hover:to-blue-500 transition-all">
@@ -461,7 +481,9 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   const jsSnippet = `fetch("${endpoint}", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ email: "hello@example.com", message: "Hi!" })
+  body: JSON.stringify({
+${snippetFields.map(f => `    ${f}: "your_${f}_value"`).join(",\n")}
+  })
 }).then(r => r.json()).then(console.log);`;
 
   const reactSnippet = `import { useState } from "react";
@@ -481,11 +503,16 @@ export default function ContactForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input type="email" name="email" required />
-      <textarea name="message" required></textarea>
-      <button type="submit">Send</button>
-      {status === "success" && <p>Sent!</p>}
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+${snippetFields.map(f => {
+  if (f === "message" || f === "comments" || f === "description") {
+    return `      <textarea name="${f}" required placeholder="${f}" className="border p-2 rounded w-full bg-slate-900 text-white" />`;
+  }
+  return `      <input type="${f === "email" ? "email" : "text"}" name="${f}" required placeholder="${f}" className="border p-2 rounded w-full bg-slate-900 text-white" />`;
+}).join("\n")}
+      <button type="submit" className="bg-sky-500 px-4 py-2 text-white font-bold rounded">Send</button>
+      {status === "success" && <p className="text-emerald-400 mt-2">Sent successfully!</p>}
+      {status === "failed" && <p className="text-rose-400 mt-2">Submission failed.</p>}
     </form>
   );
 }`;
@@ -494,8 +521,7 @@ export default function ContactForm() {
 
 url = "${endpoint}"
 data = {
-    "email": "user@example.com",
-    "message": "Hello from Python!"
+${snippetFields.map(f => `    "${f}": "value_here"`).join(",\n")}
 }
 
 response = requests.post(url, json=data)
@@ -525,7 +551,7 @@ print(response.json())`;
   const spam = subs.filter((s) => s.status === "spam").length;
 
   return (
-    <section className="glass-panel space-y-5 overflow-hidden rounded-3xl">
+    <section className="glass-panel space-y-5 overflow-hidden rounded-3xl animate-slide-up">
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-5">
         <div className="min-w-0">
@@ -558,6 +584,38 @@ print(response.json())`;
           <button onClick={() => copy(endpoint, "url")} className="shrink-0 text-xs text-cyan-300 hover:text-white min-h-[44px] min-w-[44px]">{copied === "url" ? "✓" : "Copy"}</button>
         </div>
         
+        {/* Dynamic Fields Embed Generator Selector */}
+        <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-4 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">🛠️ Form Fields Generator (Add/Remove Fields)</p>
+          <div className="flex flex-wrap gap-2 items-center">
+            {snippetFields.map(f => (
+              <span key={f} className="inline-flex items-center gap-1 rounded-lg bg-slate-950 border border-white/10 px-2 py-0.5 text-xs text-slate-200">
+                <span className="font-mono">{f}</span>
+                <button
+                  type="button"
+                  onClick={() => removeSnippetField(f)}
+                  className="text-slate-500 hover:text-rose-400 font-bold ml-1 text-sm leading-none min-h-[20px] min-w-[20px] flex items-center justify-center"
+                  title={`Remove ${f}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <form onSubmit={addSnippetField} className="flex gap-2 max-w-sm">
+            <input
+              required
+              placeholder="Add custom field (e.g. phone, name)"
+              value={newFieldName}
+              onChange={(e) => setNewFieldName(e.target.value)}
+              className="ff-input text-xs py-1.5 px-3 rounded-lg"
+            />
+            <button type="submit" className="rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-1.5 text-xs transition">
+              + Add Field
+            </button>
+          </form>
+        </div>
+
         {/* Code Snippet Tabs */}
         <div className="mt-5 space-y-3">
           <div className="flex flex-wrap gap-1.5 border-b border-white/5 pb-2">
@@ -979,13 +1037,13 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
                 setRetentionDays(Number(e.target.value));
               }
             }}
-            className="ff-input text-sm bg-slate-900"
+            className="ff-input text-sm bg-slate-900 text-white border border-white/10"
           >
-            <option value="0">Keep Forever (Never Delete)</option>
-            <option value="30">Auto-delete older than 30 Days</option>
-            <option value="60">Auto-delete older than 60 Days</option>
-            <option value="90">Auto-delete older than 90 Days</option>
-            <option value="custom">Custom Days...</option>
+            <option value="0" className="bg-slate-950 text-white">Keep Forever (Never Delete)</option>
+            <option value="30" className="bg-slate-950 text-white">Auto-delete older than 30 Days</option>
+            <option value="60" className="bg-slate-950 text-white">Auto-delete older than 60 Days</option>
+            <option value="90" className="bg-slate-950 text-white">Auto-delete older than 90 Days</option>
+            <option value="custom" className="bg-slate-950 text-white">Custom Days...</option>
           </select>
 
           {isCustom && (
@@ -1135,12 +1193,12 @@ function KeysTab() {
             id="create-key-expiry"
             value={expiresInDays}
             onChange={(e) => setExpiresInDays(e.target.value)}
-            className="ff-input text-sm bg-slate-900"
+            className="ff-input text-sm bg-slate-900 text-white border border-white/10"
           >
-            <option value="0">Never Expire</option>
-            <option value="30">30 Days</option>
-            <option value="90">90 Days</option>
-            <option value="365">365 Days</option>
+            <option value="0" className="bg-slate-950 text-white">Never Expire</option>
+            <option value="30" className="bg-slate-950 text-white">30 Days</option>
+            <option value="90" className="bg-slate-950 text-white">90 Days</option>
+            <option value="365" className="bg-slate-950 text-white">365 Days</option>
           </select>
         </div>
         <button disabled={busy} className="rounded-2xl bg-sky-500 px-5 py-3.5 text-sm font-bold text-white hover:bg-sky-400 transition disabled:opacity-60 min-h-[44px] shadow-lg shadow-sky-500/10">{busy ? "Creating…" : "Create key"}</button>
@@ -1208,8 +1266,9 @@ function SettingsTab({ user }: { user: User }) {
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <a href="/docs.html" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">📚 Full Documentation</a>
         <a href="/guide.html" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">📖 Hinglish Deploy Guide</a>
-        <a href="https://github.com/adrianak2026/FormForge" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">💻 GitHub Repository</a>
+        <a href="https://github.com/SudhirDevOps1/FormForge" target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">💻 GitHub Repository (Sudhir)</a>
         <a href="/api/health" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">🏥 Health Check API</a>
+        <a href="https://github.com/SudhirDevOps1" target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10 col-span-1 sm:col-span-2 text-center font-bold">👤 Developer Profile: Sudhir</a>
       </div>
     </section>
   );
