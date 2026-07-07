@@ -127,6 +127,21 @@ export async function ensureSchema(db: AppDb): Promise<void> {
       for (const statement of SCHEMA_STATEMENTS) {
         await db.run(sql.raw(statement));
       }
+      
+      // Dynamically add columns if database already exists
+      const alterStatements = [
+        `ALTER TABLE forms ADD COLUMN turnstile_enabled integer NOT NULL DEFAULT 0;`,
+        `ALTER TABLE forms ADD COLUMN turnstile_secret_key text;`,
+        `ALTER TABLE forms ADD COLUMN autoresponder_subject text;`,
+        `ALTER TABLE forms ADD COLUMN autoresponder_body text;`
+      ];
+      for (const stmt of alterStatements) {
+        try {
+          await db.run(sql.raw(stmt));
+        } catch (e) {
+          // Column might already exist, which is fine
+        }
+      }
     })().catch((error) => {
       guard.ready = null;
       throw error;

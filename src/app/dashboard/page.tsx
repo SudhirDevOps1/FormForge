@@ -17,6 +17,10 @@ type Form = {
   redirectUrl: string | null;
   submissionsCount: number;
   isActive: boolean;
+  turnstileEnabled: boolean;
+  turnstileSecretKey: string | null;
+  autoresponderSubject: string | null;
+  autoresponderBody: string | null;
   createdAt: string;
 };
 type Submission = {
@@ -336,11 +340,11 @@ function FormsTab() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, color = "text-white" }: { label: string; value: string; color?: string }) {
   return (
-    <div className="rounded-2xl bg-white/[0.04] px-3 py-3 text-center">
-      <p className="text-xl font-bold text-white">{value}</p>
-      <p className="text-[11px] text-slate-400">{label}</p>
+    <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-white/[0.04] to-transparent px-4 py-4 text-center hover:border-white/10 transition-all duration-200">
+      <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
+      <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-1">{label}</p>
     </div>
   );
 }
@@ -504,10 +508,10 @@ print(response.json())`;
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 px-5 sm:grid-cols-4">
-        <StatCard label="Total" value={String(form.submissionsCount)} />
-        <StatCard label="Accepted" value={String(accepted)} />
-        <StatCard label="Spam blocked" value={String(spam)} />
-        <StatCard label="Accept rate" value={subs.length > 0 ? `${Math.round((accepted / subs.length) * 100)}%` : "—"} />
+        <StatCard label="Total" value={String(form.submissionsCount)} color="text-sky-400" />
+        <StatCard label="Accepted" value={String(accepted)} color="text-emerald-400" />
+        <StatCard label="Spam blocked" value={String(spam)} color="text-amber-400" />
+        <StatCard label="Accept rate" value={subs.length > 0 ? `${Math.round((accepted / subs.length) * 100)}%` : "—"} color="text-purple-400" />
       </div>
 
       {/* Endpoint & Snippets */}
@@ -742,6 +746,7 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
 
 function SubmissionRow({ sub }: { sub: Submission }) {
   const [open, setOpen] = useState(false);
+  const [viewType, setViewType] = useState<"table" | "json">("table");
   
   let payload: Record<string, unknown> = {};
   try {
@@ -765,10 +770,52 @@ function SubmissionRow({ sub }: { sub: Submission }) {
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`shrink-0 text-slate-500 transition ${open ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6" /></svg>
       </button>
       {open && (
-        <div className="border-t border-white/10 px-4 py-3">
-          <pre className="overflow-x-auto text-xs leading-6 text-slate-300"><code>{JSON.stringify(payload, null, 2)}</code></pre>
-          {sub.referer && <p className="mt-2 text-xs text-slate-500">Referer: {sub.referer}</p>}
-          <p className="mt-1 text-xs text-slate-500">ID: {sub.id}</p>
+        <div className="border-t border-white/10 px-4 py-4 space-y-3">
+          {/* Tab Selector */}
+          <div className="flex gap-1.5 border-b border-white/5 pb-2">
+            <button
+              onClick={() => setViewType("table")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${viewType === "table" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
+            >
+              📋 Table View
+            </button>
+            <button
+              onClick={() => setViewType("json")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${viewType === "json" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
+            >
+              💻 Raw JSON
+            </button>
+          </div>
+
+          {viewType === "table" ? (
+            <div className="overflow-x-auto rounded-xl border border-white/5 bg-black/20 p-2">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-white/5 text-slate-400">
+                    <th className="py-2 px-3 font-semibold">Field</th>
+                    <th className="py-2 px-3 font-semibold">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(payload).map(([k, v]) => (
+                    <tr key={k} className="border-b border-white/5 last:border-0 hover:bg-white/[0.01]">
+                      <td className="py-2.5 px-3 font-bold text-sky-300 font-mono">{k}</td>
+                      <td className="py-2.5 px-3 text-slate-200 break-all select-all">{String(v)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <pre className="overflow-x-auto text-xs leading-6 text-slate-300 rounded-xl border border-white/5 bg-black/20 p-4">
+              <code>{JSON.stringify(payload, null, 2)}</code>
+            </pre>
+          )}
+
+          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-[10px] text-slate-500">
+            {sub.referer && <span>Referer: <a href={sub.referer} target="_blank" className="hover:underline text-slate-400">{sub.referer}</a></span>}
+            <span>ID: <code className="select-all">{sub.id}</code></span>
+          </div>
         </div>
       )}
     </div>
@@ -786,6 +833,10 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [webhookUrl, setWebhookUrl] = useState(form.webhookUrl ?? "");
   const [emailTo, setEmailTo] = useState(form.emailTo ?? "");
   const [notifyEmail, setNotifyEmail] = useState(form.notifyEmail);
+  const [turnstileEnabled, setTurnstileEnabled] = useState(form.turnstileEnabled ?? false);
+  const [turnstileSecretKey, setTurnstileSecretKey] = useState(form.turnstileSecretKey ?? "");
+  const [autoresponderSubject, setAutoresponderSubject] = useState(form.autoresponderSubject ?? "");
+  const [autoresponderBody, setAutoresponderBody] = useState(form.autoresponderBody ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -798,6 +849,10 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setWebhookUrl(form.webhookUrl ?? "");
     setEmailTo(form.emailTo ?? "");
     setNotifyEmail(form.notifyEmail);
+    setTurnstileEnabled(form.turnstileEnabled ?? false);
+    setTurnstileSecretKey(form.turnstileSecretKey ?? "");
+    setAutoresponderSubject(form.autoresponderSubject ?? "");
+    setAutoresponderBody(form.autoresponderBody ?? "");
   }, [form]);
 
   async function save(e: React.FormEvent) {
@@ -807,7 +862,20 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     try {
       const res = await fetch(`/api/forms/${form.id}`, {
         method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, allowedOrigins, honeypotField: honeypot, successMessage: successMsg, redirectUrl: redirectUrl || null, webhookUrl: webhookUrl || null, emailTo: emailTo || null, notifyEmail }),
+        body: JSON.stringify({
+          name,
+          allowedOrigins,
+          honeypotField: honeypot,
+          successMessage: successMsg,
+          redirectUrl: redirectUrl || null,
+          webhookUrl: webhookUrl || null,
+          emailTo: emailTo || null,
+          notifyEmail,
+          turnstileEnabled,
+          turnstileSecretKey: turnstileSecretKey || null,
+          autoresponderSubject: autoresponderSubject || null,
+          autoresponderBody: autoresponderBody || null
+        }),
       });
       const data = await res.json();
       if (data.ok) { setMsg("Saved ✓"); onSaved(); } else { setMsg(data.message ?? "Error"); }
@@ -815,41 +883,82 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   }
 
   return (
-    <form onSubmit={save} className="space-y-4">
-      <div>
-        <label htmlFor="settings-name" className="mb-1 block text-sm text-slate-400">Form name</label>
-        <input id="settings-name" required value={name} onChange={(e) => setName(e.target.value)} className="ff-input text-sm" />
+    <form onSubmit={save} className="space-y-6">
+      {/* Section 1: General Settings */}
+      <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
+        <h4 className="text-sm font-bold text-white flex items-center gap-2">📝 General Settings</h4>
+        <div>
+          <label htmlFor="settings-name" className="mb-1 block text-xs text-slate-400">Form name</label>
+          <input id="settings-name" required value={name} onChange={(e) => setName(e.target.value)} className="ff-input text-sm" />
+        </div>
+        <div>
+          <label htmlFor="settings-origins" className="mb-1 block text-xs text-slate-400">Allowed origins (* = any, or https://mysite.com)</label>
+          <input id="settings-origins" value={allowedOrigins} onChange={(e) => setAllowedOrigins(e.target.value)} className="ff-input text-sm" />
+        </div>
+        <div>
+          <label htmlFor="settings-success" className="mb-1 block text-xs text-slate-400">Success message (shown after submission)</label>
+          <input id="settings-success" value={successMsg} onChange={(e) => setSuccessMsg(e.target.value)} className="ff-input text-sm" />
+        </div>
+        <div>
+          <label htmlFor="settings-redirect" className="mb-1 block text-xs text-slate-400">Redirect URL after submit (optional)</label>
+          <input id="settings-redirect" value={redirectUrl} onChange={(e) => setRedirectUrl(e.target.value)} className="ff-input text-sm" placeholder="https://mysite.com/thanks" />
+        </div>
       </div>
-      <div>
-        <label htmlFor="settings-origins" className="mb-1 block text-sm text-slate-400">Allowed origins (* = any, or https://mysite.com)</label>
-        <input id="settings-origins" value={allowedOrigins} onChange={(e) => setAllowedOrigins(e.target.value)} className="ff-input text-sm" />
+
+      {/* Section 2: Spam & Security */}
+      <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
+        <h4 className="text-sm font-bold text-white flex items-center gap-2">🛡️ Spam & Security</h4>
+        <div>
+          <label htmlFor="settings-honeypot" className="mb-1 block text-xs text-slate-400">Honeypot field name (hidden trap for bots)</label>
+          <input id="settings-honeypot" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} className="ff-input text-sm" />
+        </div>
+        
+        <div className="border-t border-white/5 pt-4 space-y-3">
+          <label className="flex items-center gap-2 text-xs text-slate-300">
+            <input type="checkbox" checked={turnstileEnabled} onChange={() => setTurnstileEnabled(!turnstileEnabled)} className="h-4 w-4 rounded" />
+            Enable Cloudflare Turnstile Verification
+          </label>
+          {turnstileEnabled && (
+            <div>
+              <label htmlFor="settings-turnstile-secret" className="mb-1 block text-[10px] text-slate-400">Turnstile Secret Key</label>
+              <input id="settings-turnstile-secret" type="password" value={turnstileSecretKey} onChange={(e) => setTurnstileSecretKey(e.target.value)} className="ff-input text-sm" placeholder="0x4AAAAAA..." />
+            </div>
+          )}
+        </div>
       </div>
-      <div>
-        <label htmlFor="settings-honeypot" className="mb-1 block text-sm text-slate-400">Honeypot field name (hidden trap for bots)</label>
-        <input id="settings-honeypot" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} className="ff-input text-sm" />
+
+      {/* Section 3: Webhook & Integrations */}
+      <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
+        <h4 className="text-sm font-bold text-white flex items-center gap-2">💬 Notifications & Webhooks</h4>
+        <div>
+          <label htmlFor="settings-webhook" className="mb-1 block text-xs text-slate-400">Webhook URL (Slack / Discord auto-formatting supported)</label>
+          <input id="settings-webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="ff-input text-sm" placeholder="https://hooks.slack.com/... or discord.com/api/webhooks/..." />
+        </div>
+        <div>
+          <label htmlFor="settings-email" className="mb-1 block text-xs text-slate-400">Email notification address (optional)</label>
+          <input id="settings-email" type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="ff-input text-sm" placeholder="notify@example.com" />
+        </div>
+        <label className="flex items-center gap-2 text-xs text-slate-300">
+          <input type="checkbox" checked={notifyEmail} onChange={() => setNotifyEmail(!notifyEmail)} className="h-4 w-4 rounded" />
+          Enable email alerts (requires RESEND_API_KEY config)
+        </label>
       </div>
-      <div>
-        <label htmlFor="settings-success" className="mb-1 block text-sm text-slate-400">Success message (shown after submission)</label>
-        <input id="settings-success" value={successMsg} onChange={(e) => setSuccessMsg(e.target.value)} className="ff-input text-sm" />
+
+      {/* Section 4: Autoresponder */}
+      <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
+        <h4 className="text-sm font-bold text-white flex items-center gap-2">📧 Submitter Autoresponder</h4>
+        <div>
+          <label htmlFor="settings-auto-subject" className="mb-1 block text-xs text-slate-400">Email Subject</label>
+          <input id="settings-auto-subject" value={autoresponderSubject} onChange={(e) => setAutoresponderSubject(e.target.value)} className="ff-input text-sm" placeholder="Thank you for contacting us!" />
+        </div>
+        <div>
+          <label htmlFor="settings-auto-body" className="mb-1 block text-xs text-slate-400">Email Message (Use {`{field}`} e.g. {`{name}`} to customize body text)</label>
+          <textarea id="settings-auto-body" value={autoresponderBody} onChange={(e) => setAutoresponderBody(e.target.value)} rows={4} className="ff-input text-sm" placeholder="Hi {name},&#10;&#10;We received your message! We will get back to you soon." />
+        </div>
       </div>
-      <div>
-        <label htmlFor="settings-redirect" className="mb-1 block text-sm text-slate-400">Redirect URL after submit (optional)</label>
-        <input id="settings-redirect" value={redirectUrl} onChange={(e) => setRedirectUrl(e.target.value)} className="ff-input text-sm" placeholder="https://mysite.com/thanks" />
-      </div>
-      <div>
-        <label htmlFor="settings-webhook" className="mb-1 block text-sm text-slate-400">Webhook URL (optional — receives JSON POST)</label>
-        <input id="settings-webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="ff-input text-sm" placeholder="https://hooks.example.com/form" />
-      </div>
-      <div>
-        <label htmlFor="settings-email" className="mb-1 block text-sm text-slate-400">Email notification address (optional)</label>
-        <input id="settings-email" type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="ff-input text-sm" placeholder="notify@example.com" />
-      </div>
-      <label className="flex items-center gap-2 text-sm text-slate-300">
-        <input type="checkbox" checked={notifyEmail} onChange={() => setNotifyEmail(!notifyEmail)} className="h-4 w-4 rounded" />
-        Enable email notifications (requires RESEND_API_KEY)
-      </label>
-      {msg && <p className={`text-sm ${msg.includes("✓") ? "text-emerald-300" : "text-rose-300"}`}>{msg}</p>}
-      <button disabled={busy} className="rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 disabled:opacity-60 min-h-[44px]">{busy ? "Saving…" : "Save settings"}</button>
+
+      {msg && <p className={`text-sm ${msg.includes("✓") ? "text-emerald-400 font-semibold" : "text-rose-400"}`}>{msg}</p>}
+      <button disabled={busy} className="rounded-2xl bg-sky-500 px-6 py-4 font-bold text-white hover:bg-sky-400 transition disabled:opacity-60 min-h-[44px] shadow-lg shadow-sky-500/10">{busy ? "Saving…" : "Save settings"}</button>
     </form>
   );
 }

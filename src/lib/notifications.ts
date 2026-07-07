@@ -54,6 +54,32 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
     results.push({ channel: "email", status: "skipped" });
   }
 
+  // Autoresponder to Submitter
+  if (submission.email && form.autoresponderSubject && form.autoresponderBody && env.RESEND_API_KEY && env.RESEND_FROM) {
+    try {
+      let bodyText = form.autoresponderBody;
+      Object.entries(payload).forEach(([k, v]) => {
+        bodyText = bodyText.replace(new RegExp(`{${k}}`, "g"), String(v));
+      });
+
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM,
+          to: submission.email,
+          subject: form.autoresponderSubject,
+          text: bodyText,
+        }),
+      });
+    } catch (error) {
+      console.error("Autoresponder email delivery failed:", error);
+    }
+  }
+
   if (form.webhookUrl) {
     try {
       const { isPrivateUrl } = await import("./url-validation");
