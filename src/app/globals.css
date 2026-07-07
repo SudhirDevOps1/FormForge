@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
   color-scheme: dark;
@@ -10,10 +11,11 @@
 
 body {
   margin: 0;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.32), transparent 34rem),
-    radial-gradient(circle at top right, rgba(14, 165, 233, 0.24), transparent 30rem),
-    #020617;
+    radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.18), transparent 45rem),
+    radial-gradient(circle at 0% 100%, rgba(6, 182, 212, 0.08), transparent 40rem),
+    #030712;
 }
 
 ::selection {
@@ -22,43 +24,44 @@ body {
 }
 
 .glass-panel {
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.58));
-  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.38);
-  backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 17, 30, 0.65);
+  box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(24px);
 }
 
 .grid-mask {
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
-  background-size: 44px 44px;
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
   mask-image: linear-gradient(to bottom, black, transparent);
 }
 
 .ff-input {
   margin-top: 0.3rem;
   width: 100%;
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   padding: 0.75rem 1rem;
   color: #ffffff;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ff-input:focus-visible {
-  outline: 2px solid #67e8f9;
+  outline: 2px solid #38bdf8;
   outline-offset: 2px;
 }
 
 .ff-input:focus {
-  border-color: #67e8f9;
-  box-shadow: 0 0 0 1px #67e8f9;
+  border-color: #38bdf8;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
 }
 
 .ff-input::placeholder {
-  color: rgba(148, 163, 184, 0.5);
+  color: rgba(148, 163, 184, 0.4);
 }
 
 @media (prefers-reduced-motion: reduce) {

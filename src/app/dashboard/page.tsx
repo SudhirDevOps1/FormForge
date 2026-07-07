@@ -31,7 +31,11 @@ type Submission = {
 type ApiKey = { id: string; name: string; keyPrefix: string; scopes: string; createdAt: string };
 
 function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
+  let timeStr = iso;
+  if (iso && !iso.includes("Z") && !iso.includes("+") && !iso.includes("-")) {
+    timeStr = iso.replace(" ", "T") + "Z";
+  }
+  const diff = Date.now() - new Date(timeStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
@@ -39,12 +43,40 @@ function timeAgo(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(timeStr).toLocaleDateString();
 }
 
 function getEndpointBase() {
   if (typeof window !== "undefined") return window.location.origin;
   return "";
+}
+
+function CodeHighlight({ code, lang }: { code: string; lang: string }) {
+  let html = code;
+  if (lang === "html") {
+    html = code
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/(&lt;\/?\w+)/g, '<span class="text-sky-400">$1</span>')
+      .replace(/(\s\w+=)/g, '<span class="text-purple-300">$1</span>')
+      .replace(/(".*?")/g, '<span class="text-emerald-400">$1</span>');
+  } else if (lang === "js" || lang === "jsx") {
+    html = code
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\b(const|let|var|function|return|import|from|export|default|await|async|new|if|else)\b/g, '<span class="text-purple-400">$1</span>')
+      .replace(/\b(fetch|useState|JSON|stringify|FormData|console|log)\b/g, '<span class="text-sky-400">$1</span>')
+      .replace(/(".*?"|'.*?'|`.*?`)/g, '<span class="text-emerald-400">$1</span>');
+  } else if (lang === "python") {
+    html = code
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\b(import|from|print|def|return|if|else|elif)\b/g, '<span class="text-purple-400">$1</span>')
+      .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>');
+  }
+
+  return (
+    <pre className="overflow-x-auto rounded-xl bg-black/40 p-4 text-xs font-mono text-slate-300 border border-white/5 leading-relaxed">
+      <code dangerouslySetInnerHTML={{ __html: html }} />
+    </pre>
+  );
 }
 
 /* ─────────────────── Root ─────────────────── */
@@ -76,7 +108,7 @@ export default function DashboardPage() {
     <div className="min-h-screen">
       <DashHeader user={user} onLogout={() => setUser(null)} />
       <main className="mx-auto w-full max-w-7xl px-4 pb-24 sm:px-8">
-        <div role="tablist" aria-label="Dashboard sections" className="mb-6 flex flex-wrap gap-2">
+        <div role="tablist" aria-label="Dashboard sections" className="mb-6 flex flex-wrap gap-1.5 rounded-xl bg-white/[0.02] border border-white/5 p-1 max-w-max">
           {(["forms", "keys", "settings"] as const).map((t) => (
             <button
               key={t}
@@ -84,7 +116,7 @@ export default function DashboardPage() {
               aria-selected={tab === t}
               aria-controls={`tabpanel-${t}`}
               onClick={() => setTab(t)}
-              className={`rounded-2xl px-5 py-3 text-sm font-semibold capitalize transition ${tab === t ? "bg-cyan-300 text-slate-950" : "border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"}`}
+              className={`rounded-lg px-5 py-2.5 text-xs font-semibold capitalize tracking-wide transition-all duration-200 ${tab === t ? "bg-sky-500 text-white shadow-md shadow-sky-500/10" : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]"}`}
             >
               {t === "keys" ? "API Keys" : t}
             </button>
@@ -377,6 +409,8 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
     loadSubs();
   }, [loadSubs]);
 
+  const [snippetTab, setSnippetTab] = useState<"html" | "js" | "react" | "python">("html");
+
   const htmlSnippet = `<form method="POST" action="${endpoint}">
   <input name="email" type="email" required />
   <textarea name="message" required></textarea>
@@ -389,6 +423,43 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ email: "hello@example.com", message: "Hi!" })
 }).then(r => r.json()).then(console.log);`;
+
+  const reactSnippet = `import { useState } from "react";
+
+export default function ContactForm() {
+  const [status, setStatus] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus("submitting");
+    const res = await fetch("${endpoint}", {
+      method: "POST",
+      body: new FormData(e.target),
+    });
+    if (res.ok) setStatus("success");
+    else setStatus("failed");
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="email" name="email" required />
+      <textarea name="message" required></textarea>
+      <button type="submit">Send</button>
+      {status === "success" && <p>Sent!</p>}
+    </form>
+  );
+}`;
+
+  const pythonSnippet = `import requests
+
+url = "${endpoint}"
+data = {
+    "email": "user@example.com",
+    "message": "Hello from Python!"
+}
+
+response = requests.post(url, json=data)
+print(response.json())`;
 
   async function copy(text: string, label: string) {
     await navigator.clipboard.writeText(text);
@@ -439,16 +510,42 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
         <StatCard label="Accept rate" value={subs.length > 0 ? `${Math.round((accepted / subs.length) * 100)}%` : "—"} />
       </div>
 
-      {/* Endpoint */}
+      {/* Endpoint & Snippets */}
       <div className="px-5">
         <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Submission endpoint</p>
         <div className="flex items-center gap-2 rounded-xl bg-black/40 px-3 py-2">
           <code className="flex-1 break-all text-sm text-cyan-200">{endpoint}</code>
           <button onClick={() => copy(endpoint, "url")} className="shrink-0 text-xs text-cyan-300 hover:text-white min-h-[44px] min-w-[44px]">{copied === "url" ? "✓" : "Copy"}</button>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button onClick={() => copy(htmlSnippet, "html")} className="rounded-lg border border-white/10 px-4 py-3 text-xs hover:bg-white/10">{copied === "html" ? "✓ Copied" : "Copy HTML"}</button>
-          <button onClick={() => copy(jsSnippet, "js")} className="rounded-lg border border-white/10 px-4 py-3 text-xs hover:bg-white/10">{copied === "js" ? "✓ Copied" : "Copy JS fetch"}</button>
+        
+        {/* Code Snippet Tabs */}
+        <div className="mt-5 space-y-3">
+          <div className="flex flex-wrap gap-1.5 border-b border-white/5 pb-2">
+            {(["html", "js", "react", "python"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSnippetTab(tab)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase transition ${snippetTab === tab ? "bg-white/10 text-white border border-white/10" : "text-slate-400 hover:text-slate-200"}`}
+              >
+                {tab === "js" ? "JS Fetch" : tab}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            {snippetTab === "html" && <CodeHighlight code={htmlSnippet} lang="html" />}
+            {snippetTab === "js" && <CodeHighlight code={jsSnippet} lang="js" />}
+            {snippetTab === "react" && <CodeHighlight code={reactSnippet} lang="js" />}
+            {snippetTab === "python" && <CodeHighlight code={pythonSnippet} lang="python" />}
+            <button
+              onClick={() => {
+                const text = snippetTab === "html" ? htmlSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : pythonSnippet;
+                copy(text, "copy");
+              }}
+              className="absolute right-3 top-3 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10"
+            >
+              {copied === "copy" ? "✓ Copied" : "Copy"}
+            </button>
+          </div>
         </div>
       </div>
 
