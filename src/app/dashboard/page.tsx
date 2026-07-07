@@ -841,6 +841,8 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [autoresponderBody, setAutoresponderBody] = useState(form.autoresponderBody ?? "");
   const [spamBlocklist, setSpamBlocklist] = useState(form.spamBlocklist ?? "");
   const [retentionDays, setRetentionDays] = useState(form.retentionDays ?? 0);
+  const [customDays, setCustomDays] = useState((form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? form.retentionDays : 15);
+  const [isCustom, setIsCustom] = useState((form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -859,6 +861,11 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setAutoresponderBody(form.autoresponderBody ?? "");
     setSpamBlocklist(form.spamBlocklist ?? "");
     setRetentionDays(form.retentionDays ?? 0);
+    const custom = (form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false;
+    setIsCustom(custom);
+    if (custom) {
+      setCustomDays(form.retentionDays);
+    }
   }, [form]);
 
   async function save(e: React.FormEvent) {
@@ -882,7 +889,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           autoresponderSubject: autoresponderSubject || null,
           autoresponderBody: autoresponderBody || null,
           spamBlocklist: spamBlocklist || null,
-          retentionDays: Number(retentionDays)
+          retentionDays: isCustom ? Number(customDays) : Number(retentionDays)
         }),
       });
       const data = await res.json();
@@ -912,17 +919,42 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           <input id="settings-redirect" value={redirectUrl} onChange={(e) => setRedirectUrl(e.target.value)} className="ff-input text-sm" placeholder="https://mysite.com/thanks" />
         </div>
         <div>
-          <label htmlFor="settings-retention" className="mb-1 block text-xs text-slate-400">Data Retention Limit (Custom Days)</label>
-          <input
+          <label htmlFor="settings-retention" className="mb-1 block text-xs text-slate-400">Data Retention Limit</label>
+          <select
             id="settings-retention"
-            type="number"
-            min="0"
-            value={retentionDays === 0 ? "" : retentionDays}
-            onChange={(e) => setRetentionDays(e.target.value === "" ? 0 : Number(e.target.value))}
-            className="ff-input text-sm"
-            placeholder="0 or empty to keep forever (no auto-deletion)"
-          />
-          <p className="text-[10px] text-slate-500 mt-1">Specify after how many days submissions should be auto-deleted (e.g. 15, 45). Set to 0 or leave blank to disable.</p>
+            value={isCustom ? "custom" : retentionDays}
+            onChange={(e) => {
+              if (e.target.value === "custom") {
+                setIsCustom(true);
+              } else {
+                setIsCustom(false);
+                setRetentionDays(Number(e.target.value));
+              }
+            }}
+            className="ff-input text-sm bg-slate-900"
+          >
+            <option value="0">Keep Forever (Never Delete)</option>
+            <option value="30">Auto-delete older than 30 Days</option>
+            <option value="60">Auto-delete older than 60 Days</option>
+            <option value="90">Auto-delete older than 90 Days</option>
+            <option value="custom">Custom Days...</option>
+          </select>
+
+          {isCustom && (
+            <div className="mt-3">
+              <label htmlFor="settings-custom-retention" className="mb-1 block text-xs text-slate-400">Specify Custom Days</label>
+              <input
+                id="settings-custom-retention"
+                type="number"
+                min="1"
+                value={customDays}
+                onChange={(e) => setCustomDays(Number(e.target.value))}
+                className="ff-input text-sm"
+                placeholder="e.g. 15, 45, 120"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">Specify custom number of days before submissions are auto-deleted.</p>
+            </div>
+          )}
         </div>
       </div>
 
