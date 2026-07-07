@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { databaseUnavailableResponse, getDb, isDbReady } from "@/db";
 import { ensureSchema } from "@/db/ensure";
 import { forms, submissions, type Form, type NewSubmission } from "@/db/schema";
@@ -229,6 +229,17 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     await db.insert(submissions).values(submission);
     await db.update(forms).set({ submissionsCount: sql`${forms.submissionsCount} + 1`, updatedAt: new Date().toISOString() }).where(eq(forms.id, form.id));
+
+    // Data retention auto-purging
+    if (form.retentionDays && form.retentionDays > 0) {
+      const thresholdDate = new Date(Date.now() - form.retentionDays * 24 * 60 * 60 * 1000).toISOString();
+      await db.delete(submissions).where(
+        and(
+          eq(submissions.formId, form.id),
+          lt(submissions.createdAt, thresholdDate)
+        )
+      );
+    }
 
     if (status === "accepted") {
       await deliverNotifications(db, form, submission as typeof submissions.$inferSelect);

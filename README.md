@@ -121,6 +121,10 @@ Generate secure API keys to read forms and submissions programmatically.
 Delivers form notifications straight to your communications channels.
 * **Auto-format:** Simply input your Slack or Discord webhook URL. The backend automatically structures and styles the notification (as Slack blocks or Discord embedded cards) showing all submission details.
 
+### 6. 📅 Automatic Data Retention Purging
+Automatically keep your Cloudflare D1 database storage usage clean and compliant by purging submissions older than a specific retention period.
+* **Auto-Purge:** Set the retention limit per form (`30`, `60`, `90` days, or `Keep Forever`) in the General Settings. The backend automatically scans and deletes expired records for that form upon receiving new incoming submissions. Zero cron configuration is required.
+
 ---
 
 ## Tech Stack

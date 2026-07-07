@@ -22,6 +22,7 @@ type Form = {
   autoresponderSubject: string | null;
   autoresponderBody: string | null;
   spamBlocklist: string | null;
+  retentionDays: number;
   createdAt: string;
 };
 type Submission = {
@@ -839,6 +840,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [autoresponderSubject, setAutoresponderSubject] = useState(form.autoresponderSubject ?? "");
   const [autoresponderBody, setAutoresponderBody] = useState(form.autoresponderBody ?? "");
   const [spamBlocklist, setSpamBlocklist] = useState(form.spamBlocklist ?? "");
+  const [retentionDays, setRetentionDays] = useState(form.retentionDays ?? 0);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -856,6 +858,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setAutoresponderSubject(form.autoresponderSubject ?? "");
     setAutoresponderBody(form.autoresponderBody ?? "");
     setSpamBlocklist(form.spamBlocklist ?? "");
+    setRetentionDays(form.retentionDays ?? 0);
   }, [form]);
 
   async function save(e: React.FormEvent) {
@@ -878,7 +881,8 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           turnstileSecretKey: turnstileSecretKey || null,
           autoresponderSubject: autoresponderSubject || null,
           autoresponderBody: autoresponderBody || null,
-          spamBlocklist: spamBlocklist || null
+          spamBlocklist: spamBlocklist || null,
+          retentionDays: Number(retentionDays)
         }),
       });
       const data = await res.json();
@@ -906,6 +910,19 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         <div>
           <label htmlFor="settings-redirect" className="mb-1 block text-xs text-slate-400">Redirect URL after submit (optional)</label>
           <input id="settings-redirect" value={redirectUrl} onChange={(e) => setRedirectUrl(e.target.value)} className="ff-input text-sm" placeholder="https://mysite.com/thanks" />
+        </div>
+        <div>
+          <label htmlFor="settings-retention" className="mb-1 block text-xs text-slate-400">Data Retention Limit (Custom Days)</label>
+          <input
+            id="settings-retention"
+            type="number"
+            min="0"
+            value={retentionDays === 0 ? "" : retentionDays}
+            onChange={(e) => setRetentionDays(e.target.value === "" ? 0 : Number(e.target.value))}
+            className="ff-input text-sm"
+            placeholder="0 or empty to keep forever (no auto-deletion)"
+          />
+          <p className="text-[10px] text-slate-500 mt-1">Specify after how many days submissions should be auto-deleted (e.g. 15, 45). Set to 0 or leave blank to disable.</p>
         </div>
       </div>
 

@@ -85,3 +85,7 @@ The following custom features have been added to the production codebase:
 ### 🔑 API Key Expiration & Security
 * **Expiry Options:** API keys can be set to expire after `30`, `90`, `365` days, or `Never`.
 * **Mechanism:** The authentication middleware checks the `expiresAt` timestamp against current server time and rejects requests made using expired keys with `401 Unauthorized`.
+
+### 📅 Automatic Data Retention Purging
+* **Retention Options:** Forms can be configured to retain submissions for `30`, `60`, `90` days, or `Keep Forever` (default).
+* **Purge execution:** The purge operation runs in the background of incoming form submissions, automatically executing a SQLite deletion command `DELETE FROM submissions WHERE form_id = ? AND created_at < threshold` to delete outdated logs. This keeps your D1 usage within the free-tier storage limits (500MB) without requiring external cron setups.
