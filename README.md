@@ -97,6 +97,32 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 
 ---
 
+## 🛡️ Advanced Security & Premium Features
+
+FormForge includes advanced security mechanisms out-of-the-box that are typically behind paid enterprise tiers in commercial form backends:
+
+### 1. 🤖 Cloudflare Turnstile Verification
+Integrate Cloudflare's non-intrusive Turnstile CAPTCHA to verify that submitters are human. Turnstile uses silent JavaScript challenges to stop bots without disrupting user experience.
+* **Setup:** Obtain `Site Key` and `Secret Key` from the Cloudflare Turnstile dashboard. Save the secret key in the form settings dashboard, and add the public Turnstile widget snippet to your HTML frontend.
+
+### 2. 📧 Custom Submitter Autoresponder
+Automatically deliver structured, personalized emails to users immediately after they submit a form.
+* **Dynamic Variables:** Draft your message template using `{curly_braces}` matching form fields (e.g. `Hi {name}, thank you for writing to us about {message}!`). The backend dynamically compiles and replaces these values on submission.
+
+### 3. 🚫 Custom Spam Words Blocklist
+Filter incoming payloads against a blacklist of forbidden keywords (e.g., `crypto`, `casino`, `free money`).
+* **Enforcement:** Enter comma-separated keywords in the form's spam settings. Any submission containing these words in any field is flagged with `+100` spam score and blocked.
+
+### 4. 🔑 API Key Expiration & Security
+Generate secure API keys to read forms and submissions programmatically.
+* **Safety:** Set expiration parameters (`30`, `90`, `365` days, or `Never`). The Cloudflare Worker validation layer rejects requests made using expired keys with `401 Unauthorized`.
+
+### 5. 💬 Slack & Discord Auto-Formatting Webhooks
+Delivers form notifications straight to your communications channels.
+* **Auto-format:** Simply input your Slack or Discord webhook URL. The backend automatically structures and styles the notification (as Slack blocks or Discord embedded cards) showing all submission details.
+
+---
+
 ## Tech Stack
 
 - **Next.js 16 App Router** + **React 19**
