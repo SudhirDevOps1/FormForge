@@ -1138,7 +1138,14 @@ function KeysTab() {
   const [name, setName] = useState("");
   const [expiresInDays, setExpiresInDays] = useState("0");
   const [created, setCreated] = useState("");
+  const [keyCopied, setKeyCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const copyKey = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    setKeyCopied(true);
+    setTimeout(() => setKeyCopied(false), 2000);
+  };
 
   const load = useCallback(async () => {
     const res = await fetch("/api/api-keys", { credentials: "include" });
@@ -1205,9 +1212,46 @@ function KeysTab() {
       </form>
 
       {created && (
-        <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
-          <p className="text-sm font-semibold text-amber-200">⚠️ Copy this key now — it will NOT be shown again:</p>
-          <code className="mt-2 block break-all rounded-xl bg-black/40 px-3 py-2 text-sm text-amber-100">{created}</code>
+        <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-5 space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-amber-200">⚠️ Copy this key now — it will NOT be shown again:</p>
+            <div className="mt-2 flex items-center gap-2 rounded-xl bg-black/40 px-3 py-2">
+              <code className="flex-1 break-all text-sm text-amber-100">{created}</code>
+              <button
+                onClick={() => copyKey(created)}
+                className="shrink-0 text-xs rounded-lg bg-amber-500/20 border border-amber-300/30 px-3 py-2 text-amber-200 hover:bg-amber-500/30 transition min-h-[44px]"
+              >
+                {keyCopied ? "✓ Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-white/10 pt-4 space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">📖 API Integration Guide</h4>
+            <p className="text-xs text-slate-300 leading-5">To retrieve form submissions programmatically, send a <code>GET</code> request to the endpoint below. Make sure to authenticate by sending your API Key inside the <code>Authorization</code> header.</p>
+            
+            <div className="space-y-1">
+              <span className="block text-[10px] text-slate-500 font-semibold uppercase">API Endpoint</span>
+              <code className="block break-all text-xs bg-slate-950 p-2 rounded-lg text-cyan-300">
+                GET {typeof window !== "undefined" ? window.location.origin : ""}/api/forms/<span className="text-amber-300 font-bold">YOUR_FORM_ID</span>/submissions
+              </code>
+            </div>
+
+            <div className="space-y-1">
+              <span className="block text-[10px] text-slate-500 font-semibold uppercase">Request Headers</span>
+              <pre className="text-[11px] bg-slate-950 p-2.5 rounded-lg text-slate-300 font-mono">
+                Authorization: Bearer &lt;your_api_key&gt;
+              </pre>
+            </div>
+
+            <div className="space-y-1">
+              <span className="block text-[10px] text-slate-500 font-semibold uppercase">Example Curl Command</span>
+              <pre className="text-[11px] bg-slate-950 p-2.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all">
+                curl -H "Authorization: Bearer {created}" \<br />
+                &nbsp;&nbsp;{typeof window !== "undefined" ? window.location.origin : ""}/api/forms/YOUR_FORM_ID/submissions
+              </pre>
+            </div>
+          </div>
         </div>
       )}
 
