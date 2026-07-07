@@ -29,7 +29,7 @@ Deploy your own serverless form backend in seconds - as easy as signing up for a
 
 <div align="center">
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/adrianak2026/FormForge)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge)
 
 </div>
 
@@ -97,7 +97,7 @@ If you prefer to set up manually instead of using the one-click button:
 
 ```bash
 # 1. Clone & install
-git clone https://github.com/adrianak2026/FormForge.git
+git clone https://github.com/SudhirDevOps1/FormForge.git
 cd my-form
 npm install
 

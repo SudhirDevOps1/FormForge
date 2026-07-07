@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   
   // Import checkRateLimit dynamically
   const { checkRateLimit, rateLimitResponse } = await import("@/lib/rate-limit");
-  const limitRes = await checkRateLimit(db, `register:${ip}`, 3, 3600); // 3 per hour
+  const limitRes = await checkRateLimit(db, `register:${ip}`, 30, 60); // 30 per minute (prevent block during DB setup)
   if (!limitRes.allowed) {
     return rateLimitResponse(limitRes.resetAt);
   }
