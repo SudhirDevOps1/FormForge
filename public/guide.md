@@ -23,7 +23,7 @@
 
 ### Step 1: Deploy Button Click Karo
 
-👉 [**Deploy to Cloudflare**](https://deploy.workers.cloudflare.com/?url=https://github.com/adrianak2026/FormForge)
+👉 [**Deploy to Cloudflare**](https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge)
 
 ### Step 2: Cloudflare mein Sign In
 
@@ -116,7 +116,7 @@ Dashboard mein "Copy HTML" ya "Copy JS fetch" click karo. Example:
 ### Step 1: Clone + Install
 
 ```bash
-git clone https://github.com/adrianak2026/FormForge.git
+git clone https://github.com/SudhirDevOps1/FormForge.git
 cd FormForge
 npm install
 ```
@@ -298,7 +298,7 @@ Naya version aaye to:
 
 1. Cloudflare Dashboard mein current Worker rename karo: `formforge-backup`
 2. GitHub pe purani fork repository delete karo
-3. Dobara [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/adrianak2026/FormForge) click karo
+3. Dobara [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge) click karo
 4. **Same database name** use karo → existing data preserved!
 5. Naya `AUTH_SECRET` dalo → dobara login karna hoga lekin data safe hai
 6. Confirm karke backup Worker delete karo
@@ -346,7 +346,7 @@ A: Haan! Cloudflare Dashboard → Worker → Custom Domains → apna domain add 
 
 ## 📞 Support
 
-- **Issues:** [github.com/adrianak2026/FormForge/issues](https://github.com/adrianak2026/FormForge/issues)
+- **Issues:** [github.com/SudhirDevOps1/FormForge/issues](https://github.com/SudhirDevOps1/FormForge/issues)
 - **Docs:** `/docs.html` (English)
 - **Guide:** `/guide.html` (Hinglish — ye file)
 
