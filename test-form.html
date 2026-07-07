@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FormForge — Test Form</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top, #1e1b4b, #030712);
+      color: #f3f4f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(13, 17, 30, 0.7);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    h2 {
+      margin-top: 0;
+      color: #38bdf8;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #9ca3af;
+    }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #38bdf8;
+      border: none;
+      color: #030712;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #0ea5e9;
+    }
+    .endpoint {
+      font-size: 11px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 8px;
+      border-radius: 6px;
+      word-break: break-all;
+      color: #38bdf8;
+      font-family: monospace;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>FormForge Test Form</h2>
+    <p style="font-size: 13px; color: #9ca3af; margin-bottom: 12px;">Submitting to your live Cloudflare Worker:</p>
+    <div class="endpoint">https://apnaform.sudhirdevops1.workers.dev/api/submit/endpoint_usDC3ewgFFhwNh_Bb8F4fjic</div>
+
+    <form method="POST" action="https://apnaform.sudhirdevops1.workers.dev/api/submit/endpoint_usDC3ewgFFhwNh_Bb8F4fjic">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" placeholder="test@example.com" required>
+      </div>
+
+      <div class="form-group">
+        <label for="message">Message</label>
+        <textarea id="message" name="message" rows="4" placeholder="Hello, FormForge is awesome!" required></textarea>
+      </div>
+
+      <!-- Honeypot trap field (hidden from users, bot protection) -->
+      <input type="text" name="website" autocomplete="off" style="display:none !important" tabindex="-1">
+
+      <button type="submit">Send Message</button>
+    </form>
+  </div>
+
+</body>
+</html>
