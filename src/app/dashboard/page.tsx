@@ -671,30 +671,32 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
         {data.timeline.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-6">No data available for timeline.</p>
         ) : (
-          <div className="flex h-48 items-end gap-3 pt-6">
-            {timelineDates.map((date: any) => {
-              const accepted = data.timeline.find((t: any) => t.date === date && t.status === "accepted")?.count ?? 0;
-              const spam = data.timeline.find((t: any) => t.date === date && t.status === "spam")?.count ?? 0;
-              const total = accepted + spam;
-              const acceptedHeight = (accepted / maxVal) * 100;
-              const spamHeight = (spam / maxVal) * 100;
+          <div className="overflow-x-auto pb-2">
+            <div className="flex h-48 items-end gap-3 pt-6 min-w-[500px] md:min-w-full">
+              {timelineDates.map((date: any) => {
+                const accepted = data.timeline.find((t: any) => t.date === date && t.status === "accepted")?.count ?? 0;
+                const spam = data.timeline.find((t: any) => t.date === date && t.status === "spam")?.count ?? 0;
+                const total = accepted + spam;
+                const acceptedHeight = (accepted / maxVal) * 100;
+                const spamHeight = (spam / maxVal) * 100;
 
-              return (
-                <div key={date} className="group relative flex flex-1 flex-col items-center gap-1">
-                  <div className="relative w-full flex flex-col justify-end h-36 bg-white/[0.03] rounded-t-lg overflow-hidden">
-                    <div style={{ height: `${acceptedHeight}%` }} className="w-full bg-cyan-400" title={`Accepted: ${accepted}`} />
-                    <div style={{ height: `${spamHeight}%` }} className="w-full bg-amber-400" title={`Spam: ${spam}`} />
+                return (
+                  <div key={date} className="group relative flex flex-1 flex-col items-center gap-1">
+                    <div className="relative w-full flex flex-col justify-end h-36 bg-white/[0.03] rounded-t-lg overflow-hidden">
+                      <div style={{ height: `${acceptedHeight}%` }} className="w-full bg-cyan-400" title={`Accepted: ${accepted}`} />
+                      <div style={{ height: `${spamHeight}%` }} className="w-full bg-amber-400" title={`Spam: ${spam}`} />
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1">{date.slice(5)}</span>
+                    {/* Tooltip */}
+                    <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg bg-slate-950 border border-white/10 p-2 text-xs text-white group-hover:block z-10">
+                      <p className="font-semibold">{date}</p>
+                      <p className="text-cyan-300">Accepted: {accepted}</p>
+                      <p className="text-amber-300">Spam: {spam}</p>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-slate-500 mt-1">{date.slice(5)}</span>
-                  {/* Tooltip */}
-                  <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg bg-slate-950 border border-white/10 p-2 text-xs text-white group-hover:block z-10">
-                    <p className="font-semibold">{date}</p>
-                    <p className="text-cyan-300">Accepted: {accepted}</p>
-                    <p className="text-amber-300">Spam: {spam}</p>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

@@ -48,7 +48,28 @@ The `build-cf.js` script was custom-created to act as an intelligent compile wra
 1. **Prevents Infinite Build Loops:**
    * Normally, setting `package.json` build command to OpenNext and wrangler's build command to `npm run build` triggers a circular loop where OpenNext calls the package manager build, which calls OpenNext again.
    * `build-cf.js` uses the environment variable `IN_OPEN_NEXT === 'true'` to detect the build phase. It runs standard `next build` if inside OpenNext, and `opennextjs-cloudflare build` if triggered by the outer deployment process, successfully breaking the cycle.
-2. **Allows Out-of-the-Box Cloudflare CI Builds:**
-   * It allows the project to be built on Cloudflare CI without changing the default "Build command" (`npm run build`) in the Cloudflare dashboard GUI.
-3. **No Wrangler Configuration Conflicts:**
-   * It compiles the project into the correct `.open-next/` directory structure before Wrangler uploads the assets, eliminating the `"Could not find compiled Open Next config"` error.
+## 5. Added Features & Enhancements
+
+The following custom features have been added to the production codebase:
+
+### 📊 In-App Submissions Analytics
+* **Dashboard Tab:** Accessible via the "Analytics" tab for each form.
+* **Timeline Chart:** A scrollable HTML Bar Chart displaying the daily trend of accepted versus spam submissions over the last 30 days.
+* **Aggregated Insights:** Detects and lists the **Top Referrer Sites** (which page the form was submitted from) and the **Top Submitter Emails** (most frequent users).
+
+### 💬 Slack & Discord Auto-Webhook Formatting
+* **Zero Configuration:** Simply input a standard Slack or Discord webhook URL into the "Webhook URL" field under Form Settings.
+* **Auto-Formatting:** The notification handler automatically checks the URL pattern:
+  * **Slack:** Formats submissions into beautiful Slack Blocks showing structured fields instead of raw JSON.
+  * **Discord:** Formats submissions into rich Discord Embed fields with cyan borders and clear submitter metadata.
+
+### 💻 Code Snippet Integration & Highlighting
+* **Syntax Highlighting:** A custom lightweight CSS parser Highlights HTML, JavaScript, JSX, and Python syntax.
+* **Available Snippets:** Includes copyable, live examples for:
+  * **HTML Form** (with honeypot fields).
+  * **JS Fetch API**.
+  * **React Component** (with full state hooks).
+  * **Python requests** script.
+
+### ⏱️ Timezone & Creation Fixes
+* **UTC Synchronization:** Fixes the timezone discrepancy where forms immediately displayed "Created 5 hours ago" due to the local client browser offset. Now displays local relative time correctly.
