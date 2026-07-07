@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FormForge — Open-Source Privacy-First Form Backend</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #030712;
+      --card-bg: rgba(13, 17, 30, 0.7);
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+    body {
+      margin: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-color);
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), transparent 50rem),
+        radial-gradient(circle at 0% 100%, rgba(6, 182, 212, 0.08), transparent 40rem);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 80px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 20px;
+      color: white;
+      text-decoration: none;
+    }
+    .logo img {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-left: 24px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: white;
+    }
+    .hero {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto 100px auto;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 48px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin: 0 0 20px 0;
+      color: white;
+    }
+    h1 span {
+      background: linear-gradient(135deg, #60a5fa, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 18px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background: var(--accent);
+      color: var(--bg-color);
+      font-weight: 700;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 15px;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      border: 1px solid var(--border);
+      margin-left: 12px;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+    }
+    
+    /* Layout grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 40px;
+      margin-bottom: 100px;
+    }
+    @media (min-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    
+    /* Card design */
+    .card {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 32px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    .card h3 {
+      font-size: 20px;
+      margin-top: 0;
+      color: white;
+      margin-bottom: 16px;
+    }
+    
+    /* Interactive Playground styling */
+    .playground h2 {
+      margin-top: 0;
+      text-align: center;
+      color: white;
+      font-size: 24px;
+      margin-bottom: 24px;
+    }
+    .setup-box {
+      border: 1px dashed rgba(56, 189, 248, 0.3);
+      background: rgba(56, 189, 248, 0.03);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+    }
+    .status-box {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+      border: 1px solid transparent;
+    }
+    .status-box.success {
+      display: block;
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+    .status-box.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    /* Comparison Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      font-weight: 700;
+      color: white;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.01);
+    }
+    .tick {
+      color: #34d399;
+      font-weight: bold;
+    }
+    .cross {
+      color: #f87171;
+      font-weight: bold;
+    }
+    
+    /* Footer */
+    footer {
+      text-align: center;
+      padding-top: 60px;
+      border-t: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <a href="#" class="logo">
+        <span style="color: var(--accent);">✦</span> FormForge
+      </a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#playground">Playground</a>
+        <a href="#comparison">Why FormForge?</a>
+        <a href="#deploy">Deploy</a>
+      </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <span class="badge">100% Free & Open Source</span>
+      <h1>Self-Hosted Form Backend for <span>Cloudflare Workers & D1</span></h1>
+      <p>A privacy-first form backend for static websites. Deploy in seconds on Cloudflare's free tier with unlimited forms, built-in analytics, and automated Discord/Slack notifications.</p>
+      <div>
+        <a href="#playground" class="btn">Try Live Playground</a>
+        <a href="#deploy" class="btn btn-secondary">Get Setup Guide</a>
+      </div>
+    </section>
+
+    <!-- Playground Section -->
+    <section id="playground" class="grid grid-2" style="margin-bottom: 120px;">
+      <div style="display: flex; flex-direction: column; justify-content: center;">
+        <span class="badge" style="max-width: max-content;">Live Simulator</span>
+        <h2 style="font-size: 32px; font-weight: 800; color: white; margin-top: 0;">Interactive Playground</h2>
+        <p style="color: var(--text-muted); margin-bottom: 24px;">Test your FormForge worker locally right now. Simply paste your live Cloudflare Worker URL, fill in the form fields, and click send. Our simulator sends a real AJAX request to your endpoint and renders the exact server response below.</p>
+        <div style="font-size: 13px; color: var(--text-muted);">
+          <p>🔒 <strong>No credentials stored:</strong> Your endpoint URL is processed entirely in your local browser and is never saved or transmitted anywhere else.</p>
+        </div>
+      </div>
+
+      <div class="card playground">
+        <h2>Submit Test Form</h2>
+        
+        <div class="setup-box">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="endpoint-url">⚙️ Paste Your Live Endpoint URL</label>
+            <input type="text" id="endpoint-url" placeholder="https://your-domain.workers.dev/api/submit/endpoint_...">
+          </div>
+        </div>
+
+        <form id="playground-form">
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" placeholder="visitor@example.com" required>
+          </div>
+          <div class="form-group">
+            <label for="message">Message Body</label>
+            <textarea id="message" name="message" rows="4" placeholder="Hello! I am testing the Cloudflare Worker backend." required></textarea>
+          </div>
+          <input type="text" name="website" autocomplete="off" style="display:none !important" tabindex="-1">
+          <button type="submit" id="submit-btn">Send Test Submission</button>
+        </form>
+
+        <div id="status" class="status-box"></div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" style="margin-bottom: 120px;">
+      <div style="text-align: center; margin-bottom: 60px;">
+        <span class="badge">Robust & Modern</span>
+        <h2 style="font-size: 36px; font-weight: 800; color: white; margin: 0 0 16px 0;">Advanced Out-of-the-Box Features</h2>
+        <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto;">No compromises. FormForge includes premium features typically locked behind subscription tiers.</p>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <div style="font-size: 28px; margin-bottom: 16px;">📊</div>
+          <h3>In-App Analytics</h3>
+          <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Visualize submission trends, accepted/spam ratios, top referring domains, and most active submitter emails in a beautiful dashboard.</p>
+        </div>
+        <div class="card">
+          <div style="font-size: 28px; margin-bottom: 16px;">💬</div>
+          <h3>Discord & Slack Auto-Webhooks</h3>
+          <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Save webhooks directly. The backend automatically detects Slack/Discord URLs and delivers rich visual notifications, not ugly raw JSON.</p>
+        </div>
+        <div class="card">
+          <div style="font-size: 28px; margin-bottom: 16px;">🛡️</div>
+          <h3>Turnstile & Bot Protection</h3>
+          <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Uses non-intrusive honeypot fields, IP-rate limits, and optional Cloudflare Turnstile integration to guarantee 100% spam-free submissions.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparison Section -->
+    <section id="comparison" style="margin-bottom: 120px;">
+      <div style="text-align: center; margin-bottom: 60px;">
+        <span class="badge">Pricing Comparison</span>
+        <h2 style="font-size: 36px; font-weight: 800; color: white; margin: 0 0 16px 0;">How FormForge Compares</h2>
+        <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto;">Stop paying $15+/month for basic form endpoints. Get enterprise power on Cloudflare's generous free tier.</p>
+      </div>
+
+      <div class="card" style="padding: 0; overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Formspree (Free)</th>
+              <th>Neon / Supabase (Free)</th>
+              <th style="color: var(--accent);">FormForge (Free Tier)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Monthly Cost</strong></td>
+              <td>$0 (Limited features)</td>
+              <td>$0 (Database pauses after inactivity)</td>
+              <td style="color: var(--accent); font-weight: bold;">$0 (Forever active)</td>
+            </tr>
+            <tr>
+              <td><strong>Daily Submissions</strong></td>
+              <td>Up to 50 / month</td>
+              <td>Database rate limits apply</td>
+              <td style="color: #34d399; font-weight: bold;">100,000 writes / day (Free)</td>
+            </tr>
+            <tr>
+              <td><strong>Allowed Forms</strong></td>
+              <td>1 Form</td>
+              <td>Unlimited</td>
+              <td style="color: #34d399; font-weight: bold;">Unlimited</td>
+            </tr>
+            <tr>
+              <td><strong>Built-in Analytics</strong></td>
+              <td><span class="cross">✗</span> No</td>
+              <td><span class="cross">✗</span> Must build your own</td>
+              <td><span class="tick">✓</span> Yes (Interactive Graphs)</td>
+            </tr>
+            <tr>
+              <td><strong>Discord/Slack Alerts</strong></td>
+              <td><span class="cross">✗</span> Paid tier only</td>
+              <td><span class="cross">✗</span> Custom triggers needed</td>
+              <td><span class="tick">✓</span> Yes (Instant auto-format)</td>
+            </tr>
+            <tr>
+              <td><strong>Spam Rate Limits</strong></td>
+              <td>Basic</td>
+              <td>Custom coding required</td>
+              <td><span class="tick">✓</span> Configurable IP limiters</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Deploy Section -->
+    <section id="deploy" style="margin-bottom: 80px;">
+      <div class="card" style="background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), rgba(0, 0, 0, 0)); border-color: rgba(56, 189, 248, 0.2);">
+        <h2 style="font-size: 28px; font-weight: 800; color: white; margin-top: 0; margin-bottom: 24px;">🚀 Ready to Deploy to Cloudflare Pages?</h2>
+        <div style="margin-bottom: 30px; display: grid; gap: 20px;">
+          <div style="display: flex; gap: 16px;">
+            <div style="background: rgba(56, 189, 248, 0.1); color: var(--accent); width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">1</div>
+            <div>
+              <h4 style="margin: 0 0 4px 0; color: white;">Connect GitHub</h4>
+              <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Go to Cloudflare Dashboard Workers & Pages -> Click Connect to Git and authorize the repository.</p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 16px;">
+            <div style="background: rgba(56, 189, 248, 0.1); color: var(--accent); width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">2</div>
+            <div>
+              <h4 style="margin: 0 0 4px 0; color: white;">Configure Build Settings</h4>
+              <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Select <strong>Next.js</strong> framework preset. The build command will auto-run our custom <code>build-cf.js</code> loop protection script safely.</p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 16px;">
+            <div style="background: rgba(56, 189, 248, 0.1); color: var(--accent); width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">3</div>
+            <div>
+              <h4 style="margin: 0 0 4px 0; color: white;">Add DB Binding</h4>
+              <p style="margin: 0; font-size: 14px; color: var(--text-muted);">Bind a Cloudflare D1 database named <code>DB</code> under the Pages project settings -> Functions -> D1 Database bindings.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>© 2026 FormForge. Proudly running on Cloudflare Workers & D1.</p>
+    </footer>
+  </div>
+
+  <script>
+    const form = document.getElementById('playground-form');
+    const endpointInput = document.getElementById('endpoint-url');
+    const statusBox = document.getElementById('status');
+    const submitBtn = document.getElementById('submit-btn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const endpoint = endpointInput.value.trim();
+      if (!endpoint) {
+        statusBox.className = 'status-box error';
+        statusBox.textContent = '❌ Please enter your Submission Endpoint URL first.';
+        statusBox.style.display = 'block';
+        return;
+      }
+
+      statusBox.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending...';
+
+      try {
+        const formData = new FormData(form);
+        const payload = {};
+        formData.forEach((value, key) => {
+          payload[key] = value;
+        });
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        
+        if (res.ok && data.ok) {
+          statusBox.className = 'status-box success';
+          statusBox.innerHTML = `<strong>✓ Success!</strong><br>Submission received: ${data.message || 'Accepted'}<br>ID: ${data.submissionId}`;
+        } else {
+          statusBox.className = 'status-box error';
+          statusBox.innerHTML = `<strong>❌ Error (${res.status})</strong><br>${data.message || 'Failed to submit form.'}`;
+        }
+      } catch (err) {
+        statusBox.className = 'status-box error';
+        statusBox.innerHTML = `<strong>⚠️ Network Error</strong><br>Could not reach the server. Make sure the Endpoint URL is correct and CORS is allowed.`;
+      } finally {
+        statusBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Test Submission';
+      }
+    });
+  </script>
+
+</body>
+</html>
