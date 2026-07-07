@@ -97,6 +97,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     turnstileSecretKey: readString(body.turnstileSecretKey, result.form.turnstileSecretKey ?? "") || null,
     autoresponderSubject: readString(body.autoresponderSubject, result.form.autoresponderSubject ?? "") || null,
     autoresponderBody: readString(body.autoresponderBody, result.form.autoresponderBody ?? "") || null,
+    spamBlocklist: readString(body.spamBlocklist, result.form.spamBlocklist ?? "") || null,
     updatedAt: new Date().toISOString(),
   };
 

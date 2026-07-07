@@ -133,7 +133,9 @@ export async function ensureSchema(db: AppDb): Promise<void> {
         `ALTER TABLE forms ADD COLUMN turnstile_enabled integer NOT NULL DEFAULT 0;`,
         `ALTER TABLE forms ADD COLUMN turnstile_secret_key text;`,
         `ALTER TABLE forms ADD COLUMN autoresponder_subject text;`,
-        `ALTER TABLE forms ADD COLUMN autoresponder_body text;`
+        `ALTER TABLE forms ADD COLUMN autoresponder_body text;`,
+        `ALTER TABLE forms ADD COLUMN spam_blocklist text;`,
+        `ALTER TABLE api_keys ADD COLUMN expires_at text;`
       ];
       for (const stmt of alterStatements) {
         try {

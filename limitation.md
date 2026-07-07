@@ -73,3 +73,15 @@ The following custom features have been added to the production codebase:
 
 ### ⏱️ Timezone & Creation Fixes
 * **UTC Synchronization:** Fixes the timezone discrepancy where forms immediately displayed "Created 5 hours ago" due to the local client browser offset. Now displays local relative time correctly.
+
+### 🛡️ Custom Spam Words Blocklist
+* **Mechanism:** Add comma-separated keywords (e.g. `crypto`, `casino`, `viagra`) in the Form Settings.
+* **Score Impact:** Any incoming submission containing any matching blocklisted words anywhere in the payload keys or values will have its spam score increased by `+100` and flagged as spam.
+
+### 🤖 Cloudflare Turnstile Verification
+* **Mechanism:** Integrate Turnstile keys in the form settings dashboard. Turnstile verification prevents bot spam without requiring users to solve frustrating puzzles.
+* **Error Handling:** Failed token validations or missing headers during Turnstile validation will reject submissions.
+
+### 🔑 API Key Expiration & Security
+* **Expiry Options:** API keys can be set to expire after `30`, `90`, `365` days, or `Never`.
+* **Mechanism:** The authentication middleware checks the `expiresAt` timestamp against current server time and rejects requests made using expired keys with `401 Unauthorized`.

@@ -83,14 +83,16 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 - Create unlimited forms and private endpoints.
 - D1-backed users, sessions, forms, fields, submissions, API keys, notifications, rate limits, and audit logs.
 - Submission listing and CSV export.
-- Honeypot spam trap.
+- Honeypot spam trap & configurable custom spam word blocklists.
+- Optional Cloudflare Turnstile verification integration.
+- Submitter autoresponder email dispatch.
 - Origin allowlist for browser submissions.
 - Optional proof-of-work validation.
-- Optional webhook notifications.
-- Optional Resend-compatible email notifications.
-- Secure cookies, HMAC-hashed sessions/API keys, PBKDF2 password hashes.
-- **Self-healing schema** — tables are created automatically on first request (no manual migration step for one-click deploy).
-- **Real dashboard** at `/dashboard`: register/login, create forms, view submissions, copy HTML snippets, export CSV, manage API keys, pagination, and revoke API keys.
+- Optional Slack/Discord webhook auto-formatting notifications.
+- Optional Resend-compatible email alerts.
+- Secure cookies, HMAC-hashed sessions/API keys, API Key expiration, and PBKDF2 password hashes.
+- **Self-healing schema** — tables are created/altered automatically on request (no manual migrations needed).
+- **Real dashboard** at `/dashboard`: register/login, manage forms, view interactive timeline charts, copy HTML snippets, export CSV, create/expire API keys, and configure spam rules.
 - Responsive product UI, branded favicon/logo, and detailed `/docs.html`.
 
 ---

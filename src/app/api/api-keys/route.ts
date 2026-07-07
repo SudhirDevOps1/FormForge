@@ -30,6 +30,7 @@ export async function GET(request: Request) {
       createdAt: apiKeys.createdAt,
       lastUsedAt: apiKeys.lastUsedAt,
       revokedAt: apiKeys.revokedAt,
+      expiresAt: apiKeys.expiresAt,
     })
     .from(apiKeys)
     .where(eq(apiKeys.userId, user.id))
@@ -69,6 +70,12 @@ export async function POST(request: Request) {
   const token = `ff_live_${randomToken(32)}`;
   const prefix = token.slice(0, 16);
 
+  const expiresInDays = Number(body.expiresInDays || 0);
+  let expiresAt: string | null = null;
+  if (expiresInDays > 0) {
+    expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+  }
+
   try {
     await db.insert(apiKeys).values({
       id: randomId("key"),
@@ -77,6 +84,7 @@ export async function POST(request: Request) {
       keyPrefix: prefix,
       keyHash: await hmacSha256(token, secret),
       scopes: readString(body.scopes, "forms:read,submissions:read"),
+      expiresAt,
     });
 
     return jsonOk({ apiKey: token, prefix, warning: "Copy this key now. It will not be shown again." }, { status: 201 });

@@ -51,6 +51,10 @@ export async function validateApiKey(db: AppDb, authHeader: string | null) {
       return null;
     }
 
+    if (match.apiKey.expiresAt && new Date(match.apiKey.expiresAt).getTime() < Date.now()) {
+      return null;
+    }
+
     // Update lastUsedAt asynchronously
     await db
       .update(apiKeys)

@@ -74,6 +74,17 @@ async function calculateSpamScore(form: Form, payload: ParsedSubmission, request
     reasons.push("honeypot_filled");
   }
 
+  // Custom Spam Words Blocklist
+  if (form.spamBlocklist) {
+    const blocklistedWords = form.spamBlocklist.split(",").map((w) => w.trim().toLowerCase()).filter(Boolean);
+    const contentToScan = safeStringify(payload).toLowerCase();
+    const hit = blocklistedWords.find((w) => contentToScan.includes(w));
+    if (hit) {
+      score += 100;
+      reasons.push(`blocklisted_word_detected: ${hit}`);
+    }
+  }
+
   const serialized = safeStringify(payload);
   if (serialized.length > 64_000) {
     score += 40;

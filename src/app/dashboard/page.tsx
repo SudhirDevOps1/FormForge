@@ -21,6 +21,7 @@ type Form = {
   turnstileSecretKey: string | null;
   autoresponderSubject: string | null;
   autoresponderBody: string | null;
+  spamBlocklist: string | null;
   createdAt: string;
 };
 type Submission = {
@@ -32,7 +33,7 @@ type Submission = {
   payload: string;
   referer: string | null;
 };
-type ApiKey = { id: string; name: string; keyPrefix: string; scopes: string; createdAt: string };
+type ApiKey = { id: string; name: string; keyPrefix: string; scopes: string; createdAt: string; expiresAt: string | null };
 
 function timeAgo(iso: string): string {
   let timeStr = iso;
@@ -837,6 +838,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [turnstileSecretKey, setTurnstileSecretKey] = useState(form.turnstileSecretKey ?? "");
   const [autoresponderSubject, setAutoresponderSubject] = useState(form.autoresponderSubject ?? "");
   const [autoresponderBody, setAutoresponderBody] = useState(form.autoresponderBody ?? "");
+  const [spamBlocklist, setSpamBlocklist] = useState(form.spamBlocklist ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -853,6 +855,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setTurnstileSecretKey(form.turnstileSecretKey ?? "");
     setAutoresponderSubject(form.autoresponderSubject ?? "");
     setAutoresponderBody(form.autoresponderBody ?? "");
+    setSpamBlocklist(form.spamBlocklist ?? "");
   }, [form]);
 
   async function save(e: React.FormEvent) {
@@ -874,7 +877,8 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           turnstileEnabled,
           turnstileSecretKey: turnstileSecretKey || null,
           autoresponderSubject: autoresponderSubject || null,
-          autoresponderBody: autoresponderBody || null
+          autoresponderBody: autoresponderBody || null,
+          spamBlocklist: spamBlocklist || null
         }),
       });
       const data = await res.json();
@@ -911,6 +915,11 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         <div>
           <label htmlFor="settings-honeypot" className="mb-1 block text-xs text-slate-400">Honeypot field name (hidden trap for bots)</label>
           <input id="settings-honeypot" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} className="ff-input text-sm" />
+        </div>
+
+        <div>
+          <label htmlFor="settings-blocklist" className="mb-1 block text-xs text-slate-400">Custom Spam Blocklist Words (comma-separated, e.g. crypto, spam, viagra)</label>
+          <input id="settings-blocklist" value={spamBlocklist} onChange={(e) => setSpamBlocklist(e.target.value)} className="ff-input text-sm" placeholder="crypto, casino, lottery" />
         </div>
         
         <div className="border-t border-white/5 pt-4 space-y-3">
@@ -972,6 +981,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function KeysTab() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [name, setName] = useState("");
+  const [expiresInDays, setExpiresInDays] = useState("0");
   const [created, setCreated] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -987,9 +997,19 @@ function KeysTab() {
     e.preventDefault();
     setBusy(true);
     try {
-      const res = await fetch("/api/api-keys", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+      const res = await fetch("/api/api-keys", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, expiresInDays: Number(expiresInDays) })
+      });
       const data = await res.json();
-      if (data.ok) { setCreated(data.data.apiKey); setName(""); await load(); }
+      if (data.ok) {
+        setCreated(data.data.apiKey);
+        setName("");
+        setExpiresInDays("0");
+        await load();
+      }
     } finally { setBusy(false); }
   }
 
@@ -1001,41 +1021,67 @@ function KeysTab() {
   }
 
   return (
-    <section className="glass-panel rounded-3xl p-5 sm:p-6">
-      <h2 className="text-xl font-bold text-white">API Keys</h2>
-      <p className="mt-1 text-sm text-slate-400">Use API keys to read forms and submissions programmatically.</p>
-      <form onSubmit={create} className="mt-4 flex flex-col gap-2 sm:flex-row">
+    <section className="glass-panel rounded-3xl p-5 sm:p-6 space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-white">API Keys</h2>
+        <p className="mt-1 text-sm text-slate-400">Use API keys to read forms and submissions programmatically.</p>
+      </div>
+
+      <form onSubmit={create} className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
-          <label htmlFor="create-key-name" className="sr-only">Key name</label>
-          <input id="create-key-name" required placeholder="Key name" value={name} onChange={(e) => setName(e.target.value)} className="ff-input text-sm" />
+          <label htmlFor="create-key-name" className="block text-xs text-slate-400 mb-1">Key Name</label>
+          <input id="create-key-name" required placeholder="Production API Key" value={name} onChange={(e) => setName(e.target.value)} className="ff-input text-sm" />
         </div>
-        <button disabled={busy} className="rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-60 min-h-[44px]">{busy ? "Creating…" : "Create key"}</button>
+        <div className="w-full sm:w-48">
+          <label htmlFor="create-key-expiry" className="block text-xs text-slate-400 mb-1">Expiration</label>
+          <select
+            id="create-key-expiry"
+            value={expiresInDays}
+            onChange={(e) => setExpiresInDays(e.target.value)}
+            className="ff-input text-sm bg-slate-900"
+          >
+            <option value="0">Never Expire</option>
+            <option value="30">30 Days</option>
+            <option value="90">90 Days</option>
+            <option value="365">365 Days</option>
+          </select>
+        </div>
+        <button disabled={busy} className="rounded-2xl bg-sky-500 px-5 py-3.5 text-sm font-bold text-white hover:bg-sky-400 transition disabled:opacity-60 min-h-[44px] shadow-lg shadow-sky-500/10">{busy ? "Creating…" : "Create key"}</button>
       </form>
+
       {created && (
-        <div className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
+        <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
           <p className="text-sm font-semibold text-amber-200">⚠️ Copy this key now — it will NOT be shown again:</p>
           <code className="mt-2 block break-all rounded-xl bg-black/40 px-3 py-2 text-sm text-amber-100">{created}</code>
         </div>
       )}
-      <div className="mt-6 space-y-2">
+
+      <div className="space-y-2">
         {keys.length === 0 && <p className="py-4 text-center text-sm text-slate-500">No API keys yet.</p>}
-        {keys.map((key) => (
-          <div key={key.id} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-white truncate">{key.name}</p>
-                <span className="text-[10px] text-slate-500">{timeAgo(key.createdAt)}</span>
+        {keys.map((key) => {
+          const isExpired = key.expiresAt ? new Date(key.expiresAt).getTime() < Date.now() : false;
+          return (
+            <div key={key.id} className={`rounded-2xl border px-4 py-3 flex items-center justify-between transition ${isExpired ? "border-rose-500/20 bg-rose-500/5 opacity-60" : "border-white/5 bg-white/[0.02]"}`}>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-white truncate">{key.name}</p>
+                  <span className="text-[10px] text-slate-500">{timeAgo(key.createdAt)}</span>
+                  {isExpired && <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[9px] text-rose-300 font-bold uppercase">Expired</span>}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5"><code>{key.keyPrefix}…</code> · {key.scopes}</p>
+                {key.expiresAt && !isExpired && (
+                  <p className="text-[10px] text-slate-500 mt-1">Expires: {new Date(key.expiresAt).toLocaleDateString()}</p>
+                )}
               </div>
-              <p className="text-xs text-slate-400"><code>{key.keyPrefix}…</code> · {key.scopes}</p>
+              <button
+                onClick={() => revokeKey(key.id)}
+                className="rounded-xl border border-rose-400/30 text-rose-200 px-3 py-2 text-xs hover:bg-rose-400/10 shrink-0 min-h-[44px]"
+              >
+                Revoke
+              </button>
             </div>
-            <button
-              onClick={() => revokeKey(key.id)}
-              className="rounded-xl border border-rose-400/30 text-rose-200 px-3 py-2 text-xs hover:bg-rose-400/10 shrink-0 min-h-[44px]"
-            >
-              Revoke
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

@@ -61,6 +61,7 @@ export const forms = sqliteTable(
     turnstileSecretKey: text("turnstile_secret_key"),
     autoresponderSubject: text("autoresponder_subject"),
     autoresponderBody: text("autoresponder_body"),
+    spamBlocklist: text("spam_blocklist"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
@@ -128,6 +129,7 @@ export const apiKeys = sqliteTable(
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     lastUsedAt: text("last_used_at"),
     revokedAt: text("revoked_at"),
+    expiresAt: text("expires_at"),
   },
   (table) => ({
     userIdx: index("api_keys_user_id_idx").on(table.userId),
