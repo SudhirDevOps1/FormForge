@@ -33,6 +33,7 @@ type Submission = {
   spamScore: number;
   payload: string;
   referer: string | null;
+  ipHash: string | null;
 };
 type ApiKey = { id: string; name: string; keyPrefix: string; scopes: string; createdAt: string; expiresAt: string | null };
 
