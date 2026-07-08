@@ -222,8 +222,9 @@ Ye internally:
 - **+ New** — Naya form banao
 - **Search** — Forms search karo
 - Form select karo → submissions dikhenge
-- **Settings** tab se form ka name, webhook, allowed origins edit karo
-- **⬇ CSV** — Saari submissions download karo
+- **Settings** tab se form ka name, webhook, allowed origins, form slug, double opt-in email verification edit/update/change karo
+- **Delete** button click karne par form data database se fully hard-delete ho jayega
+- **Export ▼** — CSV, JSON, aur clean TXT report format mein submissions download karo
 
 ### API Keys Tab
 - API keys banao (read-only tokens)
@@ -233,6 +234,7 @@ Ye internally:
 ### Settings Tab
 - Account details dekho
 - Quick links: Docs, Guide, GitHub, Health Check
+- Engine Version label validation display dekho (v1.2.0)
 
 ---
 
@@ -309,7 +311,7 @@ Naya version aaye to:
 
 | Technology | Role | Free? |
 |-----------|------|-------|
-| **Next.js 16** | App framework | ✅ MIT |
+| **Next.js 15.1.3** | App framework | ✅ MIT |
 | **React 19** | UI library | ✅ MIT |
 | **Cloudflare Workers** | Runtime | ✅ Free tier |
 | **Cloudflare D1** | Database (SQLite) | ✅ Free tier |

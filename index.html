@@ -1561,7 +1561,7 @@
           <div class="repo-title-card">
             <div class="repo-kicker">● Public MIT Repository</div>
             <h3><span class="gradient-text">SudhirDevOps1/FormForge</span></h3>
-            <p>Cloudflare-native self-hosted form backend with Next.js 16, React 19, OpenNext Workers runtime, Cloudflare D1 storage, Drizzle ORM, spam protection, analytics, API keys, CSV export, Discord/Slack webhooks and dashboard-first operations.</p>
+            <p>Cloudflare-native self-hosted form backend with Next.js 15.1.3, React 19, OpenNext Workers runtime, Cloudflare D1 storage, Drizzle ORM, spam protection, analytics, API keys, multi-format exports (CSV, JSON, TXT), email verification (double opt-in), Discord/Slack webhooks and dashboard-first operations.</p>
             <div class="repo-actions">
               <a class="repo-mini-btn" href="https://github.com/SudhirDevOps1/FormForge" target="_blank">↗ Open GitHub</a>
               <a class="repo-mini-btn" href="https://sudhirdevops1.github.io/FormForge/" target="_blank">🌐 Project Homepage</a>
@@ -1676,7 +1676,7 @@
               <div class="insight-pill">⚡ Runtime: OpenNext on Cloudflare Workers</div>
               <div class="insight-pill">🗄️ Data: Cloudflare D1 + Drizzle ORM</div>
               <div class="insight-pill">🔐 Security: HMAC sessions, PBKDF2 hashes, Turnstile, rate limits</div>
-              <div class="insight-pill">📦 Product: Dashboard, analytics, CSV export, API keys</div>
+              <div class="insight-pill">📦 Product: Dashboard, analytics, CSV/JSON/TXT export, API keys</div>
             </div>
           </div>
         </div>
@@ -1795,8 +1795,8 @@
         </div>
         <div class="card">
           <span class="feature-icon">📥</span>
-          <h3>CSV Export</h3>
-          <p style="color: var(--text-secondary); font-size: 15px;">Export all form submissions as CSV files for offline backups, compliance, or data analysis. No vendor lock-in — your data is always yours.</p>
+          <h3>Multi-Format Export</h3>
+          <p style="color: var(--text-secondary); font-size: 15px;">Export all form submissions in CSV, JSON, or clean human-readable TXT report layouts for offline backups, compliance, or developer analysis. No vendor lock-in.</p>
         </div>
         <div class="card">
           <span class="feature-icon">🔑</span>
@@ -2201,7 +2201,7 @@ npx wrangler secret put AUTH_SECRET
               <td><span class="tick">✓</span> Dynamic templates</td>
             </tr>
             <tr>
-              <td><strong>CSV Export</strong></td>
+              <td><strong>Multi-Format Export</strong></td>
               <td><span class="cross">✗</span> Paid only</td>
               <td>Manual queries</td>
               <td><span class="tick">✓</span> One-click</td>

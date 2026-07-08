@@ -345,6 +345,9 @@ function FormsTab() {
           <StatCard label="Active" value={String(forms.filter((f) => f.isActive).length)} />
           <StatCard label="Inactive" value={String(forms.filter((f) => !f.isActive).length)} />
         </div>
+        <div className="text-[10px] text-slate-500 text-center border-t border-white/5 pt-3">
+          FormForge Engine v1.2.0 · Live on Cloudflare D1
+        </div>
       </aside>
 
       {/* Detail */}

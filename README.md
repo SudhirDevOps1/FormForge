@@ -82,8 +82,9 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 - Submit **JSON payloads** from `fetch`, XHR, React, Astro, Vue, Svelte, or any frontend.
 - Create unlimited forms and private endpoints.
 - D1-backed users, sessions, forms, fields, submissions, API keys, notifications, rate limits, and audit logs.
-- Submission listing and CSV export.
-- Honeypot spam trap & configurable custom spam word blocklists.
+- **Multi-Format Exports** — Export submissions in CSV, JSON, and clean human-readable TXT Report layouts.
+- **Smart DNS MX Lookup Validation** — Checks email domain mail servers via DNS over HTTPS to automatically reject invalid email domains (e.g. user@gmailcom or fake@notexist.xyz).
+- **Honeypot spam trap** & configurable custom spam word blocklists.
 - Optional Cloudflare Turnstile verification integration.
 - Submitter autoresponder email dispatch.
 - Origin allowlist for browser submissions.
@@ -92,8 +93,8 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 - Optional Resend-compatible email alerts.
 - Secure cookies, HMAC-hashed sessions/API keys, API Key expiration, and PBKDF2 password hashes.
 - **Self-healing schema** — tables are created/altered automatically on request (no manual migrations needed).
-- **Real dashboard** at `/dashboard`: register/login, manage forms, view interactive timeline charts, copy HTML snippets, export CSV, create/expire API keys, and configure spam rules.
-- Responsive product UI, branded favicon/logo, and detailed `/docs.html`.
+- **Real dashboard** at `/dashboard`: register/login, manage forms, edit form names and URL slugs, hard delete forms, view interactive timeline charts, copy HTML snippets, export submissions, create/expire API keys, and configure spam rules.
+- Responsive product UI, branded favicon/logo, and detailed `/docs`.
 
 ---
 
@@ -125,11 +126,15 @@ Delivers form notifications straight to your communications channels.
 Automatically keep your Cloudflare D1 database storage usage clean and compliant by purging submissions older than a specific retention period.
 * **Auto-Purge:** Set the retention limit per form (`30`, `60`, `90` days, or `Keep Forever`) in the General Settings. The backend automatically scans and deletes expired records for that form upon receiving new incoming submissions. Zero cron configuration is required.
 
+### 7. ✉️ Submitter Email Verification (Double Opt-in)
+Verify submitter email addresses before accepting submissions and dispatching webhook notifications.
+* **Verification Flow:** Enable via form settings. When a submission is received, its status is set to `pending` and a unique verification link is sent to the submitter's email. Clicking the link updates the status to `accepted` and triggers webhook alerts.
+
 ---
 
 ## Tech Stack
 
-- **Next.js 16 App Router** + **React 19**
+- **Next.js 15.1.3 App Router** + **React 19**
 - **Cloudflare Workers** via **OpenNext** (`@opennextjs/cloudflare`)
 - **Cloudflare D1** using **Drizzle ORM** (`drizzle-orm/d1`)
 - **Tailwind CSS**
