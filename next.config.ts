@@ -15,6 +15,18 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/docs",
+        destination: "/docs.html",
+      },
+      {
+        source: "/guide",
+        destination: "/guide.html",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
