@@ -3,238 +3,383 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FormForge Guide — Complete Free Deploy Guide (Hinglish)</title>
-  <meta name="description" content="FormForge one-click Cloudflare deploy guide in Hindi-English. AUTH_SECRET setup, D1, environment variables, troubleshooting.">
+  <title>FormForge Guide — Complete Free Deploy Guide</title>
+  <meta name="description" content="FormForge one-click Cloudflare deploy guide. AUTH_SECRET setup, D1, environment variables, troubleshooting, advanced features.">
   <link rel="icon" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/json.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/htmlbars.min.js"></script>
+  <style>
     :root {
       --bg: #030712;
-      --panel: rgba(13, 17, 30, 0.7);
+      --bg-elevated: #0a0f1e;
+      --panel: rgba(13, 17, 30, 0.75);
       --border: rgba(255, 255, 255, 0.06);
+      --border-hover: rgba(56, 189, 248, 0.25);
       --text: #f3f4f6;
-      --muted: #9ca3af;
+      --text-secondary: #9ca3af;
       --accent: #38bdf8;
       --accent-hover: #0ea5e9;
+      --accent-glow: rgba(56, 189, 248, 0.15);
       --green: #34d399;
+      --green-glow: rgba(52, 211, 153, 0.15);
       --amber: #fbbf24;
+      --amber-glow: rgba(251, 191, 36, 0.15);
+      --red: #f87171;
+      --purple: #a78bfa;
     }
-    * {
-      box-sizing: border-box;
-    }
-    html {
-      scroll-behavior: smooth;
-    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background:
-        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.22), transparent 50rem),
-        radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.12), transparent 45rem),
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.18), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(6, 182, 212, 0.1), transparent),
+        radial-gradient(ellipse 50% 30% at 20% 100%, rgba(139, 92, 246, 0.08), transparent),
         var(--bg);
+      background-attachment: fixed;
       color: var(--text);
       line-height: 1.7;
+      min-height: 100vh;
+    }
+    ::selection {
+      background: rgba(56, 189, 248, 0.3);
+      color: #fff;
     }
     a {
       color: var(--accent);
       text-decoration: none;
-      transition: color 0.2s ease;
+      transition: all 0.2s ease;
     }
     a:hover {
       color: var(--accent-hover);
       text-decoration: underline;
+      text-underline-offset: 3px;
     }
     .wrap {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 40px 24px 100px;
+      padding: 16px 20px 80px;
     }
     .nav {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 60px;
+      margin-bottom: 40px;
       border-bottom: 1px solid var(--border);
-      padding-bottom: 20px;
+      padding: 16px 0;
+      position: sticky;
+      top: 0;
+      background: rgba(3, 7, 18, 0.9);
+      backdrop-filter: blur(24px);
+      z-index: 100;
     }
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       color: #fff;
       font-weight: 800;
-      font-size: 20px;
+      font-size: 18px;
+      text-decoration: none !important;
+      white-space: nowrap;
     }
+    .brand:hover { color: #fff; }
     .brand img {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .nav-btns {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
     }
     .pill {
       display: inline-flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
       border: 1px solid rgba(56, 189, 248, 0.2);
-      background: rgba(56, 189, 248, 0.08);
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
       color: #cffafe;
       border-radius: 999px;
-      padding: 6px 14px;
-      font-size: 13px;
+      padding: 5px 14px;
+      font-size: 12px;
       font-weight: 600;
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
     }
     h1 {
-      font-size: clamp(36px, 6vw, 64px);
-      line-height: 1.1;
-      margin: 20px 0 20px;
+      font-size: clamp(28px, 5vw, 56px);
+      line-height: 1.08;
+      margin: 16px 0 16px;
       font-weight: 800;
       letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     h2 {
-      font-size: clamp(24px, 3.5vw, 36px);
-      line-height: 1.2;
-      margin: 40px 0 20px;
+      font-size: clamp(22px, 3vw, 32px);
+      line-height: 1.15;
+      margin: 32px 0 16px;
       font-weight: 800;
       letter-spacing: -0.03em;
     }
     h3 {
-      font-size: 20px;
-      margin: 24px 0 12px;
+      font-size: 18px;
+      margin: 20px 0 10px;
       font-weight: 700;
     }
     .lead {
-      font-size: 18px;
-      color: var(--muted);
+      font-size: 16px;
+      color: var(--text-secondary);
       max-width: 800px;
+      line-height: 1.7;
     }
-    .grid {
-      display: grid;
-      gap: 20px;
-    }
-    .two {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .three {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+    .grid { display: grid; gap: 20px; }
+    .two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .card {
       border: 1px solid var(--border);
-      background: linear-gradient(135deg, rgba(13, 17, 30, 0.7) 0%, rgba(3, 7, 18, 0.8) 100%);
-      border-radius: 24px;
-      padding: 28px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+      background: linear-gradient(145deg, rgba(13, 17, 30, 0.8) 0%, rgba(6, 10, 22, 0.9) 100%);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
       backdrop-filter: blur(20px);
-      transition: transform 0.2s, border-color 0.2s;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.3), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
     }
     .card:hover {
-      transform: translateY(-2px);
-      border-color: rgba(56, 189, 248, 0.3);
+      border-color: var(--border-hover);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
     }
-    .small {
-      font-size: 13px;
-      color: var(--muted);
+    .card:hover::before { opacity: 1; }
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(139, 92, 246, 0.1));
+      border: 1px solid rgba(56, 189, 248, 0.15);
     }
-    code, kbd {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    .small { font-size: 13px; color: var(--text-secondary); }
+    code {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 6px;
-      padding: 2px 6px;
+      padding: 2px 7px;
       color: #cffafe;
-      font-family: monospace;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88em;
+      font-weight: 500;
     }
     pre {
       overflow-x: auto;
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.5);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 18px;
+      border-radius: 0 0 14px 14px;
+      padding: 18px 20px;
       color: #dbeafe;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      position: relative;
+      margin: 0;
+      -webkit-overflow-scrolling: touch;
     }
-    .ok {
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: inherit;
+      color: inherit;
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-bottom: 0;
+      border-radius: 14px 14px 0 0;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      gap: 10px;
+    }
+    .code-header + pre { border-radius: 0 0 14px 14px; margin-top: 0; }
+    .copy-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-secondary);
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      white-space: nowrap;
+    }
+    .copy-btn:hover {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .copy-btn.copied {
+      background: rgba(52, 211, 153, 0.15);
       color: var(--green);
-      font-weight: 700;
+      border-color: rgba(52, 211, 153, 0.3);
     }
-    .warn {
-      color: var(--amber);
-      font-weight: 700;
-    }
-    .bad {
-      color: #f87171;
-      font-weight: 700;
-    }
+    .ok { color: var(--green); font-weight: 700; }
+    .warn { color: var(--amber); font-weight: 700; }
+    .bad { color: var(--red); font-weight: 700; }
+    .purple { color: var(--purple); font-weight: 700; }
     .table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
       overflow: hidden;
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     .table th, .table td {
       border-bottom: 1px solid var(--border);
-      padding: 14px;
+      padding: 12px 14px;
       text-align: left;
       vertical-align: middle;
+      white-space: nowrap;
     }
     .table th {
       color: #fff;
       background: rgba(255, 255, 255, 0.04);
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
-    .table tr:last-child td {
-      border-bottom: 0;
-    }
+    .table tr:last-child td { border-bottom: 0; }
+    .table tr:hover td { background: rgba(255,255,255,0.02); }
     .btns {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
-      margin-top: 24px;
+      margin-top: 20px;
     }
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 14px;
-      padding: 12px 20px;
+      gap: 6px;
+      border-radius: 12px;
+      padding: 10px 18px;
       font-weight: 700;
+      font-size: 13px;
       border: 1px solid rgba(255,255,255,0.1);
       background: rgba(255,255,255,0.05);
       color: #fff;
-      transition: all 0.2s ease;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
+      text-decoration: none !important;
+      white-space: nowrap;
     }
     .btn:hover {
       background: rgba(255,255,255,0.1);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }
     .btn.primary {
-      background: var(--accent);
-      color: var(--bg);
-      border-color: var(--accent);
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      color: #0f172a;
+      border-color: transparent;
+      box-shadow: 0 4px 20px rgba(56, 189, 248, 0.3);
     }
     .btn.primary:hover {
-      background: #0ea5e9;
-      box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      box-shadow: 0 6px 30px rgba(56, 189, 248, 0.5);
     }
-    .toc {
-      position: sticky;
-      top: 24px;
+    .btn.green {
+      background: linear-gradient(135deg, var(--green), #10b981);
+      color: #064e3b;
+      border-color: transparent;
+      box-shadow: 0 4px 20px rgba(52, 211, 153, 0.3);
     }
+    .btn.green:hover { box-shadow: 0 6px 30px rgba(52, 211, 153, 0.5); }
+    .toc { position: sticky; top: 90px; }
+    .toc ol { list-style: none; padding: 0; margin: 0; }
+    .toc li { margin-bottom: 2px; }
+    .toc a {
+      display: block;
+      padding: 7px 12px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      text-decoration: none !important;
+    }
+    .toc a:hover, .toc a.active {
+      background: rgba(56, 189, 248, 0.08);
+      color: var(--accent);
+    }
+    .toc a.active { font-weight: 700; }
     .callout {
-      border-left: 4px solid var(--accent);
-      padding: 16px;
-      background: rgba(56, 189, 248, 0.05);
-      border-radius: 16px;
+      border-left: 3px solid var(--accent);
+      padding: 16px 18px;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.06), transparent);
+      border-radius: 0 14px 14px 0;
+      margin: 14px 0;
     }
-    .steps {
-      counter-reset: s;
-    }
+    .callout.green { border-left-color: var(--green); background: linear-gradient(90deg, rgba(52, 211, 153, 0.06), transparent); }
+    .callout.amber { border-left-color: var(--amber); background: linear-gradient(90deg, rgba(251, 191, 36, 0.06), transparent); }
+    .callout.red { border-left-color: var(--red); background: linear-gradient(90deg, rgba(248, 113, 113, 0.06), transparent); }
+    .steps { counter-reset: s; }
     .step {
       display: flex;
       gap: 16px;
       margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
     }
+    .step:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
     .step-number {
       flex-shrink: 0;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
       background: linear-gradient(135deg, #3b82f6, #06b6d4);
       color: #fff;
       display: grid;
@@ -243,154 +388,828 @@
       font-size: 14px;
     }
     .footer {
-      margin-top: 80px;
-      padding-top: 30px;
+      margin-top: 60px;
+      padding-top: 24px;
       border-top: 1px solid var(--border);
-      color: var(--muted);
+      color: var(--text-secondary);
       text-align: center;
     }
-    @media(max-width:820px){
-      .wrap { padding: 24px 16px 60px; }
-      .two, .three { grid-template-columns: 1fr; }
-      .nav { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 30px; }
-      .btns { width: 100%; }
-      .btn { width: 100%; }
-      .toc { position: static; }
-      h1 { font-size: 32px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+    }
+    .tag.green { background: rgba(52, 211, 153, 0.1); color: var(--green); border-color: rgba(52, 211, 153, 0.2); }
+    .tag.amber { background: rgba(251, 191, 36, 0.1); color: var(--amber); border-color: rgba(251, 191, 36, 0.2); }
+    .tag.red { background: rgba(248, 113, 113, 0.1); color: var(--red); border-color: rgba(248, 113, 113, 0.2); }
+    .tag.purple { background: rgba(167, 139, 250, 0.1); color: var(--purple); border-color: rgba(167, 139, 250, 0.2); }
+    .feature-list { padding: 0; list-style: none; }
+    .feature-list li {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .feature-list li::before {
+      content: '✓';
+      color: var(--green);
+      font-weight: 800;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .accordion-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      background: var(--panel);
+      transition: border-color 0.2s;
+    }
+    .accordion-item:hover { border-color: rgba(255,255,255,0.1); }
+    .accordion-header {
+      padding: 16px 20px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      font-size: 14px;
+      transition: background 0.2s;
+      gap: 12px;
+    }
+    .accordion-header:hover { background: rgba(255,255,255,0.02); }
+    .accordion-header::after {
+      content: '+';
+      font-size: 18px;
+      color: var(--text-secondary);
+      transition: transform 0.3s, color 0.2s;
+      flex-shrink: 0;
+    }
+    .accordion-item.open .accordion-header::after {
+      transform: rotate(45deg);
+      color: var(--accent);
+    }
+    .accordion-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.4s;
+      padding: 0 20px;
+    }
+    .accordion-item.open .accordion-body {
+      max-height: 300px;
+      padding: 0 20px 16px;
+    }
+    .scroll-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--purple));
+      z-index: 9999;
+      transition: width 0.05s linear;
+    }
+    .glow-text { text-shadow: 0 0 40px rgba(56, 189, 248, 0.3); }
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 40px 0;
+    }
+
+    /* Highlight.js overrides for dark theme */
+    .hljs { background: transparent !important; padding: 0 !important; }
+    pre .hljs { background: transparent; }
+
+    /* Responsive */
+    @media(max-width: 1024px) {
+      .wrap { padding: 12px 16px 60px; }
+      .toc { position: static; margin-bottom: 20px; }
+      .toc a { padding: 6px 10px; font-size: 12px; }
+      .toc h2 { font-size: 20px; }
+    }
+    @media(max-width: 820px) {
+      .two, .three, .four { grid-template-columns: 1fr; }
+      .nav {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 12px 0;
+        position: relative;
+      }
+      .brand { font-size: 16px; }
+      .brand img { width: 32px; height: 32px; }
+      .nav-btns { width: 100%; justify-content: stretch; }
+      .nav-btns .btn { flex: 1; text-align: center; }
+      h1 { font-size: 28px; }
       .card { padding: 18px; border-radius: 16px; }
+      .step { flex-direction: column; gap: 10px; }
+      .step-number { width: 30px; height: 30px; font-size: 12px; }
+      .code-header { font-size: 11px; padding: 8px 14px; }
+      pre { font-size: 12px; padding: 14px 16px; }
+      .callout { padding: 12px 14px; }
+    }
+    @media(max-width: 480px) {
+      .wrap { padding: 10px 12px 40px; }
+      .btn { font-size: 12px; padding: 8px 14px; }
+      .pill { font-size: 11px; padding: 4px 10px; }
+      .nav-btns { flex-direction: column; }
+      .nav-btns .btn { width: 100%; }
+      h1 { font-size: 24px; }
+      h2 { font-size: 20px; }
+      h3 { font-size: 16px; }
+      .card { padding: 14px; border-radius: 14px; }
+      .lead { font-size: 14px; }
+      .table { font-size: 12px; }
+      .table th, .table td { padding: 8px 10px; }
+      .accordion-header { font-size: 13px; padding: 14px 16px; }
+      .accordion-body { padding: 0 16px; }
+      .accordion-item.open .accordion-body { padding: 0 16px 14px; }
+      pre { font-size: 11px; padding: 12px 14px; }
+      .code-header { font-size: 10px; padding: 6px 12px; }
+      .copy-btn { font-size: 10px; padding: 3px 8px; }
     }
   </style>
 </head>
 <body>
+  <div class="scroll-indicator" id="scrollBar"></div>
+
   <div class="wrap">
     <nav class="nav">
-      <a class="brand" href="/"><img src="/logo.svg" alt="FormForge logo"><span>FormForge Guide</span></a>
-      <div class="btns" style="margin:0"><a class="btn" href="/">App</a><a class="btn" href="/docs.html">Docs</a><a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge">Deploy ↗</a></div>
+      <a class="brand" href="/">
+        <img src="/logo.svg" alt="FormForge logo">
+        <span>FormForge Guide</span>
+      </a>
+      <div class="nav-btns">
+        <a class="btn" href="/">App</a>
+        <a class="btn" href="/docs.html">Docs</a>
+        <a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" target="_blank">Deploy ↗</a>
+      </div>
     </nav>
 
     <header>
-      <span class="pill">🔓 No paid database · 📀 Own your data · ⚡ Cloudflare D1</span>
-      <h1>Free form backend deploy karo apne Cloudflare account mein.</h1>
-      <p class="lead">FormForge ek FormZero-style backend hai, lekin 2026 ke Cloudflare Workers + Next.js/OpenNext + D1 stack ke liye upgrade kiya gaya hai. Isme <code>DATABASE_URL</code>, PostgreSQL, Neon, Supabase ya koi paid subscription nahi chahiye.</p>
-      <div class="btns"><a class="btn primary" href="#oneclick">One-click Deploy</a><a class="btn" href="#auth-secret">AUTH_SECRET Fix</a><a class="btn" href="#troubleshooting">Errors Fix</a></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="pill">🔓 No paid database</span>
+        <span class="pill">📀 Own your data</span>
+        <span class="pill">⚡ Cloudflare D1</span>
+        <span class="pill">🤖 Turnstile Ready</span>
+      </div>
+      <h1 class="glow-text">Deploy a free form backend to your Cloudflare account.</h1>
+      <p class="lead"><strong>FormForge</strong> is a forever-free, open-source, privacy-first form backend for static sites. Built with <strong>Next.js 16 + React 19 + OpenNext + Cloudflare Workers + D1</strong>. No <code>DATABASE_URL</code>, no PostgreSQL, no Neon, no Supabase, no paid subscriptions needed.</p>
+      <div class="btns">
+        <a class="btn primary" href="#oneclick">☝️ One-click Deploy</a>
+        <a class="btn" href="#auth-secret">🔑 AUTH_SECRET Setup</a>
+        <a class="btn" href="#troubleshooting">🐛 Troubleshooting</a>
+        <a class="btn" href="#features">✨ Features</a>
+      </div>
     </header>
 
-    <main class="grid two" style="align-items:start;margin-top:44px">
-      <aside class="card toc">
-        <h2 style="margin-top:0;font-size:28px">Contents</h2>
+    <div class="section-divider"></div>
+
+    <main class="grid two" style="align-items:start;margin-top:16px">
+      <aside class="card toc" style="position:sticky;top:90px">
+        <h2 style="margin-top:0;font-size:22px">📑 Contents</h2>
         <ol>
-          <li><a href="#oneclick">One-click Deploy</a></li>
-          <li><a href="#auth-secret">AUTH_SECRET setup</a></li>
-          <li><a href="#manual">Manual Deploy</a></li>
-          <li><a href="#env">Env Variables</a></li>
-          <li><a href="#dashboard">Dashboard Use</a></li>
-          <li><a href="#privacy">Privacy & Security</a></li>
-          <li><a href="#troubleshooting">Troubleshooting</a></li>
-          <li><a href="#faq">FAQ</a></li>
+          <li><a href="#features" data-toc>Features Overview</a></li>
+          <li><a href="#oneclick" data-toc>One-click Deploy</a></li>
+          <li><a href="#auth-secret" data-toc>AUTH_SECRET Setup</a></li>
+          <li><a href="#manual" data-toc>Manual Deploy</a></li>
+          <li><a href="#env" data-toc>Environment Variables</a></li>
+          <li><a href="#dashboard" data-toc>Dashboard Guide</a></li>
+          <li><a href="#security" data-toc>Security & Privacy</a></li>
+          <li><a href="#advanced" data-toc>Advanced Features</a></li>
+          <li><a href="#api" data-toc>API Examples</a></li>
+          <li><a href="#troubleshooting" data-toc>Troubleshooting</a></li>
+          <li><a href="#faq" data-toc>FAQ</a></li>
         </ol>
       </aside>
 
       <section>
+        <!-- FEATURES -->
+        <div class="card" id="features">
+          <h2 style="margin-top:0">✨ Features Overview</h2>
+          <p class="small" style="margin-bottom:18px">All of this is completely free — no SaaS subscription, no hidden charges.</p>
+          <div class="grid two" style="gap:14px">
+            <div>
+              <div class="card-icon">📝</div>
+              <h3 style="margin:0 0 4px;font-size:15px">HTML & JSON Forms</h3>
+              <p class="small">Submit plain HTML forms with an <code>action</code> URL, or send JSON from <code>fetch</code>, React, Astro, Vue, Svelte, or any frontend.</p>
+            </div>
+            <div>
+              <div class="card-icon">∞</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Unlimited Forms</h3>
+              <p class="small">Create unlimited forms. Each form has its own private endpoint, settings, and spam rules.</p>
+            </div>
+            <div>
+              <div class="card-icon">📊</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Real Dashboard</h3>
+              <p class="small">At <code>/dashboard</code>: register/login, manage forms, interactive timeline charts, CSV export, API keys.</p>
+            </div>
+            <div>
+              <div class="card-icon">🛡️</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Self-Healing Schema</h3>
+              <p class="small">Tables are automatically created/altered on first request. No manual migrations needed.</p>
+            </div>
+            <div>
+              <div class="card-icon">🤖</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Cloudflare Turnstile</h3>
+              <p class="small">Non-intrusive CAPTCHA integration. Block bots without ruining the user experience.</p>
+            </div>
+            <div>
+              <div class="card-icon">📧</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Autoresponder Emails</h3>
+              <p class="small">Personalized auto-reply emails with dynamic <code>{curly_braces}</code> variables from form fields.</p>
+            </div>
+            <div>
+              <div class="card-icon">🚫</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Spam Protection</h3>
+              <p class="small">Honeypot trap + custom spam word blocklist + configurable spam scoring.</p>
+            </div>
+            <div>
+              <div class="card-icon">🔑</div>
+              <h3 style="margin:0 0 4px;font-size:15px">API Key Expiration</h3>
+              <p class="small">Secure API keys with 30/90/365 days or Never expiration. Expired keys return 401.</p>
+            </div>
+            <div>
+              <div class="card-icon">💬</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Slack/Discord Webhooks</h3>
+              <p class="small">Auto-formatted notifications — Slack blocks or Discord embedded cards.</p>
+            </div>
+            <div>
+              <div class="card-icon">🗑️</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Auto Data Retention</h3>
+              <p class="small">30/60/90 days or Forever. Old submissions auto-delete — zero cron config.</p>
+            </div>
+            <div>
+              <div class="card-icon">🔒</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Origin Allowlist</h3>
+              <p class="small">Set <code>allowedOrigins</code> per form. Avoid <code>*</code> in production.</p>
+            </div>
+            <div>
+              <div class="card-icon">⚡</div>
+              <h3 style="margin:0 0 4px;font-size:15px">Proof-of-Work</h3>
+              <p class="small">Optional PoW validation for extra bot protection.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ONE-CLICK DEPLOY -->
         <div class="card" id="oneclick">
-          <h2 style="margin-top:0">☝️ One-Click Deploy (Sabse Easy)</h2>
-          <p><strong>Requirement:</strong> Sirf GitHub account aur free Cloudflare account. Credit card ki zarurat nahi.</p>
+          <h2 style="margin-top:0">☝️ One-Click Deploy (Easiest Way)</h2>
+          <div class="callout green">
+            <strong>Requirement:</strong> Only a GitHub account and a free Cloudflare account. No credit card needed. It deploys to <strong>your</strong> account.
+          </div>
 
           <div class="steps">
-            <div class="step"><div class="step-number">1</div><div><h3 style="margin:0 0 6px">Deploy Button Click Karo</h3><p class="small">Neeche button par click karo. Ye tumhare GitHub aur Cloudflare account mein copy banayega.</p><div class="btns" style="margin-top:10px"><a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge">Deploy to Cloudflare</a></div></div></div>
-            <div class="step"><div class="step-number">2</div><div><h3 style="margin:0 0 6px">Cloudflare mein Login Karo</h3><p class="small">Apna Cloudflare account use karo. Ye <strong>tumhare</strong> account mein deploy hoga, kisi aur ke nahi.</p></div></div>
-            <div class="step"><div class="step-number">3</div><div><h3 style="margin:0 0 6px">Project Name Choose Karo</h3><p class="small">Example: <code>formforge</code>. D1 database name automatically <code>formforge-db</code> banegi.</p></div></div>
-            <div class="step"><div class="step-number">4</div><div><h3 style="margin:0 0 6px">AUTH_SECRET Daalo</h3><p class="small">Deploy form mein <code>AUTH_SECRET</code> field dikhega. Value generate karo:</p><pre style="margin-top:8px"><code>openssl rand -hex 32</code></pre><p class="small">Output copy-paste karo. Agar blank chhod diya to baad mein <a href="#auth-secret">yahan se fix</a> karna hoga.</p></div></div>
-            <div class="step"><div class="step-number">5</div><div><h3 style="margin:0 0 6px">RESEND fields (Optional)</h3><p class="small">Email chahiye to daalo, nahi to blank chhodo. Email notifications automatically disable ho jayenge.</p></div></div>
-            <div class="step"><div class="step-number">6</div><div><h3 style="margin:0 0 6px">Deploy Karo</h3><p class="small">Cloudflare D1 database auto-create karega. FormForge tables first request par auto-create karega. 2-3 minute mein live!</p></div></div>
-            <div class="step"><div class="step-number">7</div><div><h3 style="margin:0 0 6px">Dashboard Open Karo</h3><p class="small">URL milega jaise <code>https://formforge-YOUR.workers.dev</code>. Uske baad <code>/dashboard</code> lagao aur account banao.</p></div></div>
+            <div class="step">
+              <div class="step-number">1</div>
+              <div>
+                <h3 style="margin:0 0 4px">Click the Deploy Button</h3>
+                <p class="small">Click the button below. It will fork the repo to your GitHub account and deploy to your Cloudflare account.</p>
+                <div class="btns" style="margin-top:12px">
+                  <a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" target="_blank">
+                    <span>🚀</span> Deploy to Cloudflare
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">2</div>
+              <div>
+                <h3 style="margin:0 0 4px">Log In to Cloudflare</h3>
+                <p class="small">Use your Cloudflare account. The project deploys to <strong>your</strong> account, no one else's.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">3</div>
+              <div>
+                <h3 style="margin:0 0 4px">Choose a Project Name</h3>
+                <p class="small">Example: <code>formforge</code>. The D1 database will be auto-named <code>formforge-db</code>.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">4</div>
+              <div>
+                <h3 style="margin:0 0 4px">Enter AUTH_SECRET</h3>
+                <p class="small">The deploy form shows an <code>AUTH_SECRET</code> field. Generate a value:</p>
+                <div class="code-header">
+                  <span>bash</span>
+                  <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre style="margin-top:0"><code class="language-bash">openssl rand -hex 32</code></pre>
+                <p class="small">Copy-paste the output. If you leave it blank, you can <a href="#auth-secret">fix it later</a>.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">5</div>
+              <div>
+                <h3 style="margin:0 0 4px">RESEND Fields (Optional)</h3>
+                <p class="small">Fill in if you need email notifications, leave blank otherwise. Emails are automatically disabled.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">6</div>
+              <div>
+                <h3 style="margin:0 0 4px">Deploy</h3>
+                <p class="small">Cloudflare auto-creates the D1 database. FormForge creates tables on the first request. <strong>Live in 2-3 minutes!</strong></p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">7</div>
+              <div>
+                <h3 style="margin:0 0 4px">Open the Dashboard</h3>
+                <p class="small">You'll get a URL like <code>https://formforge-YOUR.workers.dev</code>. Append <code>/dashboard</code> and create your account.</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="card callout" id="auth-secret">
-          <h2 style="margin-top:0">🔑 AUTH_SECRET Kya Hai & Kaise Set Karein?</h2>
-          <p><code>AUTH_SECRET</code> ek secret key hai jo sessions aur API keys ko secure karne ke liye use hoti hai. Ye <strong>required</strong> hai. Bina iske account create nahi hoga.</p>
+        <!-- AUTH SECRET -->
+        <div class="card callout" id="auth-secret" style="border-radius:20px">
+          <h2 style="margin-top:0">🔑 AUTH_SECRET — What It Is & How to Set It</h2>
+          <p><code>AUTH_SECRET</code> is a secret key used to secure sessions and API keys. It is <strong>required</strong>. Without it, you cannot create an account.</p>
 
-          <h3>Agar deploy ke time blank chhod diya → ab fix karo:</h3>
+          <div class="callout amber" style="margin:16px 0">
+            <strong>⚠️ If you left it blank during deploy → fix it now:</strong>
+          </div>
+
           <div class="steps">
-            <div class="step"><div class="step-number">1</div><div><p style="margin:0">Terminal mein run karo: <code>openssl rand -hex 32</code></p></div></div>
-            <div class="step"><div class="step-number">2</div><div><p style="margin:0"><a href="https://dash.cloudflare.com" target="_blank">Cloudflare Dashboard</a> → <strong>Workers &amp; Pages</strong> → apna Worker click karo.</p></div></div>
-            <div class="step"><div class="step-number">3</div><div><p style="margin:0"><strong>Settings</strong> → <strong>Variables &amp; Secrets</strong> → <strong>Add variable</strong> → <strong>Secret</strong> select karo.</p></div></div>
-            <div class="step"><div class="step-number">4</div><div><p style="margin:0">Name: <code>AUTH_SECRET</code>, Value: terminal se copy kiya hua secret. Save karo.</p></div></div>
-            <div class="step"><div class="step-number">5</div><div><p style="margin:0"><strong>Redeploy</strong> karo Worker ko, phir dashboard reload karo. Ab register karo.</p></div></div>
+            <div class="step">
+              <div class="step-number">1</div>
+              <div>
+                <p style="margin:0">Run this in your terminal:</p>
+                <div class="code-header" style="margin-top:8px">
+                  <span>bash</span>
+                  <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre style="margin-top:0"><code class="language-bash">openssl rand -hex 32</code></pre>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">2</div>
+              <div>
+                <p style="margin:0">Go to <a href="https://dash.cloudflare.com" target="_blank">Cloudflare Dashboard</a> → <strong>Workers &amp; Pages</strong> → click your Worker.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">3</div>
+              <div>
+                <p style="margin:0">Navigate to <strong>Settings</strong> → <strong>Variables &amp; Secrets</strong> → <strong>Add variable</strong> → select <strong>Secret</strong>.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">4</div>
+              <div>
+                <p style="margin:0">Name: <code>AUTH_SECRET</code>, Value: paste the secret from your terminal. Click <strong>Save</strong>.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">5</div>
+              <div>
+                <p style="margin:0"><strong>Redeploy</strong> the Worker, then reload the dashboard. You can now register.</p>
+              </div>
+            </div>
           </div>
         </div>
 
+        <!-- MANUAL DEPLOY -->
         <div class="card" id="manual">
-          <h2 style="margin-top:0">🛠 Manual Deploy</h2>
-          <pre><code>git clone https://github.com/SudhirDevOps1/FormForge.git
+          <h2 style="margin-top:0">🛠 Manual Deploy (via CLI)</h2>
+          <p class="small" style="margin-bottom:14px">If you prefer the command line instead of the one-click button:</p>
+          <div class="code-header">
+            <span>bash</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre style="margin-top:0"><code class="language-bash"># 1. Clone & install
+git clone https://github.com/SudhirDevOps1/FormForge.git
 cd FormForge
 npm install
+
+# 2. Login to Cloudflare
 npx wrangler login
+
+# 3. Auto setup (interactive)
+npm run setup
+
+# OR do it manually:
+# 3a. Create D1 database
+npx wrangler d1 create formforge-db
+# Copy the database_id and paste it in wrangler.jsonc
+
+# 3b. Set AUTH_SECRET
 npx wrangler secret put AUTH_SECRET
+# Paste your generated secret
+
+# 3c. Deploy
 npm run deploy</code></pre>
-          <p class="small">D1 auto-provision hota hai. Migrations optional hain kyunki app first request par schema create kar leta hai.</p>
+          <div class="callout green" style="margin-top:14px">
+            D1 auto-provisions. Migrations are optional because the app creates the schema on the first request.
+          </div>
         </div>
 
+        <!-- ENV VARIABLES -->
         <div class="card" id="env">
           <h2 style="margin-top:0">🌍 Environment Variables</h2>
           <table class="table">
-            <thead><tr><th>Name</th><th>Required?</th><th>What to enter</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Required?</th>
+                <th>Description</th>
+              </tr>
+            </thead>
             <tbody>
-              <tr><td><code>AUTH_SECRET</code></td><td><span class="ok">Yes</span></td><td><code>openssl rand -hex 32</code> output. Cloudflare deploy form mein dikhega.</td></tr>
-              <tr><td><code>RESEND_API_KEY</code></td><td><span class="ok">No</span></td><td><a href="https://resend.com" target="_blank">resend.com</a> se free API key. Blank = email off.</td></tr>
-              <tr><td><code>RESEND_FROM</code></td><td><span class="ok">No</span></td><td>Sender address. Example: <code>FormForge &lt;forms@example.com&gt;</code></td></tr>
-              <tr><td><code>DB</code></td><td><span class="ok">Yes</span></td><td>D1 binding name — already set in <code>wrangler.jsonc</code>. Secret nahi hai.</td></tr>
+              <tr>
+                <td><code>AUTH_SECRET</code></td>
+                <td><span class="tag green">YES</span></td>
+                <td>Output of <code>openssl rand -hex 32</code>. Used for HMAC session/API-key hashing.</td>
+              </tr>
+              <tr>
+                <td><code>RESEND_API_KEY</code></td>
+                <td><span class="tag amber">Optional</span></td>
+                <td>Free API key from <a href="https://resend.com" target="_blank">resend.com</a>. Leave blank to disable email.</td>
+              </tr>
+              <tr>
+                <td><code>RESEND_FROM</code></td>
+                <td><span class="tag amber">Optional</span></td>
+                <td>Sender address. Example: <code>FormForge &lt;forms@example.com&gt;</code></td>
+              </tr>
+              <tr>
+                <td><code>DB</code></td>
+                <td><span class="tag green">YES</span></td>
+                <td>D1 binding name — already set in <code>wrangler.jsonc</code>. Not a secret.</td>
+              </tr>
             </tbody>
           </table>
-          <p class="small"><code>DATABASE_URL</code> mat dalo. FormForge PostgreSQL use nahi karta.</p>
+          <div class="callout red" style="margin-top:14px">
+            <strong>⚠️ Important:</strong> Do <strong>not</strong> set <code>DATABASE_URL</code>. FormForge uses Cloudflare D1, not PostgreSQL. The D1 binding is all you need.
+          </div>
         </div>
 
+        <!-- DASHBOARD -->
         <div class="card" id="dashboard">
-          <h2 style="margin-top:0">📊 Dashboard Kaise Use Karein</h2>
-          <ul>
-            <li><strong>Forms tab:</strong> + New se form banao, search karo, select karo</li>
-            <li><strong>Submissions:</strong> Expand karo, JSON view, status (accepted/spam), time-ago</li>
-            <li><strong>Settings tab:</strong> Form name, origins, honeypot, webhook, email configure karo</li>
-            <li><strong>CSV Export:</strong> ⬇ button se saari submissions download karo</li>
-            <li><strong>API Keys:</strong> Read-only tokens banao programmatic access ke liye</li>
+          <h2 style="margin-top:0">📊 Dashboard Guide</h2>
+          <p class="small" style="margin-bottom:14px">After deployment, visit <code>/dashboard</code>. Here's what you can do:</p>
+          <ul class="feature-list">
+            <li><strong>Forms tab:</strong> Click + New to create a form, search, select. Each form has its own endpoint, settings, and spam rules.</li>
+            <li><strong>Submissions:</strong> Expand rows, view JSON, check status (accepted/spam), see time-ago timestamps.</li>
+            <li><strong>Interactive Charts:</strong> View timeline charts showing submission trends over time.</li>
+            <li><strong>Settings tab:</strong> Configure form name, allowed origins, honeypot, webhooks, email, Turnstile, spam words, and data retention.</li>
+            <li><strong>CSV Export:</strong> Download all submissions with the ⬇ button — no vendor lock-in.</li>
+            <li><strong>API Keys:</strong> Create read-only tokens for programmatic access. Set expiration dates.</li>
+            <li><strong>HTML Snippets:</strong> Copy ready-to-use HTML form code for your website.</li>
           </ul>
         </div>
 
-        <div class="card" id="privacy">
+        <!-- SECURITY -->
+        <div class="card" id="security">
           <h2 style="margin-top:0">🔒 Privacy & Security</h2>
-          <ul>
-            <li>Data sirf tumhare Cloudflare D1 mein rehta hai</li>
-            <li>IP addresses SHA-256 hash karke store hote hain</li>
-            <li>Passwords PBKDF2-SHA256 (210K iterations) se hashed</li>
-            <li>Session tokens HMAC-SHA256 hash karke store</li>
-            <li>No third-party analytics/tracking</li>
-            <li>Email/webhook optional, off by default</li>
-          </ul>
+          <p class="small" style="margin-bottom:14px">FormForge treats security as a first-class citizen — these are enterprise-grade features:</p>
+          <div class="grid two" style="gap:12px">
+            <div class="callout" style="margin:0">
+              <strong>🔐 Data Ownership</strong><br>
+              <span class="small">Your data stays in your Cloudflare D1. No third-party access.</span>
+            </div>
+            <div class="callout green" style="margin:0;border-left-color:var(--green)">
+              <strong>🧮 Hashed IPs</strong><br>
+              <span class="small">IP addresses are SHA-256 hashed before storage. Raw IPs are never saved.</span>
+            </div>
+            <div class="callout" style="margin:0">
+              <strong>🔑 PBKDF2 Passwords</strong><br>
+              <span class="small">Passwords are hashed with PBKDF2-SHA256 (210K iterations). Brute force is nearly impossible.</span>
+            </div>
+            <div class="callout green" style="margin:0;border-left-color:var(--green)">
+              <strong>🎫 HMAC Sessions</strong><br>
+              <span class="small">Session tokens are HMAC-SHA256 hashed. Secure cookies enabled.</span>
+            </div>
+            <div class="callout" style="margin:0">
+              <strong>🚫 No Tracking</strong><br>
+              <span class="small">No third-party analytics or tracking. No ad cookies.</span>
+            </div>
+            <div class="callout green" style="margin:0;border-left-color:var(--green)">
+              <strong>📧 Optional Integrations</strong><br>
+              <span class="small">Email and webhooks are optional and off by default. You control everything.</span>
+            </div>
+          </div>
         </div>
 
+        <!-- ADVANCED FEATURES -->
+        <div class="card" id="advanced">
+          <h2 style="margin-top:0">🛡️ Advanced Features</h2>
+          <p class="small" style="margin-bottom:16px">These features are typically behind paid enterprise tiers in commercial form backends — all free in FormForge:</p>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>🤖 Cloudflare Turnstile Verification</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small">Integrate Cloudflare's non-intrusive CAPTCHA to verify human submitters. Obtain a <code>Site Key</code> and <code>Secret Key</code> from the Cloudflare Turnstile dashboard. Save the secret key in form settings, and add the Turnstile widget to your HTML frontend.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>📧 Custom Submitter Autoresponder</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small">Automatically send personalized emails after form submission. Use <code>{curly_braces}</code> for dynamic field replacement. Example: <code>Hi {name}, thank you for writing about {subject}!</code></p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>🚫 Custom Spam Words Blocklist</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small">Enter comma-separated keywords in form settings (e.g., <code>crypto, casino, free money</code>). If any field contains these words, the submission gets <span class="bad">+100 spam score</span> and is blocked.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>🔑 API Key Expiration & Security</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small">Generate secure API keys for programmatic access. Set expiration: <code>30</code>, <code>90</code>, <code>365</code> days, or <code>Never</code>. Expired keys return <code>401 Unauthorized</code>.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>💬 Slack & Discord Auto-Formatting Webhooks</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small">Just paste your webhook URL. The backend automatically formats Slack blocks or Discord embedded cards with all submission details.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>🗑️ Automatic Data Retention Purging</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small">Keep your D1 storage clean. Set per-form retention: <code>30</code>, <code>60</code>, <code>90</code> days, or <code>Keep Forever</code>. Old records auto-delete on new submissions. Zero cron configuration needed.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- API EXAMPLES -->
+        <div class="card" id="api">
+          <h2 style="margin-top:0">🔌 API Examples</h2>
+
+          <h3>Register Owner Account</h3>
+          <div class="code-header">
+            <span>bash</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre style="margin-top:0"><code class="language-bash">curl -X POST https://YOUR-WORKER.workers.dev/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"owner@example.com","name":"Owner","password":"change-this-password"}'</code></pre>
+
+          <h3>Create a Form</h3>
+          <div class="code-header">
+            <span>bash</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre style="margin-top:0"><code class="language-bash">curl -X POST https://YOUR-WORKER.workers.dev/api/forms \
+  -H 'Content-Type: application/json' \
+  -b cookies.txt -c cookies.txt \
+  -d '{"name":"Contact","allowedOrigins":"https://example.com"}'</code></pre>
+
+          <h3>Use in HTML</h3>
+          <div class="code-header">
+            <span>html</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre style="margin-top:0"><code class="language-html">&lt;form method="POST" action="https://YOUR-WORKER.workers.dev/api/submit/endpoint_xxx"&gt;
+  &lt;input name="email" type="email" required /&gt;
+  &lt;textarea name="message" required&gt;&lt;/textarea&gt;
+  &lt;!-- Honeypot spam trap --&gt;
+  &lt;input name="website" tabindex="-1" autocomplete="off" hidden /&gt;
+  &lt;button&gt;Send&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+
+          <h3>Use with fetch (JavaScript)</h3>
+          <div class="code-header">
+            <span>javascript</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre style="margin-top:0"><code class="language-javascript">await fetch("https://YOUR-WORKER.workers.dev/api/submit/endpoint_xxx", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "hello@example.com", message: "Hi" }),
+});</code></pre>
+        </div>
+
+        <!-- TROUBLESHOOTING -->
         <div class="card" id="troubleshooting">
           <h2 style="margin-top:0">🐛 Troubleshooting</h2>
-          <h3>"Set AUTH_SECRET before creating accounts"</h3>
-          <p>Solution: <a href="#auth-secret">AUTH_SECRET set karo</a> Cloudflare secrets mein aur redeploy karo.</p>
-          <h3>"D1_NOT_CONFIGURED"</h3>
-          <p>Cloudflare Dashboard mein Worker → Settings → Bindings → D1 database <code>formforge-db</code> bind karo.</p>
-          <h3>Guide page download ho raha tha</h3>
-          <p>Ab <code>/guide.html</code> web page hai. Markdown version <code>/guide.html</code> bhi available hai.</p>
+
+          <div class="callout red" style="margin-bottom:14px">
+            <h3 style="margin:0 0 6px">"Set AUTH_SECRET before creating accounts"</h3>
+            <p class="small" style="margin:0"><strong>Solution:</strong> <a href="#auth-secret">Set AUTH_SECRET</a> in Cloudflare secrets and redeploy. No authentication works without it.</p>
+          </div>
+
+          <div class="callout amber" style="margin-bottom:14px">
+            <h3 style="margin:0 0 6px">"Network error. Is the Worker deployed and D1 bound?"</h3>
+            <p class="small" style="margin:0">Check these 3 things:</p>
+            <ol class="small" style="margin:6px 0 0;padding-left:16px">
+              <li>Is the Worker deployed? Run <code>npm run deploy</code> or click deploy again.</li>
+              <li>Is the D1 database created? Check Cloudflare Dashboard → Storage & Databases → D1.</li>
+              <li>Is <code>database_id</code> in <code>wrangler.jsonc</code> correct? Leave it blank — Cloudflare auto-creates it.</li>
+            </ol>
+          </div>
+
+          <div class="callout red" style="margin-bottom:14px">
+            <h3 style="margin:0 0 6px">"Error: DATABASE_URL is required"</h3>
+            <p class="small" style="margin:0">Old PostgreSQL code is being imported. FormForge uses <code>drizzle-orm/d1</code>, not <code>pg</code>. Do <strong>not</strong> set <code>DATABASE_URL</code>. The D1 binding is sufficient.</p>
+          </div>
+
+          <div class="callout amber" style="margin-bottom:14px">
+            <h3 style="margin:0 0 6px">"D1 binding not found" / "D1_NOT_CONFIGURED"</h3>
+            <p class="small" style="margin:0">Cloudflare Dashboard → Worker → Settings → Bindings → Bind the D1 database <code>formforge-db</code>. The binding name must be exactly <code>DB</code>.</p>
+          </div>
+
+          <div class="callout green" style="margin-bottom:0">
+            <h3 style="margin:0 0 6px">Deploy loop or build failure</h3>
+            <p class="small" style="margin:0">Keep <code>database_id</code> blank in <code>wrangler.jsonc</code>. The Cloudflare deploy button auto-creates D1. For manual setup, run <code>npx wrangler d1 create formforge-db</code>.</p>
+          </div>
         </div>
 
+        <!-- FAQ -->
         <div class="card" id="faq">
-          <h2 style="margin-top:0">❓ FAQ</h2>
-          <p><strong>Q: Credit card chahiye?</strong><br>A: Nahi. Cloudflare free tier mein credit card nahi mangta.</p>
-          <p><strong>Q: Custom domain?</strong><br>A: Haan. Cloudflare Dashboard → Worker → Custom Domains.</p>
-          <p><strong>Q: Multiple websites?</strong><br>A: Haan. Unlimited forms banao.</p>
-          <p><strong>Q: Free tier limits?</strong><br>A: 100K requests/day, D1 mein 5 GB storage — millions of submissions.</p>
+          <h2 style="margin-top:0">❓ Frequently Asked Questions</h2>
+
+          <div class="accordion-item open">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Do I need a credit card?</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small"><span class="ok">No.</span> Cloudflare's free tier doesn't require a credit card. FormForge is completely free.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Can I use a custom domain?</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small"><span class="ok">Yes.</span> Cloudflare Dashboard → Worker → Custom Domains → add your domain.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Can I have forms for multiple websites?</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small"><span class="ok">Yes.</span> Create unlimited forms. Each form has its own endpoint, origin allowlist, and settings.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>What are the free tier limits?</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small"><span class="ok">100K requests/day</span>, <span class="ok">5 GB</span> D1 storage — can handle millions of submissions.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>How do I export my data?</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small">Use the <strong>CSV Export</strong> button in the dashboard. You can also use API keys for programmatic access.</p>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Can I use this commercially?</span>
+            </div>
+            <div class="accordion-body">
+              <p class="small"><span class="ok">Yes.</span> FormForge is MIT licensed. Use it for personal, commercial, or client projects — all free.</p>
+            </div>
+          </div>
         </div>
       </section>
     </main>
 
     <footer class="footer">
-      <p>FormForge · MIT · Cloudflare Workers + D1 + Drizzle + OpenNext + Next.js + Tailwind CSS</p>
+      <p style="margin:0 0 6px"><strong>FormForge</strong> · MIT License</p>
+      <p class="small" style="margin:0">Cloudflare Workers + D1 + Drizzle ORM + OpenNext + Next.js 16 + React 19 + Tailwind CSS</p>
+      <div class="btns" style="justify-content:center;margin-top:14px">
+        <a class="btn" href="https://github.com/SudhirDevOps1/FormForge" target="_blank">⭐ GitHub</a>
+        <a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" target="_blank">🚀 Deploy</a>
+      </div>
     </footer>
   </div>
+
+  <script>
+    // Scroll progress bar
+    window.addEventListener('scroll', () => {
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      document.getElementById('scrollBar').style.width = ((scrollTop / scrollHeight) * 100) + '%';
+    });
+
+    // Copy code implementation
+    function copyCode(btn) {
+      const header = btn.closest('.code-header');
+      const pre = header.nextElementSibling;
+      const code = pre.querySelector('code') || pre;
+      
+      // Fallback for browsers or unsecured contexts where navigator.clipboard is missing
+      const textToCopy = code.textContent || code.innerText;
+      
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => showCopied(btn, btn.textContent));
+      } else {
+        // Legacy fallback using textarea
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          showCopied(btn, btn.textContent);
+        } catch (err) {
+          console.error('Fallback copy failed', err);
+        }
+        textArea.remove();
+      }
+    }
+
+    function showCopied(btn, originalText) {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+
+    // Accordion toggle
+    function toggleAccordion(header) {
+      const item = header.parentElement;
+      const wasOpen = item.classList.contains('open');
+      item.parentElement.querySelectorAll('.accordion-item.open').forEach(el => {
+        if (el !== item) el.classList.remove('open');
+      });
+      if (!wasOpen) item.classList.add('open');
+    }
+
+    // Active TOC highlighting
+    const sections = document.querySelectorAll('section .card[id]');
+    const tocLinks = document.querySelectorAll('.toc a[data-toc]');
+
+    function updateActiveToc() {
+      let current = '';
+      sections.forEach(section => {
+        if (section.getBoundingClientRect().top <= 150) current = section.id;
+      });
+      tocLinks.forEach(link => {
+        link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+      });
+    }
+
+    window.addEventListener('scroll', updateActiveToc);
+    updateActiveToc();
+
+    // Initialize syntax highlighting
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('pre code[class*="language-"]').forEach(block => {
+        hljs.highlightElement(block);
+      });
+    });
+
+    // Observer for fade-in animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.05 });
+
+    document.querySelectorAll('.card').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      observer.observe(el);
+    });
+  </script>
 </body>
 </html>
