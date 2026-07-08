@@ -5,7 +5,7 @@ import { forms, submissions, type Form, type NewSubmission } from "@/db/schema";
 import { randomId, safeStringify, sha256 } from "@/lib/crypto";
 import { corsHeaders, jsonError, resolveAllowedOrigin } from "@/lib/http";
 import { deliverNotifications } from "@/lib/notifications";
-import { waitUntil } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const dynamic = "force-dynamic";
 
@@ -243,7 +243,16 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     if (status === "accepted") {
-      waitUntil(deliverNotifications(db, form, submission as typeof submissions.$inferSelect));
+      try {
+        const ctx = getCloudflareContext().ctx;
+        if (ctx && typeof ctx.waitUntil === "function") {
+          ctx.waitUntil(deliverNotifications(db, form, submission as typeof submissions.$inferSelect));
+        } else {
+          await deliverNotifications(db, form, submission as typeof submissions.$inferSelect);
+        }
+      } catch {
+        await deliverNotifications(db, form, submission as typeof submissions.$inferSelect);
+      }
     }
 
     if (form.redirectUrl && request.headers.get("accept")?.includes("text/html")) {
