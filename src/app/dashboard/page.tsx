@@ -594,6 +594,7 @@ print(response.json())`;
               <a href={`/api/forms/${form.id}/export?format=csv`} className="block px-4 py-2.5 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition">CSV Format</a>
               <a href={`/api/forms/${form.id}/export?format=json`} className="block px-4 py-2.5 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition border-t border-white/5">JSON Format</a>
               <a href={`/api/forms/${form.id}/export?format=txt`} className="block px-4 py-2.5 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition border-t border-white/5">TXT Report</a>
+              <a href={`/api/forms/${form.id}/export?format=pdf`} target="_blank" className="block px-4 py-2.5 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition border-t border-white/5">PDF Report (Print)</a>
             </div>
           </div>
         </div>

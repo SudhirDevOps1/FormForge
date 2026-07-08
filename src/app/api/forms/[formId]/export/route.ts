@@ -101,6 +101,167 @@ export async function GET(request: Request, context: RouteContext) {
           "Content-Disposition": `attachment; filename="${form.slug}-submissions.txt"`,
         },
       });
+    } else if (format === "pdf" || format === "print") {
+      let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Submissions Report - ${escapeHtml(form.name)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: #1e293b;
+      margin: 40px;
+      padding: 0;
+      background: #ffffff;
+      font-size: 13px;
+    }
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+    .header-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+    .header-meta {
+      text-align: right;
+      color: #64748b;
+      font-size: 12px;
+    }
+    .submissions-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .submissions-table th {
+      background: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 600;
+      text-align: left;
+      padding: 12px 10px;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+    }
+    .submissions-table td {
+      border-bottom: 1px solid #f1f5f9;
+      padding: 12px 10px;
+      vertical-align: top;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-accepted {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .status-spam {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .status-pending {
+      background: #fef9c3;
+      color: #854d0e;
+    }
+    .payload-key {
+      font-weight: 600;
+      color: #334155;
+    }
+    .payload-val {
+      color: #515f76;
+    }
+    @media print {
+      body {
+        margin: 20px;
+      }
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <table class="header-table">
+    <tr>
+      <td>
+        <h1 class="header-title">${escapeHtml(form.name)}</h1>
+        <div style="color: #64748b; margin-top: 5px;">Form Endpoint Slug: /${escapeHtml(form.slug)}</div>
+      </td>
+      <td class="header-meta">
+        <div><strong>Submissions Export Report</strong></div>
+        <div style="margin-top: 5px;">Generated: ${new Date().toLocaleString()}</div>
+        <div>Total Exchanged: ${rows.length} entries</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="submissions-table">
+    <thead>
+      <tr>
+        <th style="width: 15%;">Date</th>
+        <th style="width: 12%;">Status</th>
+        <th style="width: 25%;">Email</th>
+        <th style="width: 48%;">Payload Data</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+      rows.forEach((row) => {
+        let parsedPayload: Record<string, any> = {};
+        try {
+          parsedPayload = JSON.parse(row.payload);
+        } catch (_) {}
+
+        const statusClass = row.status === "accepted" ? "status-accepted" : row.status === "pending" ? "status-pending" : "status-spam";
+
+        html += `
+      <tr>
+        <td>${new Date(row.createdAt).toLocaleDateString()} ${new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+        <td><span class="status-badge ${statusClass}">${row.status}</span></td>
+        <td><strong>${escapeHtml(row.email || "N/A")}</strong></td>
+        <td>
+          <div style="display: grid; gap: 4px;">`;
+        
+        Object.entries(parsedPayload).forEach(([k, v]) => {
+          html += `<div><span class="payload-key">${escapeHtml(k)}:</span> <span class="payload-val">${escapeHtml(String(v))}</span></div>`;
+        });
+
+        html += `
+          </div>
+        </td>
+      </tr>`;
+      });
+
+      html += `
+    </tbody>
+  </table>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    };
+  </script>
+</body>
+</html>`;
+
+      return new Response(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+        },
+      });
     } else {
       // Default to CSV
       const header = ["id", "created_at", "status", "spam_score", "email", "referer", "payload"];
@@ -123,4 +284,13 @@ export async function GET(request: Request, context: RouteContext) {
   } catch (error) {
     return jsonError("INTERNAL_ERROR", "An error occurred while generating export.", 500);
   }
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
