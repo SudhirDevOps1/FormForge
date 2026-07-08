@@ -1001,6 +1001,12 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [isCustom, setIsCustom] = useState((form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false);
   const [storeIpHash, setStoreIpHash] = useState(form.storeIpHash ?? true);
   const [emailVerificationEnabled, setEmailVerificationEnabled] = useState(form.emailVerificationEnabled ?? false);
+  const [smtpEnabled, setSmtpEnabled] = useState(form.smtpEnabled ?? false);
+  const [smtpHost, setSmtpHost] = useState(form.smtpHost ?? "");
+  const [smtpPort, setSmtpPort] = useState(form.smtpPort?.toString() ?? "587");
+  const [smtpUser, setSmtpUser] = useState(form.smtpUser ?? "");
+  const [smtpPass, setSmtpPass] = useState(form.smtpPass ?? "");
+  const [smtpFrom, setSmtpFrom] = useState(form.smtpFrom ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -1022,6 +1028,12 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setRetentionDays(form.retentionDays ?? 0);
     setStoreIpHash(form.storeIpHash ?? true);
     setEmailVerificationEnabled(form.emailVerificationEnabled ?? false);
+    setSmtpEnabled(form.smtpEnabled ?? false);
+    setSmtpHost(form.smtpHost ?? "");
+    setSmtpPort(form.smtpPort?.toString() ?? "587");
+    setSmtpUser(form.smtpUser ?? "");
+    setSmtpPass(form.smtpPass ?? "");
+    setSmtpFrom(form.smtpFrom ?? "");
     const custom = (form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false;
     setIsCustom(custom);
     if (custom) {
@@ -1053,7 +1065,13 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           spamBlocklist: spamBlocklist || null,
           retentionDays: isCustom ? Number(customDays) : Number(retentionDays),
           emailVerificationEnabled,
-          storeIpHash
+          storeIpHash,
+          smtpEnabled,
+          smtpHost: smtpHost || null,
+          smtpPort: smtpPort ? Number(smtpPort) : null,
+          smtpUser: smtpUser || null,
+          smtpPass: smtpPass || null,
+          smtpFrom: smtpFrom || null
         }),
       });
       const data = await res.json();
@@ -1181,8 +1199,56 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         </div>
         <label className="flex items-center gap-2 text-xs text-slate-300">
           <input type="checkbox" checked={notifyEmail} onChange={() => setNotifyEmail(!notifyEmail)} className="h-4 w-4 rounded" />
-          Enable email alerts (requires RESEND_API_KEY config)
+          Enable email alerts (requires RESEND_API_KEY config or SMTP below)
         </label>
+
+        {notifyEmail && (
+          <div className="border-t border-white/5 pt-4 space-y-4">
+            <label className="flex items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" checked={smtpEnabled} onChange={() => setSmtpEnabled(!smtpEnabled)} className="h-4 w-4 rounded" />
+              Use Custom SMTP Server (instead of Resend API)
+            </label>
+
+            {smtpEnabled && (
+              <div className="space-y-4 pl-4 border-l-2 border-sky-500/30 mt-2">
+                <div>
+                  <label htmlFor="smtp-email" className="mb-1 block text-xs text-slate-400">Your Email / SMTP Username</label>
+                  <input id="smtp-email" value={smtpUser} onChange={(e) => {
+                    const val = e.target.value;
+                    setSmtpUser(val);
+                    if (val.trim().toLowerCase().endsWith("@gmail.com")) {
+                      setSmtpHost("smtp.gmail.com");
+                      setSmtpPort("587");
+                    }
+                  }} className="ff-input text-sm" placeholder="your.email@example.com" />
+                </div>
+                <div>
+                  <label htmlFor="smtp-password" className="mb-1 block text-xs text-slate-400">SMTP Password</label>
+                  <input id="smtp-password" type="password" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} className="ff-input text-sm" placeholder="Enter your SMTP password" />
+                  {smtpUser.trim().toLowerCase().endsWith("@gmail.com") && (
+                    <p className="text-[10px] text-slate-500 mt-1">For Gmail, use an App Password instead of your regular password. Go to Google Account → Security → 2-Step Verification → App passwords.</p>
+                  )}
+                </div>
+                {!smtpUser.trim().toLowerCase().endsWith("@gmail.com") && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="smtp-host" className="mb-1 block text-xs text-slate-400">SMTP Host</label>
+                      <input id="smtp-host" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} className="ff-input text-sm" placeholder="smtp.example.com" />
+                    </div>
+                    <div>
+                      <label htmlFor="smtp-port" className="mb-1 block text-xs text-slate-400">SMTP Port</label>
+                      <input id="smtp-port" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} className="ff-input text-sm" placeholder="587" />
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="smtp-from" className="mb-1 block text-xs text-slate-400">Sender Email (From)</label>
+                  <input id="smtp-from" value={smtpFrom} onChange={(e) => setSmtpFrom(e.target.value)} className="ff-input text-sm" placeholder="your.email@example.com" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Section 4: Autoresponder */}
