@@ -112,10 +112,13 @@ export async function GET(request: Request, context: RouteContext) {
     body {
       font-family: 'Inter', -apple-system, sans-serif;
       color: #1e293b;
-      margin: 40px;
+      margin: 0;
       padding: 0;
       background: #ffffff;
       font-size: 13px;
+    }
+    .report-container {
+      padding: 40px;
     }
     .header-table {
       width: 100%;
@@ -183,39 +186,50 @@ export async function GET(request: Request, context: RouteContext) {
     }
     @media print {
       body {
-        margin: 20px;
+        margin: 0px;
+      }
+      .report-container {
+        padding: 20px;
       }
       .no-print {
-        display: none;
+        display: none !important;
       }
     }
   </style>
 </head>
 <body>
-  <table class="header-table">
-    <tr>
-      <td>
-        <h1 class="header-title">${escapeHtml(form.name)}</h1>
-        <div style="color: #64748b; margin-top: 5px;">Form Endpoint Slug: /${escapeHtml(form.slug)}</div>
-      </td>
-      <td class="header-meta">
-        <div><strong>Submissions Export Report</strong></div>
-        <div style="margin-top: 5px;">Generated: ${new Date().toLocaleString()}</div>
-        <div>Total Exchanged: ${rows.length} entries</div>
-      </td>
-    </tr>
-  </table>
+  <div class="no-print" style="background: #f8fafc; padding: 15px 40px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-family: system-ui, -apple-system, sans-serif;">
+    <span style="font-weight: 500; color: #475569; font-size: 13px;">📄 PDF Report Preview — If the print dialog didn't open automatically, use the button on the right.</span>
+    <button onclick="window.print()" style="background: #0f172a; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 12px;">
+      🖨️ Print / Save PDF
+    </button>
+  </div>
 
-  <table class="submissions-table">
-    <thead>
+  <div class="report-container">
+    <table class="header-table">
       <tr>
-        <th style="width: 15%;">Date</th>
-        <th style="width: 12%;">Status</th>
-        <th style="width: 25%;">Email</th>
-        <th style="width: 48%;">Payload Data</th>
+        <td>
+          <h1 class="header-title">${escapeHtml(form.name)}</h1>
+          <div style="color: #64748b; margin-top: 5px;">Form Endpoint Slug: /${escapeHtml(form.slug)}</div>
+        </td>
+        <td class="header-meta">
+          <div><strong>Submissions Export Report</strong></div>
+          <div style="margin-top: 5px;">Generated: ${new Date().toLocaleString()}</div>
+          <div>Total Exchanged: ${rows.length} entries</div>
+        </td>
       </tr>
-    </thead>
-    <tbody>`;
+    </table>
+
+    <table class="submissions-table">
+      <thead>
+        <tr>
+          <th style="width: 15%;">Date</th>
+          <th style="width: 12%;">Status</th>
+          <th style="width: 25%;">Email</th>
+          <th style="width: 48%;">Payload Data</th>
+        </tr>
+      </thead>
+      <tbody>`;
 
       rows.forEach((row) => {
         let parsedPayload: Record<string, any> = {};
@@ -226,32 +240,37 @@ export async function GET(request: Request, context: RouteContext) {
         const statusClass = row.status === "accepted" ? "status-accepted" : row.status === "pending" ? "status-pending" : "status-spam";
 
         html += `
-      <tr>
-        <td>${new Date(row.createdAt).toLocaleDateString()} ${new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-        <td><span class="status-badge ${statusClass}">${row.status}</span></td>
-        <td><strong>${escapeHtml(row.email || "N/A")}</strong></td>
-        <td>
-          <div style="display: grid; gap: 4px;">`;
+        <tr>
+          <td>${new Date(row.createdAt).toLocaleDateString()} ${new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+          <td><span class="status-badge ${statusClass}">${row.status}</span></td>
+          <td><strong>${escapeHtml(row.email || "N/A")}</strong></td>
+          <td>
+            <div style="display: grid; gap: 4px;">`;
         
         Object.entries(parsedPayload).forEach(([k, v]) => {
           html += `<div><span class="payload-key">${escapeHtml(k)}:</span> <span class="payload-val">${escapeHtml(String(v))}</span></div>`;
         });
 
         html += `
-          </div>
-        </td>
-      </tr>`;
+            </div>
+          </td>
+        </tr>`;
       });
 
       html += `
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
 
   <script>
     window.onload = function() {
       setTimeout(function() {
-        window.print();
-      }, 500);
+        try {
+          window.print();
+        } catch (e) {
+          console.error("Auto print failed: ", e);
+        }
+      }, 700);
     };
   </script>
 </body>
