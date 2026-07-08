@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       email,
       name: name || "Owner",
       passwordHash: await hashPassword(password),
+      createdAt: new Date().toISOString(),
     });
 
     const session = await createSession(db, userId);

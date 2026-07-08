@@ -76,6 +76,8 @@ export async function POST(request: Request) {
       notifyEmail: Boolean(body.notifyEmail),
       emailTo: readString(body.emailTo) || null,
       webhookUrl: webhookUrlVal,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     await db.insert(auditLogs).values({

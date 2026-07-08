@@ -85,6 +85,7 @@ export async function POST(request: Request) {
       keyHash: await hmacSha256(token, secret),
       scopes: readString(body.scopes, "forms:read,submissions:read"),
       expiresAt,
+      createdAt: new Date().toISOString(),
     });
 
     return jsonOk({ apiKey: token, prefix, warning: "Copy this key now. It will not be shown again." }, { status: 201 });
