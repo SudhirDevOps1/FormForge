@@ -89,3 +89,16 @@ The following custom features have been added to the production codebase:
 ### 📅 Automatic Data Retention Purging
 * **Retention Options:** Forms can be configured to retain submissions for `30`, `60`, `90` days, or `Keep Forever` (default).
 * **Purge execution:** The purge operation runs in the background of incoming form submissions, automatically executing a SQLite deletion command `DELETE FROM submissions WHERE form_id = ? AND created_at < threshold` to delete outdated logs. This keeps your D1 usage within the free-tier storage limits (500MB) without requiring external cron setups.
+
+### ✉️ Submitter Email Verification (Double Opt-in)
+* **Flow:** Enable in form settings. Submissions are temporarily held in `pending` status. A transactional email verification link is sent automatically to the submitter. Clicking the link changes status to `accepted` and triggers Slack/Discord webhooks or email notifications.
+
+### 🔍 Smart DNS MX Lookup Validation
+* **Email Safety:** Automatically resolves and validates the domain name of submitters' emails using Cloudflare DNS over HTTPS. If the domain doesn't contain active Mail Exchange (MX) records, the submission is rejected instantly as spam/invalid.
+
+### 📥 Multi-Format Data Exports
+* **Export Options:** Download submissions directly from the dashboard top-bar Action Dropdown as CSV, JSON (fully parsed nested objects), readable TXT reports, or styled PDF Print Layouts.
+
+### ✏️ Editable Form Slugs & Hard Deletion
+* **Dashboard Control:** Form endpoints can be dynamically renamed with custom URL slugs. Forms can be hard-deleted directly to immediately wipe database records.
+
