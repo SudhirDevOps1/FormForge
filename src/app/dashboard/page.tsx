@@ -1246,14 +1246,14 @@ function KeysTab() {
           </div>
 
           <div className="border-t border-white/10 pt-4 space-y-4">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">📖 API Integration Guide (आसान गाइड)</h4>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider">📖 API Integration Guide</h4>
             <p className="text-xs text-slate-300 leading-5">
-              <strong>यह किसलिए है?</strong> अगर आप अपने फॉर्म्स का सबमिशन डेटा अपनी किसी दूसरी वेबसाइट, ऐप, या कोड में ऑटोमेटिकली लोड करना चाहते हैं, तो इस API का उपयोग करें।
+              <strong>What is this for?</strong> Use this API to retrieve and load form submissions programmatically into your external website, mobile app, or custom backend service.
             </p>
 
             {/* Step 1: Select Form */}
             <div className="rounded-xl bg-black/20 p-3 space-y-2 border border-white/5">
-              <label className="block text-xs font-semibold text-slate-300">1. अपना फ़ॉर्म सेलेक्ट करें (Select Form ID):</label>
+              <label className="block text-xs font-semibold text-slate-300">1. Select Form ID:</label>
               <select
                 value={selectedFormId}
                 onChange={(e) => setSelectedFormId(e.target.value)}
@@ -1264,12 +1264,12 @@ function KeysTab() {
                   <option key={f.id} value={f.id}>{f.name} ({f.id})</option>
                 ))}
               </select>
-              <p className="text-[10px] text-slate-500">यहाँ फ़ॉर्म चुनने पर नीचे दिए गए कोड में आपकी Form ID और API Key खुद-ब-खुद जुड़ जाएगी।</p>
+              <p className="text-[10px] text-slate-500">Choosing a form dynamically pre-fills its ID and your API Key inside the code snippet below.</p>
             </div>
 
             {/* Step 2: Code Snippets with Tabs */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-slate-300">2. कोड को कॉपी करें (Copy Code):</label>
+              <label className="block text-xs font-semibold text-slate-300">2. Copy Code Snippet:</label>
               <div className="flex gap-1.5 border-b border-white/5 pb-2">
                 {[
                   { id: "curl", name: "cURL (Terminal)" },
