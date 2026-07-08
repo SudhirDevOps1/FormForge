@@ -23,6 +23,7 @@ type Form = {
   autoresponderBody: string | null;
   spamBlocklist: string | null;
   retentionDays: number;
+  storeIpHash: boolean;
   createdAt: string;
 };
 type Submission = {
