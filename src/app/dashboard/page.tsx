@@ -582,7 +582,17 @@ print(response.json())`;
         <div className="flex gap-2">
           <button onClick={toggleActive} className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10">{form.isActive ? "Pause" : "Resume"}</button>
           <button onClick={deleteForm} className="rounded-xl border border-rose-400/30 text-rose-200 px-4 py-3 text-xs hover:bg-rose-400/10">Delete</button>
-          <a href={`/api/forms/${form.id}/export`} className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10">⬇ CSV</a>
+          <div className="relative group">
+            <button className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10 flex items-center gap-1.5 text-slate-300">
+              <span>⬇ Export</span>
+              <span className="text-[10px] opacity-60">▼</span>
+            </button>
+            <div className="absolute right-0 mt-1 hidden group-hover:block bg-slate-950 border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 min-w-[130px]">
+              <a href={`/api/forms/${form.id}/export?format=csv`} className="block px-4 py-2.5 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition">CSV Format</a>
+              <a href={`/api/forms/${form.id}/export?format=json`} className="block px-4 py-2.5 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition border-t border-white/5">JSON Format</a>
+              <a href={`/api/forms/${form.id}/export?format=txt`} className="block px-4 py-2.5 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition border-t border-white/5">TXT Report</a>
+            </div>
+          </div>
         </div>
       </div>
 
