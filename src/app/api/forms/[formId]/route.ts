@@ -126,16 +126,17 @@ export async function DELETE(request: Request, context: RouteContext) {
   }
 
   try {
-    // Soft-deactivation toggle as designed in dashboard (intentional soft-delete pattern)
-    await result.db.update(forms).set({ isActive: false, updatedAt: new Date().toISOString() }).where(eq(forms.id, formId));
+    // Perform a hard delete from the database
+    await result.db.delete(forms).where(eq(forms.id, formId));
     await result.db.insert(auditLogs).values({
       userId: result.user.id,
-      formId,
-      action: "form.deactivated",
+      formId: null,
+      action: "form.deleted",
+      metadata: JSON.stringify({ formId }),
     });
 
-    return jsonOk({ deactivated: true });
+    return jsonOk({ deleted: true });
   } catch (error) {
-    return jsonError("DB_ERROR", "Failed to delete/deactivate form.", 500);
+    return jsonError("DB_ERROR", "Failed to delete form.", 500);
   }
 }

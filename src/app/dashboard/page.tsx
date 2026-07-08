@@ -63,10 +63,15 @@ function CodeHighlight({ code, lang }: { code: string; lang: string }) {
   let html = code;
   if (lang === "html") {
     html = code
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/(&lt;\/?\w+)/g, '<span class="text-sky-400">$1</span>')
-      .replace(/(\s\w+=)/g, '<span class="text-purple-300">$1</span>')
-      .replace(/(".*?")/g, '<span class="text-emerald-400">$1</span>');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    
+    // Highlight tags and their attributes in a single pass to prevent nested replacement conflicts
+    html = html.replace(/&lt;(\/?[a-zA-Z0-9-]+)(.*?)&gt;/g, (match, tagName, attrs) => {
+      const highlightedAttrs = attrs.replace(/(\s[a-zA-Z0-9_-]+=)(["'].*?["'])/g, ' <span class="text-purple-300">$1</span><span class="text-emerald-400">$2</span>');
+      return `&lt;<span class="text-sky-400">${tagName}</span>${highlightedAttrs}&gt;`;
+    });
   } else if (lang === "js" || lang === "jsx") {
     html = code
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -288,9 +293,19 @@ function FormsTab() {
     const data = await res.json();
     if (data.ok) {
       setForms(data.data.forms);
-      if (initialLoad.current && data.data.forms.length > 0) {
-        setSelectedId(data.data.forms[0].id);
+      const formsList = data.data.forms;
+      if (initialLoad.current && formsList.length > 0) {
+        setSelectedId(formsList[0].id);
         initialLoad.current = false;
+      } else if (formsList.length > 0) {
+        setSelectedId((current) => {
+          if (current && formsList.some((f: Form) => f.id === current)) {
+            return current;
+          }
+          return formsList[0].id;
+        });
+      } else {
+        setSelectedId(null);
       }
     }
   }, []);
@@ -953,6 +968,7 @@ function SubmissionRow({ sub }: { sub: Submission }) {
 
 function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void }) {
   const [name, setName] = useState(form.name);
+  const [slug, setSlug] = useState(form.slug);
   const [allowedOrigins, setAllowedOrigins] = useState(form.allowedOrigins);
   const [honeypot, setHoneypot] = useState(form.honeypotField);
   const [successMsg, setSuccessMsg] = useState(form.successMessage);
@@ -974,6 +990,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
 
   useEffect(() => {
     setName(form.name);
+    setSlug(form.slug);
     setAllowedOrigins(form.allowedOrigins);
     setHoneypot(form.honeypotField);
     setSuccessMsg(form.successMessage);
@@ -1004,6 +1021,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          slug,
           allowedOrigins,
           honeypotField: honeypot,
           successMessage: successMsg,
@@ -1033,6 +1051,10 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         <div>
           <label htmlFor="settings-name" className="mb-1 block text-xs text-slate-400">Form name</label>
           <input id="settings-name" required value={name} onChange={(e) => setName(e.target.value)} className="ff-input text-sm" />
+        </div>
+        <div>
+          <label htmlFor="settings-slug" className="mb-1 block text-xs text-slate-400">Form slug (URL identifier)</label>
+          <input id="settings-slug" required value={slug} onChange={(e) => setSlug(e.target.value)} className="ff-input text-sm font-mono" />
         </div>
         <div>
           <label htmlFor="settings-origins" className="mb-1 block text-xs text-slate-400">Allowed origins (* = any, or https://mysite.com)</label>
