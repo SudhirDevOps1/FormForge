@@ -1,2045 +1,877 @@
-<!doctype html>
-<html lang="en" class="scroll-smooth">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5" />
   <title>FormForge Docs — Cloudflare Workers + D1 form backend</title>
   <meta name="description" content="Complete FormForge setup docs: one-click Cloudflare deployment, D1, environment variables, API usage, privacy, and troubleshooting." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   
-  <!-- Tailwind CSS v3 via CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Font Integration -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <!-- Prism.js Syntax Highlighting CSS (Tomorrow Night Premium Dark Theme) -->
-  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
-
   <style>
     :root {
       --bg: #030712;
+      --bg-elevated: #0a0f1e;
       --panel: rgba(13, 17, 30, 0.75);
-      --border: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.06);
+      --border-hover: rgba(56, 189, 248, 0.25);
       --text: #f3f4f6;
-      --muted: #9ca3af;
+      --text-secondary: #9ca3af;
       --accent: #38bdf8;
       --accent-hover: #0ea5e9;
+      --accent-glow: rgba(56, 189, 248, 0.15);
       --green: #34d399;
+      --green-glow: rgba(52, 211, 153, 0.15);
       --amber: #fbbf24;
-      --rose: #f43f5e;
+      --amber-glow: rgba(251, 191, 36, 0.15);
+      --red: #f87171;
+      --font-mono: 'JetBrains Mono', 'Courier New', Courier, monospace;
     }
-    * {
-      box-sizing: border-box;
-    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    
     body {
       margin: 0;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.18), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(6, 182, 212, 0.1), transparent),
+        radial-gradient(ellipse 50% 30% at 20% 100%, rgba(139, 92, 246, 0.08), transparent),
+        var(--bg);
+      background-attachment: fixed;
       color: var(--text);
       line-height: 1.7;
-      overflow-x: hidden;
-    }
-    
-    /* Premium Animated Background Gradient Orbs */
-    @keyframes floatOrb {
-      0%, 100% { transform: translateY(0px) translateX(0px) scale(1); }
-      50% { transform: translateY(-30px) translateX(20px) scale(1.05); }
-    }
-    @keyframes floatOrbReverse {
-      0%, 100% { transform: translateY(0px) translateX(0px) scale(1); }
-      50% { transform: translateY(30px) translateX(-20px) scale(0.95); }
-    }
-    .bg-orb-1 {
-      position: absolute;
-      top: -10%;
-      left: 15%;
-      width: 60vw;
-      height: 60vw;
-      max-width: 800px;
-      max-height: 800px;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-      animation: floatOrb 18s ease-in-out infinite;
-      z-index: -10;
-      pointer-events: none;
-    }
-    .bg-orb-2 {
-      position: absolute;
-      top: 40%;
-      right: -5%;
-      width: 55vw;
-      height: 55vw;
-      max-width: 750px;
-      max-height: 750px;
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
-      animation: floatOrbReverse 22s ease-in-out infinite;
-      z-index: -10;
-      pointer-events: none;
-    }
-    .bg-orb-3 {
-      position: absolute;
-      bottom: -5%;
-      left: 5%;
-      width: 50vw;
-      height: 50vw;
-      max-width: 700px;
-      max-height: 700px;
-      background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
-      animation: floatOrb 25s ease-in-out infinite;
-      z-index: -10;
-      pointer-events: none;
+      min-height: 100vh;
     }
 
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-      width: 10px;
-      height: 10px;
+    /* Selection */
+    ::selection {
+      background: rgba(56, 189, 248, 0.3);
+      color: #fff;
     }
-    ::-webkit-scrollbar-track {
-      background: #030712;
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: all 0.2s ease;
     }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.12);
-      border-radius: 99px;
-      border: 2px solid #030712;
+    a:hover {
+      color: var(--accent-hover);
+      text-decoration: underline;
     }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(56, 189, 248, 0.4);
-    }
-    
-    /* Layout Wrapping */
+
     .wrap {
-      max-width: 1320px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 0px 20px 0px;
+      padding: 0 20px 80px;
     }
 
-    /* Animated Entrance Utilities */
-    @keyframes fadeSlideUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-entrance {
-      animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    /* Premium Card Design with 3D Float and Border Glow */
-    .card {
-      border: 1px solid var(--border);
-      background: linear-gradient(135deg, rgba(19, 24, 42, 0.75) 0%, rgba(5, 9, 20, 0.9) 100%);
-      border-radius: 24px;
-      padding: 32px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+    /* Header Nav */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+      position: sticky;
+      top: 0;
+      background: rgba(3, 7, 18, 0.9);
       backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
     }
-    .card:hover {
-      transform: translateY(-3px);
-      border-color: rgba(56, 189, 248, 0.35);
-      box-shadow: 0 28px 65px rgba(0, 0, 0, 0.7), 0 0 25px rgba(56, 189, 248, 0.08), inset 0 1px 0 rgba(255,255,255,0.1);
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+      font-weight: 800;
+      font-size: 20px;
+      text-decoration: none !important;
     }
-    
-    /* Interactive Button Styling */
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 20px;
+      color: #030712;
+    }
+    .nav-links {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Buttons */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 14px;
-      padding: 12px 24px;
-      font-weight: 700;
-      font-size: 14px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.05);
-      color: #fff;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      font-weight: 600;
+      font-size: 13px;
       cursor: pointer;
-      text-decoration: none;
-      user-select: none;
+      text-decoration: none !important;
+      transition: all 0.2s ease;
     }
     .btn:hover {
-      background: rgba(255,255,255,0.1);
-      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.1);
       border-color: rgba(255, 255, 255, 0.2);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-    }
-    .btn:active {
-      transform: translateY(0px);
+      color: #fff;
     }
     .btn.primary {
-      background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+      background: var(--accent);
       color: #030712;
-      border-color: #38bdf8;
-      font-weight: 800;
+      border: none;
     }
     .btn.primary:hover {
-      background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
-      box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4), 0 0 15px rgba(56, 189, 248, 0.2);
+      background: var(--accent-hover);
+      box-shadow: 0 0 15px var(--accent-glow);
+      color: #000;
     }
 
-    /* Prism Custom Overrides for Premium integration */
-    /* Ensure .code-window pre has NO borders/margins because wrapper provides it */
-    .code-window pre[class*="language-"] {
-      border: none !important;
-      border-radius: 0 !important;
-      margin: 0 !important;
-      box-shadow: none !important;
-      background: transparent !important;
-      padding: 1.25rem !important;
-      font-family: 'JetBrains Mono', monospace !important;
-      font-size: 0.875rem !important;
-    }
-    code[class*="language-"] {
-      font-family: 'JetBrains Mono', monospace !important;
-      text-shadow: none !important;
-    }
-    .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #64748b !important; font-style: italic !important; }
-    .token.punctuation { color: #94a3b8 !important; }
-    .token.property, .token.tag, .token.constant, .token.symbol, .token.deleted { color: #f43f5e !important; }
-    .token.boolean, .token.number { color: #fbbf24 !important; }
-    .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted { color: #34d399 !important; }
-    .token.operator, .token.entity, .token.url, .language-css .token.string, .style .token.string { color: #38bdf8 !important; }
-    .token.atrule, .token.attr-value, .token.keyword { color: #818cf8 !important; }
-    .token.function, .token.class-name { color: #a855f7 !important; }
-    .token.regex, .token.important, .token.variable { color: #f59e0b !important; }
-
-    /* Console Block specialized styles */
-    pre.console-output {
-      background: rgba(0,0,0,0.85) !important;
-      border: 1px solid rgba(255,255,255,0.1) !important;
-      border-radius: 12px !important;
-      padding: 1rem !important;
-    }
-
-    /* Active TOC Highlighting */
-    .toc-item {
-      transition: all 0.2s ease;
-      position: relative;
-    }
-    .toc-item::before {
-      content: '';
-      position: absolute;
-      left: -2px;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background-color: transparent;
-      transition: background-color 0.2s ease;
-    }
-    .toc-item.active {
-      color: #38bdf8;
-      font-weight: 700;
+    /* Banner / Pill */
+    .pill {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      border: 1px solid rgba(56, 189, 248, 0.2);
       background: rgba(56, 189, 248, 0.08);
-      border-radius: 0 8px 8px 0;
-    }
-    .toc-item.active::before {
-      background-color: #38bdf8;
-    }
-
-    /* Mobile Sheet Navigation Animation */
-    .mobile-sheet {
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #cffafe;
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 24px;
     }
 
-    /* Responsiveness Customizations */
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      max-width: 800px;
+      margin: 40px auto 60px;
+    }
+    .hero h1 {
+      font-size: clamp(28px, 4.5vw, 52px);
+      line-height: 1.15;
+      font-weight: 800;
+      margin: 16px 0;
+      background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 16px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Grid Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 30px;
+      margin-top: 40px;
+    }
+    .sidebar {
+      grid-column: span 3;
+      position: sticky;
+      top: 90px;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+    }
+    .content {
+      grid-column: span 9;
+    }
     @media (max-width: 1024px) {
-      .card { padding: 24px; border-radius: 20px; }
-      h1 { font-size: clamp(32px, 7vw, 48px); }
-      h2 { font-size: clamp(22px, 5vw, 28px); }
+      .sidebar { display: none; }
+      .content { grid-column: span 12; }
     }
-    @media (max-width: 640px) {
-      .wrap { padding: 0px 14px 0px; }
-      .card { padding: 20px; border-radius: 18px; }
-      .btn { padding: 10px 18px; font-size: 13px; border-radius: 12px; }
-      .table th, .table td { padding: 10px 12px; font-size: 12px; }
-      pre[class*="language-"] { padding: 1rem !important; font-size: 0.8rem !important; }
+
+    /* TOC Sidebar Menu */
+    .toc-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .toc-link {
+      display: block;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .toc-link:hover {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      border-color: var(--border-hover);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    .card-icon {
+      font-size: 24px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card-header h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    /* Form Sandbox */
+    .sandbox-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    @media (max-width: 768px) {
+      .sandbox-grid { grid-template-columns: 1fr; }
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-control {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 14px;
+      transition: border 0.2s ease;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .switch-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Highlight Block */
+    pre {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #a7f3d0;
+      margin: 12px 0;
+    }
+    code {
+      font-family: var(--font-mono);
+      color: var(--accent);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    /* Relational Database Setup Styles */
+    .schema-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    @media (max-width: 768px) {
+      .schema-grid { grid-template-columns: 1fr; }
+    }
+    .schema-btn {
+      width: 100%;
+      text-align: left;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 8px;
+    }
+    .schema-btn:hover, .schema-btn.active {
+      background: rgba(56, 189, 248, 0.08);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* Info Alerts */
+    .alert {
+      border-left: 4px solid var(--accent);
+      background: rgba(56, 189, 248, 0.05);
+      padding: 16px;
+      border-radius: 0 12px 12px 0;
+      font-size: 13px;
+      margin: 20px 0;
+      color: var(--text);
+    }
+    .alert.green {
+      border-left-color: var(--green);
+      background: rgba(52, 211, 153, 0.05);
+    }
+    .alert.amber {
+      border-left-color: var(--amber);
+      background: rgba(251, 191, 36, 0.05);
+    }
+
+    /* Console Simulator */
+    .console {
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      background: #020617;
+      padding: 16px;
+      border-radius: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--green);
+      margin-top: 16px;
+    }
+    .console-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: rgba(0, 0, 0, 0.2);
+      color: #fff;
+      font-weight: 700;
+    }
+    tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Footer */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding-top: 30px;
+      margin-top: 60px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 13px;
     }
   </style>
 </head>
-<body class="selection:bg-sky-500/30 selection:text-white relative">
+<body>
 
-  <!-- Floating Background Orbs for Ultra Premium Visual Animation -->
-  <div class="bg-orb-1"></div>
-  <div class="bg-orb-2"></div>
-  <div class="bg-orb-3"></div>
-
-  <!-- Sticky Top Announcement Bar -->
-  <div class="bg-gradient-to-r from-indigo-950/90 via-sky-950/90 to-emerald-950/90 backdrop-blur-md border-b border-white/10 py-2.5 px-4 text-center text-xs font-semibold tracking-wide flex justify-center items-center gap-2.5 sticky top-0 z-50">
-    <span class="inline-flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-    <span class="truncate">FormForge v2.0 Live • 100% Free D1 SQLite Architecture</span>
-    <span class="opacity-40 hidden sm:inline">|</span>
-    <a href="#deploy" class="text-sky-400 hover:text-sky-300 hover:underline flex-shrink-0 font-bold hidden sm:inline">One-Click Deploy &rarr;</a>
-  </div>
-
-  <div class="wrap pt-6 md:pt-8 mb-20">
-    
-    <!-- Top Brand Navbar -->
-    <nav class="flex items-center justify-between gap-4 mb-8 md:mb-12 border-b border-white/10 pb-6">
-      <a class="flex items-center gap-3 group text-white" href="./docs.html">
-        <div class="w-11 h-11 rounded-14 bg-gradient-to-br from-sky-400 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-sky-500/25 group-hover:scale-105 transition-transform">
-          <svg class="w-6 h-6 text-slate-950 fill-current" viewBox="0 0 24 24">
-            <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
-        </div>
-        <div class="flex flex-col">
-          <span class="font-extrabold text-xl md:text-2xl tracking-tight leading-none group-hover:text-sky-400 transition-colors">FormForge</span>
-          <span class="text-[10px] text-sky-400 font-mono font-medium tracking-widest mt-0.5 uppercase">Self-Hosted D1</span>
-        </div>
+  <div class="wrap">
+    <!-- Top Navigation -->
+    <nav class="nav">
+      <a class="brand" href="/">
+        <div class="brand-icon">⚡</div>
+        <div>FormForge <span style="font-size:10px; color:var(--accent); font-family:var(--font-mono); letter-spacing:1px; display:block; font-weight:normal;">Self-Hosted D1</span></div>
       </a>
-      
-      <!-- Desktop & Tablet Actions -->
-      <div class="hidden sm:flex items-center gap-3">
-        <a class="btn" href="https://github.com/SudhirDevOps1/FormForge" target="_blank" rel="noreferrer">
-          <svg class="w-4 h-4 mr-2 inline" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.479C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
-          GitHub Repo
-        </a>
-        <a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" target="_blank" rel="noreferrer">
-          <svg class="w-4 h-4 mr-2 inline fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-1.25 17.292l-4.5-4.5 1.417-1.417 3.083 3.083 6.583-6.583 1.417 1.417-8 8z"/></svg>
-          Deploy to Cloudflare
-        </a>
-      </div>
-
-      <!-- Mobile TOC Toggle Button -->
-      <div class="sm:hidden flex items-center gap-2">
-        <button onclick="toggleMobileSheet()" class="btn py-2.5 px-3 border-sky-500/30 bg-sky-500/10 text-sky-400 flex items-center gap-2 font-bold cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
-          </svg>
-          Docs Menu
-        </button>
+      <div class="nav-links">
+        <a class="btn" href="https://github.com/SudhirDevOps1/FormForge" target="_blank">GitHub Repo</a>
+        <a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" target="_blank">Deploy to Cloudflare</a>
       </div>
     </nav>
 
-    <!-- Header Hero Section -->
-    <header class="max-w-4xl mx-auto text-center my-8 md:my-14 animate-entrance">
-      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-sky-400/20 bg-sky-500/10 text-sky-300 text-xs font-semibold tracking-wide mb-6">
-        <svg class="w-4 h-4 text-sky-400 animate-spin" style="animation-duration: 8s;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM9.5 5a.5.5 0 011 0v4.793l2.146 2.147a.5.5 0 01-.708.708l-2.5-2.5A.5.5 0 019.5 10V5z" clip-rule="evenodd"/></svg>
-        Fully Decoupled Edge Isolates • Advanced SQLite Processing
-      </div>
-      <h1 class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-sky-400 leading-tight">
-        Free, Privacy-First Form Backend You Self-Host in Cloudflare.
-      </h1>
-      <p class="lead mt-5 mx-auto text-slate-300 text-base md:text-lg">
-        FormForge is an elite backend solution for static sites, Next.js / OpenNext apps, Astro blogs, and React setups. Bypasses the need for expensive PostgreSQL instances or subscriptions. Powered entirely by <strong>Cloudflare Workers</strong> & <strong>D1</strong>.
+    <!-- Header Hero -->
+    <header class="hero">
+      <div class="pill">⚡ Fully Decoupled Edge Isolates • Advanced SQLite Processing</div>
+      <h1>Free, Privacy-First Form Backend You Self-Host in Cloudflare.</h1>
+      <p>
+        FormForge is an elite backend solution for static sites, Next.js / OpenNext apps, Astro blogs, and React setups. 
+        Bypasses the need for expensive PostgreSQL instances or subscriptions. Powered entirely by Cloudflare Workers & D1.
       </p>
-      
-      <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4 mt-8 md:mt-10">
-        <a class="btn primary flex items-center gap-2 px-6 py-3.5 text-base shadow-lg shadow-sky-500/20" href="#deploy">
-          <svg class="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-          One-Click Deployment
-        </a>
-        <a class="btn flex items-center gap-2 px-6 py-3.5 text-base border-white/15 hover:bg-white/10" href="#playground">
-          <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-          Interactive Builder
-        </a>
-        <a class="btn flex items-center gap-2 px-6 py-3.5 text-base border-white/15 hover:bg-white/10" href="#api">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-          API Examples
-        </a>
-      </div>
     </header>
 
-    <!-- Main Content Layout with Sidebar Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mt-12 md:mt-16">
+    <!-- Main Grid Layout -->
+    <div class="layout">
       
-      <!-- Sticky Desktop TOC Sidebar -->
-      <aside class="hidden lg:block lg:col-span-3 sticky top-14 space-y-4">
-        <div class="card p-6 border-white/10 bg-slate-950/70 backdrop-blur-xl">
-          <!-- Quick Filter Input -->
-          <div class="mb-6">
-            <label for="desktop-search" class="sr-only">Search documentation</label>
-            <div class="relative">
-              <input type="text" id="desktop-search" placeholder="Filter documentation..." 
-                     class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all font-medium" />
-              <svg class="absolute right-3.5 top-3 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </div>
-          
-          <h3 class="text-xs uppercase tracking-widest text-slate-400 font-extrabold mb-4 flex items-center gap-2">
-            <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" />
-            </svg>
-            Contents
-          </h3>
-          
-          <nav class="space-y-1 text-xs md:text-sm flex flex-col font-medium text-slate-400" id="desktop-toc-list">
-            <a href="#features" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">Core Features</a>
-            <a href="#playground" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">Interactive Form Sandbox</a>
-            <a href="#architecture" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">System Architecture</a>
-            <a href="#deploy" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">One-Click Deployment</a>
-            <a href="#env" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">Environment Variables</a>
-            <a href="#d1" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">D1 Database & CLI</a>
-            <a href="#schema" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">Database Schema Definition</a>
-            <a href="#api" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">API & Code Integration</a>
-            <a href="#dashboard" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">Live Dashboard Emulator</a>
-            <a href="#privacy" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">Privacy & Encryption</a>
-            <a href="#troubleshooting" class="toc-item py-2 px-3 hover:text-white block rounded-r-lg">Troubleshooting FAQ</a>
-          </nav>
-        </div>
-
-        <!-- Premium Owner card in sidebar -->
-        <div class="p-5 rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-950 border border-white/10 text-xs space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="text-sky-400 font-bold uppercase tracking-wider text-[10px] font-mono">MIT Open Source</span>
-            <span class="text-emerald-400 flex items-center gap-1 font-mono text-[10px]"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span> Pure Edge</span>
-          </div>
-          <p class="text-slate-300 font-medium leading-relaxed">
-            FormForge runs precisely within your Cloudflare Free Tier quotas. Self-host with absolute freedom and scale to millions of requests seamlessly.
-          </p>
+      <!-- TOC Sidebar -->
+      <aside class="sidebar">
+        <div class="toc-menu">
+          <a class="toc-link" href="#features">Core Features</a>
+          <a class="toc-link" href="#playground">Interactive Sandbox</a>
+          <a class="toc-link" href="#architecture">System Architecture</a>
+          <a class="toc-link" href="#deploy">One-Click Deploy</a>
+          <a class="toc-link" href="#env">Environment Variables</a>
+          <a class="toc-link" href="#d1">D1 Database Setup</a>
+          <a class="toc-link" href="#schema">SQLite Database Schema</a>
+          <a class="toc-link" href="#api">API Integration Code</a>
+          <a class="toc-link" href="#dashboard">Dashboard Emulator</a>
+          <a class="toc-link" href="#privacy">Privacy & GDPR</a>
+          <a class="toc-link" href="#faq">Troubleshooting FAQ</a>
         </div>
       </aside>
 
-      <!-- Main Documentation Content Sections -->
-      <main class="lg:col-span-9 space-y-10" id="docs-content">
+      <!-- Content Area -->
+      <main class="content">
         
-        <!-- Section: Core Features -->
-        <div class="card relative overflow-hidden" id="features">
-          <div class="absolute top-0 right-0 p-6 opacity-10 pointer-events-none hidden sm:block">
-            <svg class="w-40 h-40 text-sky-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+        <!-- Core Features -->
+        <section class="card" id="features">
+          <div class="card-header">
+            <div class="card-icon">⚡</div>
+            <h2>Core Features</h2>
           </div>
-          
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">Features Overview</h2>
+          <p>Engineered specifically to solve the hurdles of modern single-page applications and static JAMstack architectures while keeping complete database sovereignty.</p>
+          <ul>
+            <li><strong>Action-URL Submission:</strong> Submit standard HTML forms with a clean <code>action="/api/submit/{formId}"</code>.</li>
+            <li><strong>JSON-over-Fetch Support:</strong> Submit structured JSON objects natively via asynchronous endpoints.</li>
+            <li><strong>Strict Origin Filtering (CORS):</strong> Enforce origin whitelists right from your dashboard to stop external automated spam networks.</li>
+            <li><strong>Smart Honeypot Spam Trap:</strong> An invisible field traps automated bots and successfully rejects them before database writes occur.</li>
+            <li><strong>Cloudflare D1 Storage:</strong> All entries persist into your personal Cloudflare D1 SQLite database.</li>
+            <li><strong>Resend Alerting:</strong> Dispatch transactional emails instantly upon ingestion.</li>
+          </ul>
+        </section>
+
+        <!-- Interactive Sandbox -->
+        <section class="card" id="playground">
+          <div class="card-header">
+            <div class="card-icon">🧪</div>
+            <h2>Interactive Form Sandbox</h2>
           </div>
+          <p>Customize your integration requirements below to instantly generate copy-ready frontend integration code and simulate a real-time request.</p>
           
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base max-w-3xl">
-            Engineered specifically to solve the hurdles of modern single-page applications and static JAMstack architectures while keeping complete database sovereignty.
-          </p>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-5">
-              <div class="flex gap-3.5 group">
-                <span class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-all flex-shrink-0 mt-0.5"><span class="font-bold text-xs">✓</span></span>
-                <div>
-                  <h4 class="font-extrabold text-white text-base group-hover:text-sky-300 transition-colors">Action-URL Submission</h4>
-                  <p class="text-slate-400 text-xs md:text-sm mt-1">Submit standard HTML forms with a clean <code>action="/api/submit/{formId}"</code> attribute. Automatic HTTP redirect support included.</p>
+          <div class="sandbox-grid">
+            <div>
+              <div class="form-group">
+                <label>Form Name / ID</label>
+                <input type="text" id="sb-form-id" class="form-control" value="contact_form_82c1" oninput="updateSandbox()" />
+              </div>
+              <div class="form-group">
+                <label>Submission Format</label>
+                <div class="switch-tabs">
+                  <button class="tab-btn active" id="btn-tab-html" onclick="setSandboxFormat('html')">HTML Action</button>
+                  <button class="tab-btn" id="btn-tab-json" onclick="setSandboxFormat('json')">JSON Fetch</button>
                 </div>
               </div>
-
-              <div class="flex gap-3.5 group">
-                <span class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-all flex-shrink-0 mt-0.5"><span class="font-bold text-xs">✓</span></span>
-                <div>
-                  <h4 class="font-extrabold text-white text-base group-hover:text-sky-300 transition-colors">JSON-over-Fetch Support</h4>
-                  <p class="text-slate-400 text-xs md:text-sm mt-1">Submit structured JSON objects natively via asynchronous endpoints. Perfect for Astro, React, Vue, Svelte, or React Native frontend clients.</p>
-                </div>
-              </div>
-
-              <div class="flex gap-3.5 group">
-                <span class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-all flex-shrink-0 mt-0.5"><span class="font-bold text-xs">✓</span></span>
-                <div>
-                  <h4 class="font-extrabold text-white text-base group-hover:text-sky-300 transition-colors">Strict Origin Filtering (CORS)</h4>
-                  <p class="text-slate-400 text-xs md:text-sm mt-1">Enforce origin whitelists right from your dashboard to stop external automated spam networks from abusing your ingestion endpoints.</p>
-                </div>
-              </div>
-
-              <div class="flex gap-3.5 group">
-                <span class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-all flex-shrink-0 mt-0.5"><span class="font-bold text-xs">✓</span></span>
-                <div>
-                  <h4 class="font-extrabold text-white text-base group-hover:text-sky-300 transition-colors">Smart Honeypot Spam Trap</h4>
-                  <p class="text-slate-400 text-xs md:text-sm mt-1">An invisible, screen-reader-safe field traps automated bots and successfully rejects them before processing or consuming D1 database operations.</p>
-                </div>
-              </div>
+              <button class="btn primary" style="width:100%;" onclick="runSimulation()">⚡ Simulate Form Submission</button>
             </div>
             
-            <div class="space-y-5">
-              <div class="flex gap-3.5 group">
-                <span class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-all flex-shrink-0 mt-0.5"><span class="font-bold text-xs">✓</span></span>
-                <div>
-                  <h4 class="font-extrabold text-white text-base group-hover:text-sky-300 transition-colors">Cloudflare D1 Storage</h4>
-                  <p class="text-slate-400 text-xs md:text-sm mt-1">All entries persist into your personal global Cloudflare D1 SQLite database. Enjoy relational query power with zero operational database bills.</p>
-                </div>
-              </div>
-
-              <div class="flex gap-3.5 group">
-                <span class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-all flex-shrink-0 mt-0.5"><span class="font-bold text-xs">✓</span></span>
-                <div>
-                  <h4 class="font-extrabold text-white text-base group-hover:text-sky-300 transition-colors">Resend & Webhook Alerts</h4>
-                  <p class="text-slate-400 text-xs md:text-sm mt-1">Dispatch transactional emails using Resend or trigger automated webhooks to Discord, Slack channels, or Zapier workflows instantly upon ingestion.</p>
-                </div>
-              </div>
-
-              <div class="flex gap-3.5 group">
-                <span class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-all flex-shrink-0 mt-0.5"><span class="font-bold text-xs">✓</span></span>
-                <div>
-                  <h4 class="font-extrabold text-white text-base group-hover:text-sky-300 transition-colors">One-Click CSV Exports</h4>
-                  <p class="text-slate-400 text-xs md:text-sm mt-1">Export entry records instantly from your secure administration dashboard. High-efficiency data streams prevent memory spikes during massive downloads.</p>
-                </div>
-              </div>
-
-              <div class="flex gap-3.5 group">
-                <span class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-all flex-shrink-0 mt-0.5"><span class="font-bold text-xs">✓</span></span>
-                <div>
-                  <h4 class="font-extrabold text-white text-base group-hover:text-sky-300 transition-colors">Zero Compile-Time Failure</h4>
-                  <p class="text-slate-400 text-xs md:text-sm mt-1">Database connections are established dynamically inside individual HTTP requests with `getDb()`, ensuring Next.js static builds do not crash when missing variables.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section: Interactive Form Sandbox -->
-        <div class="card relative" id="playground">
-          <div class="absolute top-4 right-4 bg-sky-500/10 text-sky-400 font-mono text-[10px] uppercase font-extrabold tracking-widest px-3 py-1 rounded-md border border-sky-400/20 shadow hidden sm:block">Interactive Sandbox Tool</div>
-          
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">Interactive Form Sandbox & Generator</h2>
-          </div>
-          
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            Customize your integration requirements below to instantly generate copy-ready frontend integration code. Then simulate an actual real-time request right here in your browser!
-          </p>
-
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            <!-- Integration Parameters Controller -->
-            <div class="lg:col-span-5 space-y-4 bg-slate-900/80 p-5 md:p-6 rounded-2xl border border-white/10 shadow-xl">
-              <h3 class="text-sm font-extrabold uppercase tracking-wider text-white my-0 flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-sky-400 inline-block"></span>
-                Form Specification
-              </h3>
-              
-              <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Cloudflare Worker Host URL</label>
-                <input type="text" id="play-worker-url" value="https://formforge.yourusername.workers.dev" 
-                       class="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-xs md:text-sm text-sky-300 focus:outline-none focus:border-sky-400 font-mono transition-all" />
-              </div>
-              
-              <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Form Target Identifier (Slug)</label>
-                <input type="text" id="play-form-id" value="contact_form_82c1" 
-                       class="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-xs md:text-sm text-sky-300 focus:outline-none focus:border-sky-400 font-mono transition-all" />
-              </div>
-              
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Mode</label>
-                  <select id="play-sub-type" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:outline-none focus:border-sky-400 font-medium">
-                    <option value="html">Standard HTML &lt;form&gt;</option>
-                    <option value="fetch">Async JS (JSON Fetch)</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Honeypot Trap</label>
-                  <select id="play-honeypot" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:outline-none focus:border-sky-400 font-medium">
-                    <option value="enabled">Enabled (Secure)</option>
-                    <option value="disabled">Disabled</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">Collected Properties</label>
-                <div class="grid grid-cols-2 gap-2.5 bg-slate-950/60 p-3.5 rounded-xl border border-white/5 text-xs font-medium">
-                  <label class="inline-flex items-center gap-2 text-slate-300 cursor-pointer select-none">
-                    <input type="checkbox" id="field-email" checked disabled class="accent-sky-500 w-4 h-4 rounded" />
-                    <span>Email Address *</span>
-                  </label>
-                  <label class="inline-flex items-center gap-2 text-slate-300 cursor-pointer select-none">
-                    <input type="checkbox" id="field-name" checked class="accent-sky-500 w-4 h-4 rounded" />
-                    <span>Full Name</span>
-                  </label>
-                  <label class="inline-flex items-center gap-2 text-slate-300 cursor-pointer select-none">
-                    <input type="checkbox" id="field-message" checked class="accent-sky-500 w-4 h-4 rounded" />
-                    <span>Message Notes</span>
-                  </label>
-                  <label class="inline-flex items-center gap-2 text-slate-300 cursor-pointer select-none">
-                    <input type="checkbox" id="field-subject" class="accent-sky-500 w-4 h-4 rounded" />
-                    <span>Subject / Title</span>
-                  </label>
-                </div>
-              </div>
-              
-              <div class="pt-3 border-t border-white/10">
-                <button onclick="testSubSimulate()" class="w-full py-3 px-4 text-sm font-extrabold bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 hover:from-emerald-300 hover:to-teal-400 hover:shadow-xl hover:shadow-emerald-500/25 active:scale-[0.99] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer">
-                  <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
-                  Simulate Live Request
-                </button>
-              </div>
-            </div>
-
-            <!-- Frontend Codeblock Output Display -->
-            <div class="lg:col-span-7 space-y-4">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-sky-400 uppercase tracking-widest font-mono flex items-center gap-2">
-                  <svg class="w-4 h-4 stroke-current" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-                  Generated Source Snippet
-                </span>
-                <span id="play-status-pill" class="text-[10px] text-emerald-400 font-mono bg-slate-900 border border-emerald-500/30 px-2.5 py-1 rounded-md font-bold flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Synchronized
-                </span>
-              </div>
-              
-              <!-- Premium Terminal Header Code Window -->
-              <div class="code-window shadow-2xl bg-[#090d16] border border-white/10 rounded-2xl overflow-hidden mt-2">
-                <div class="flex items-center justify-between px-4 py-2.5 bg-slate-900/80 border-b border-white/10 backdrop-blur-md">
-                  <div class="flex items-center gap-2">
-                    <span class="flex gap-1.5">
-                      <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
-                      <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
-                      <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
-                    </span>
-                    <span class="text-[11px] text-slate-400 font-mono ml-2 uppercase tracking-wider font-bold" id="play-lang-label">HTML</span>
-                  </div>
-                  <button onclick="copyPlayCode()" class="text-[11px] text-slate-400 hover:text-emerald-400 font-bold transition-colors flex items-center gap-1.5 cursor-pointer" id="copy-play-btn">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    <span>Copy Snippet</span>
-                  </button>
-                </div>
-                <pre class="line-numbers !m-0 !rounded-none !border-none !shadow-none" style="max-height: 380px; overflow-y: auto;" id="playground-code-container"><code class="language-html" id="playground-code-block">&lt;!-- Initializing codeblock generator... --&gt;</code></pre>
-              </div>
-
-              <!-- Real-Time Request Simulation Panel -->
-              <div id="sim-console" class="hidden border-2 border-emerald-500/40 bg-slate-950 p-5 rounded-2xl space-y-3 shadow-2xl animate-entrance relative overflow-hidden mt-6">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -z-10"></div>
-                
-                <div class="flex justify-between items-center border-b border-white/10 pb-3">
-                  <span class="text-xs font-extrabold text-emerald-400 uppercase tracking-wider flex items-center gap-2 font-mono">
-                    <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-                    Interactive Edge Runtime Console
-                  </span>
-                  <button onclick="closeConsole()" class="text-slate-400 hover:text-white text-xs font-bold bg-white/5 border border-white/10 px-2 py-1 rounded-lg">&times; Close Sandbox</button>
-                </div>
-                
-                <div class="text-xs font-mono space-y-2 text-slate-300">
-                  <p class="text-slate-500">[Runtime Process] Connecting to simulated Edge Worker isolation layer...</p>
-                  <p class="text-sky-400 font-extrabold text-sm" id="sim-route-display">&gt; POST https://formforge.workers.dev/api/submit/contact_form_82c1</p>
-                  
-                  <div class="pl-3 md:pl-4 text-emerald-300 bg-slate-900/90 p-3 rounded-xl border border-white/10 space-y-1.5 font-mono text-[11px] shadow-inner">
-                    <p class="flex items-center justify-between"><span class="text-slate-400">1. Origin Whitelist Check:</span> <span class="text-emerald-400 font-bold">✓ ALLOWED (Dev Sandbox)</span></p>
-                    <p class="flex items-center justify-between"><span class="text-slate-400">2. Anti-Spam Honeypot Probe:</span> <span class="text-emerald-400 font-bold">✓ PASSED (Field verified empty)</span></p>
-                    <p class="flex items-center justify-between"><span class="text-slate-400">3. SQLite D1 Transaction Write:</span> <span class="text-emerald-400 font-bold">✓ COMMITTED (1 Row affected)</span></p>
-                    <p class="flex items-center justify-between"><span class="text-slate-400">4. Optional Webhook Dispatch:</span> <span class="text-amber-400 font-bold">⚠️ SKIPPED (No destination URL set)</span></p>
-                  </div>
-                  
-                  <p class="text-sky-300 font-bold text-xs uppercase tracking-wider pt-1">Returned JSON Body (200 OK):</p>
-                  <pre class="console-output language-json shadow-inner" id="sim-response-block">{
-  "success": true,
-  "message": "Form submission securely saved to Cloudflare D1",
-  "submissionId": "sub_a9f1b2c3d4e5f6g7",
-  "recordedData": {
-    "email": "user@example.com",
-    "name": "Alex Johnson"
-  }
-}</pre>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section: System Architecture -->
-        <div class="card relative" id="architecture">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">System Architecture & Modern Stack</h2>
-          </div>
-          
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            FormForge is custom-built on top of the lightning-fast Cloudflare v8 Serverless Network. Designed for incredible global reliability with absolute zero cold starts and no connection pooling overhead:
-          </p>
-          
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
-            <div class="bg-slate-900/60 border border-white/10 p-5 rounded-2xl text-center hover:border-sky-500/40 transition-colors group">
-              <span class="text-3xl group-hover:scale-110 inline-block transition-transform">⚡</span>
-              <h4 class="font-extrabold text-white text-base mt-3">Cloudflare Workers</h4>
-              <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Runs directly inside Edge isolates globally. Delivers sub-10ms operational response latency.</p>
-            </div>
-
-            <div class="bg-slate-900/60 border border-white/10 p-5 rounded-2xl text-center hover:border-sky-500/40 transition-colors group">
-              <span class="text-3xl group-hover:scale-110 inline-block transition-transform">📀</span>
-              <h4 class="font-extrabold text-white text-base mt-3">Cloudflare D1</h4>
-              <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Enterprise-grade distributed SQLite storage. Fully relational with instant automated backups.</p>
-            </div>
-
-            <div class="bg-slate-900/60 border border-white/10 p-5 rounded-2xl text-center hover:border-sky-500/40 transition-colors group">
-              <span class="text-3xl group-hover:scale-110 inline-block transition-transform">🖋️</span>
-              <h4 class="font-extrabold text-white text-base mt-3">Drizzle ORM</h4>
-              <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Highly performant type-safe SQLite query engine tailored for strict edge execution isolates.</p>
-            </div>
-
-            <div class="bg-slate-900/60 border border-white/10 p-5 rounded-2xl text-center hover:border-sky-500/40 transition-colors group">
-              <span class="text-3xl group-hover:scale-110 inline-block transition-transform">⚛️</span>
-              <h4 class="font-extrabold text-white text-base mt-3">Next.js & OpenNext</h4>
-              <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Modern React 19 visual administration interface fully compiled to execute flawlessly at edge.</p>
+            <div>
+              <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Generated Code</label>
+              <pre id="sb-code-block"></pre>
             </div>
           </div>
 
-          <div class="border-l-4 border-emerald-400 bg-emerald-500/5 p-5 rounded-xl border-r border-y border-white/5 mt-8 text-xs md:text-sm text-slate-300 leading-relaxed">
-            <strong class="text-emerald-400 font-extrabold uppercase tracking-wider block mb-1">Decoupled Request-Scoped Database Strategy:</strong> 
-            A major hazard in traditional serverless deployments is importing global PostgreSQL connection pools that trigger fail-states during automated build processes like <code>next build</code>. FormForge elegantly eliminates this by instantiating the SQLite D1 client entirely within dynamic route handlers via <code>getDb(request, env)</code>. During static pre-compilation, FormForge bypasses database queries safely!
+          <!-- Console simulator output -->
+          <div id="sim-console" class="console" style="display: none;">
+            <div class="console-header">
+              <span>Interactive Edge Runtime Console</span>
+              <span style="color: var(--accent);">● Simulated</span>
+            </div>
+            <div id="console-logs"></div>
           </div>
-        </div>
+        </section>
 
-        <!-- Section: One-Click Deployment -->
-        <div class="card relative overflow-hidden" id="deploy">
-          <div class="absolute bottom-0 right-0 w-80 h-80 bg-sky-500/5 rounded-full blur-3xl -z-10 pointer-events-none"></div>
-          
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">One-Click Cloudflare Deployment</h2>
+        <!-- System Architecture -->
+        <section class="card" id="architecture">
+          <div class="card-header">
+            <div class="card-icon">🖥️</div>
+            <h2>System Architecture</h2>
           </div>
-          
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            No software installation required. You can provision, build, and publish your private high-performance form backend in less than 2 minutes:
-          </p>
-
-          <div class="space-y-5 mt-8">
-            <div class="flex gap-4 md:gap-5 items-start group">
-              <div class="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-600 text-slate-950 font-black flex items-center justify-center flex-shrink-0 text-sm shadow-md group-hover:scale-110 transition-transform mt-0.5">1</div>
-              <div>
-                <h4 class="font-extrabold text-white text-base md:text-lg my-0">Launch Deployment Assistant</h4>
-                <p class="text-slate-300 text-xs md:text-sm mt-1">Click the official <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" target="_blank" rel="noreferrer" class="text-sky-400 font-extrabold hover:text-sky-300 underline decoration-sky-400/40 underline-offset-4">Deploy to Cloudflare</a> button. Cloudflare’s automated wizard will open in a new tab.</p>
-              </div>
+          <p>FormForge is custom-built on top of the lightning-fast Cloudflare Serverless Network. Designed for incredible global reliability with zero cold starts:</p>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+            <div style="background:rgba(0,0,0,0.2); padding:16px; border-radius:12px; border:1px solid var(--border);">
+              <h4 style="margin:0 0 8px; color:#fff;">Cloudflare Workers</h4>
+              <p style="font-size:12px; margin:0; color:var(--text-secondary);">Runs directly inside Edge isolates globally. Delivers sub-10ms operational response latency.</p>
             </div>
-
-            <div class="flex gap-4 md:gap-5 items-start group">
-              <div class="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-600 text-slate-950 font-black flex items-center justify-center flex-shrink-0 text-sm shadow-md group-hover:scale-110 transition-transform mt-0.5">2</div>
-              <div>
-                <h4 class="font-extrabold text-white text-base md:text-lg my-0">Authorize Cloudflare Sandboxing</h4>
-                <p class="text-slate-300 text-xs md:text-sm mt-1">Sign in with your private Cloudflare account. The generated worker function, relational D1 database, and underlying GitHub repository belong 100% to you and are completely private.</p>
-              </div>
+            <div style="background:rgba(0,0,0,0.2); padding:16px; border-radius:12px; border:1px solid var(--border);">
+              <h4 style="margin:0 0 8px; color:#fff;">Cloudflare D1</h4>
+              <p style="font-size:12px; margin:0; color:var(--text-secondary);">Enterprise-grade SQLite storage. Fully relational with instant automated backups.</p>
             </div>
-
-            <div class="flex gap-4 md:gap-5 items-start group">
-              <div class="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-600 text-slate-950 font-black flex items-center justify-center flex-shrink-0 text-sm shadow-md group-hover:scale-110 transition-transform mt-0.5">3</div>
-              <div>
-                <h4 class="font-extrabold text-white text-base md:text-lg my-0">Set Database Properties</h4>
-                <p class="text-slate-300 text-xs md:text-sm mt-1">Choose a specific project name (e.g. <code>my-formforge-backend</code>). Cloudflare automatically provisions your <code>formforge-db</code> D1 instance and registers the runtime environment variables instantly.</p>
-              </div>
-            </div>
-
-            <div class="flex gap-4 md:gap-5 items-start group">
-              <div class="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-600 text-slate-950 font-black flex items-center justify-center flex-shrink-0 text-sm shadow-md group-hover:scale-110 transition-transform mt-0.5">4</div>
-              <div>
-                <h4 class="font-extrabold text-white text-base md:text-lg my-0">Configure Visual Dashboard Authentication Key</h4>
-                <p class="text-slate-300 text-xs md:text-sm mt-1">Provide a highly secure random value for the <code>AUTH_SECRET</code> environment variable. You can generate a pristine cryptographic key using our built-in generator below! Click **Deploy**.</p>
-              </div>
-            </div>
-
-            <div class="flex gap-4 md:gap-5 items-start group">
-              <div class="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-600 text-slate-950 font-black flex items-center justify-center flex-shrink-0 text-sm shadow-md group-hover:scale-110 transition-transform mt-0.5">5</div>
-              <div>
-                <h4 class="font-extrabold text-white text-base md:text-lg my-0">Initialize Your Account</h4>
-                <p class="text-slate-300 text-xs md:text-sm mt-1">Open your deployed worker hostname in your web browser (e.g., <code>https://formforge.workers.dev/dashboard</code>) and complete the initial account setup process to activate administrative access.</p>
-              </div>
+            <div style="background:rgba(0,0,0,0.2); padding:16px; border-radius:12px; border:1px solid var(--border);">
+              <h4 style="margin:0 0 8px; color:#fff;">Drizzle ORM</h4>
+              <p style="font-size:12px; margin:0; color:var(--text-secondary);">Highly performant type-safe SQLite query engine tailored for Edge execution isolates.</p>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- Section: Environment Variables -->
-        <div class="card relative" id="env">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-              </svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">Environment Variables Reference</h2>
+        <!-- One-Click Deploy -->
+        <section class="card" id="deploy">
+          <div class="card-header">
+            <div class="card-icon">🚀</div>
+            <h2>One-Click Cloudflare Deployment</h2>
           </div>
-          
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            Configure secret properties and bindings directly inside your Cloudflare panel (Worker → Settings → Variables and Secrets) or your local <code>wrangler.jsonc</code> configuration:
-          </p>
+          <p>No software installation required. You can provision, build, and publish your private high-performance form backend in less than 2 minutes:</p>
+          <ol>
+            <li>Click the official <strong>Deploy to Cloudflare</strong> button at the top to launch the deployment assistant.</li>
+            <li>Sign in with your private Cloudflare account. The generated worker function and database belong 100% to you.</li>
+            <li>Choose a project name. Cloudflare automatically provisions your <code>formforge-db</code> D1 instance.</li>
+            <li>Configure a secure <code>AUTH_SECRET</code> environment variable using the key generator below.</li>
+            <li>Open your deployed worker hostname to initialize administrative access!</li>
+          </ol>
+        </section>
 
-          <div class="overflow-x-auto shadow-xl rounded-2xl border border-white/10">
-            <table class="table text-xs md:text-sm w-full">
-              <thead>
-                <tr class="bg-slate-900 text-slate-200 border-b border-white/10 uppercase text-[11px] tracking-wider font-bold">
-                  <th class="w-1/4 py-3.5 px-4">Secret Variable</th>
-                  <th class="w-1/6 py-3.5 px-4">Requirement</th>
-                  <th class="py-3.5 px-4">Purpose & Specifications</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-white/5 bg-slate-950/60">
-                <tr class="hover:bg-white/5 transition-colors">
-                  <td class="font-mono text-sky-400 font-extrabold px-4 py-4">AUTH_SECRET</td>
-                  <td class="px-4 py-4"><span class="text-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Required</span></td>
-                  <td class="px-4 py-4 text-slate-300">A secure 32+ character hexadecimal cryptographic key. Essential for signing and verifying JWT authentication tokens for dashboard management sessions.</td>
-                </tr>
-                <tr class="hover:bg-white/5 transition-colors">
-                  <td class="font-mono text-sky-400 font-extrabold px-4 py-4">DB</td>
-                  <td class="px-4 py-4"><span class="text-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Required</span></td>
-                  <td class="px-4 py-4 text-slate-300">The Cloudflare D1 Database binding pointer. This is configured natively in <code>wrangler.jsonc</code> or the Cloudflare dashboard to connect to your global SQLite layer.</td>
-                </tr>
-                <tr class="hover:bg-white/5 transition-colors">
-                  <td class="font-mono text-slate-400 font-extrabold px-4 py-4">RESEND_API_KEY</td>
-                  <td class="px-4 py-4"><span class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-medium">Optional</span></td>
-                  <td class="px-4 py-4 text-slate-300">Your secure API key from Resend.com. Enable this if you wish to receive automated email notifications when forms are ingested. Bypassed safely when completely blank.</td>
-                </tr>
-                <tr class="hover:bg-white/5 transition-colors">
-                  <td class="font-mono text-slate-400 font-extrabold px-4 py-4">RESEND_FROM</td>
-                  <td class="px-4 py-4"><span class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-medium">Optional</span></td>
-                  <td class="px-4 py-4 text-slate-300">Validated sender address configured within your Resend portal (e.g. <code>FormForge System &lt;notifications@yourcompany.com&gt;</code>).</td>
-                </tr>
-              </tbody>
-            </table>
+        <!-- Environment Variables -->
+        <section class="card" id="env">
+          <div class="card-header">
+            <div class="card-icon">🔑</div>
+            <h2>Environment Variables Reference</h2>
           </div>
+          <p>Configure secret properties and bindings directly inside your Cloudflare panel or your local configuration file:</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Secret Variable</th>
+                <th>Requirement</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>AUTH_SECRET</code></td>
+                <td><span style="color:var(--green); font-weight:bold;">Required</span></td>
+                <td>A secure 32+ character key. Essential for signing JWT dashboard session tokens.</td>
+              </tr>
+              <tr>
+                <td><code>DB</code></td>
+                <td><span style="color:var(--green); font-weight:bold;">Required</span></td>
+                <td>The Cloudflare D1 Database binding pointer linking code to the SQLite D1 layer.</td>
+              </tr>
+              <tr>
+                <td><code>RESEND_API_KEY</code></td>
+                <td><span>Optional</span></td>
+                <td>Your secure Resend.com API key to enable email alerts on submissions.</td>
+              </tr>
+            </tbody>
+          </table>
 
           <!-- Cryptographic Key Generator Utility -->
-          <div class="mt-10 bg-slate-900/80 p-6 rounded-2xl border border-white/10 shadow-2xl">
-            <h3 class="text-base md:text-lg font-extrabold text-white my-0 flex items-center gap-2.5">
-              <span class="text-emerald-400 text-xl">🛡️</span>
-              Interactive Cryptographic Key Generator
-            </h3>
-            <p class="text-xs md:text-sm text-slate-300 mt-1 mb-5">
-              Generate a high-entropy hexadecimal cryptographic secret for your <code>AUTH_SECRET</code> setting instantly inside your active browser session:
-            </p>
-            
-            <div class="flex flex-col sm:flex-row gap-3.5">
-              <input type="text" id="generated-secret" readonly placeholder="Click 'Generate Secret Key' below..." 
-                     class="flex-1 bg-slate-950 border border-white/15 rounded-xl px-4 py-3 text-xs md:text-sm text-emerald-400 font-mono font-bold focus:outline-none shadow-inner select-all" />
-              <button onclick="generateSecureSecret()" class="btn primary py-3 px-6 text-xs md:text-sm font-extrabold whitespace-nowrap cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-95">
-                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.479C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
-                Generate Secret Key
-              </button>
+          <div style="background:rgba(0,0,0,0.2); padding:20px; border-radius:12px; border:1px solid var(--border); margin-top:20px;">
+            <h4 style="margin:0 0 10px; color:#fff;">🛡️ Cryptographic Key Generator</h4>
+            <div style="display:flex; gap:10px;">
+              <input type="text" id="auth-secret-input" readonly placeholder="Click Generate..." class="form-control" style="font-family:var(--font-mono); color:var(--green);" />
+              <button class="btn" onclick="generateSecret()">Generate</button>
             </div>
-            <p class="text-[11px] text-slate-400 mt-3 font-medium flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-emerald-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <strong>Security Policy:</strong> Key generation executes exclusively inside your local Web Crypto API layer. The generated string is never stored or transmitted over any network.
-            </p>
           </div>
-        </div>
+        </section>
 
-        <!-- Section: D1 Database Setup -->
-        <div class="card relative" id="d1">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-              </svg>
+        <!-- SQLite Database Schema -->
+        <section class="card" id="schema">
+          <div class="card-header">
+            <div class="card-icon">🗄️</div>
+            <h2>SQLite Database Schema</h2>
+          </div>
+          <p>The schema architecture maintained by Drizzle ORM. Click below to inspect details of the relational models:</p>
+          
+          <div class="schema-grid">
+            <div>
+              <button class="schema-btn active" id="sch-btn-users" onclick="selectSchema('users')">👤 users</button>
+              <button class="schema-btn" id="sch-btn-forms" onclick="selectSchema('forms')">📄 forms</button>
+              <button class="schema-btn" id="sch-btn-submissions" onclick="selectSchema('submissions')">📥 submissions</button>
             </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">D1 Database Setup & Local Commands</h2>
+            <div>
+              <pre id="schema-display-block"></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- API Integration Code -->
+        <section class="card" id="api">
+          <div class="card-header">
+            <div class="card-icon">💻</div>
+            <h2>API Integration Code</h2>
           </div>
           
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            For local development workflows, custom git pipelines, or manual Wrangler CLI control, execute these exact terminal commands:
-          </p>
+          <h3 style="color:#fff; margin-bottom: 6px;">1. Standard HTML Form (No JS)</h3>
+          <pre>&lt;form action="https://your-domain.workers.dev/api/submit/contact_form_82c1" method="POST"&gt;
+  &lt;!-- Honeypot anti-spam protection (Invisible field) --&gt;
+  &lt;input type="text" name="_honeypot" style="display: none;" /&gt;
 
-          <!-- Terminal Emulator Component -->
-          <div class="bg-slate-950 rounded-2xl border border-white/15 overflow-hidden font-mono text-xs md:text-sm shadow-2xl">
-            <!-- Terminal Titlebar -->
-            <div class="bg-slate-900 px-5 py-3.5 border-b border-white/10 flex items-center justify-between">
-              <div class="flex items-center gap-2.5">
-                <span class="h-3 w-3 rounded-full bg-rose-500 inline-block shadow"></span>
-                <span class="h-3 w-3 rounded-full bg-amber-500 inline-block shadow"></span>
-                <span class="h-3 w-3 rounded-full bg-emerald-500 inline-block shadow"></span>
-                <span class="text-xs text-slate-300 ml-2 font-bold font-mono tracking-wider">Local Terminal Console</span>
-              </div>
-              <span class="text-[10px] bg-slate-950/80 text-slate-400 px-2.5 py-1 rounded-md font-bold uppercase tracking-widest">Bash</span>
-            </div>
-            
-            <!-- Terminal Commands output -->
-            <div class="p-6 text-xs md:text-sm space-y-5 text-sky-200">
-              
-              <div>
-                <p class="text-slate-500 font-medium select-none mb-1"># 1. Authorize your interactive Cloudflare CLI session</p>
-                <div class="flex items-center justify-between group bg-slate-900/60 p-3 rounded-xl border border-white/5 hover:border-white/15 transition-all gap-3">
-                  <p class="text-emerald-400 font-bold break-words pr-2"><span class="text-slate-600 select-none mr-2">$</span>npx wrangler login</p>
-                  <button onclick="copyCommand('npx wrangler login', this)" class="text-[11px] text-slate-400 hover:text-white bg-slate-800 hover:bg-sky-500 hover:text-slate-950 px-3 py-2 rounded-lg transition-all font-bold cursor-pointer flex-shrink-0 flex items-center gap-1.5 border border-white/10">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    <span class="hidden sm:inline">Copy</span>
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <p class="text-slate-500 font-medium select-none mb-1"># 2. Provision your production D1 SQLite instance on Cloudflare</p>
-                <div class="flex items-center justify-between group bg-slate-900/60 p-3 rounded-xl border border-white/5 hover:border-white/15 transition-all gap-3">
-                  <p class="text-emerald-400 font-bold break-words pr-2"><span class="text-slate-600 select-none mr-2">$</span>npx wrangler d1 create formforge-db</p>
-                  <button onclick="copyCommand('npx wrangler d1 create formforge-db', this)" class="text-[11px] text-slate-400 hover:text-white bg-slate-800 hover:bg-sky-500 hover:text-slate-950 px-3 py-2 rounded-lg transition-all font-bold cursor-pointer flex-shrink-0 flex items-center gap-1.5 border border-white/10">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    <span class="hidden sm:inline">Copy</span>
-                  </button>
-                </div>
-                <p class="text-slate-400 mt-2 pl-3 text-xs leading-relaxed border-l-2 border-sky-500/40 font-sans italic">
-                  Note: The terminal will print a distinct <code>database_id</code> (e.g. <code>4c5b162a-8c3a...</code>). Copy and place this exact ID directly into your <code>wrangler.jsonc</code> file!
-                </p>
-              </div>
+  &lt;input type="email" name="email" required placeholder="Enter email" /&gt;
+  &lt;textarea name="message" required placeholder="Message"&gt;&lt;/textarea&gt;
+  &lt;button type="submit"&gt;Submit Form&lt;/button&gt;
+&lt;/form&gt;</pre>
 
-              <div>
-                <p class="text-slate-500 font-medium select-none mb-1"># 3. Generate structured SQL migration blueprints via Drizzle Kit</p>
-                <div class="flex items-center justify-between group bg-slate-900/60 p-3 rounded-xl border border-white/5 hover:border-white/15 transition-all gap-3">
-                  <p class="text-emerald-400 font-bold break-words pr-2"><span class="text-slate-600 select-none mr-2">$</span>npx drizzle-kit generate</p>
-                  <button onclick="copyCommand('npx drizzle-kit generate', this)" class="text-[11px] text-slate-400 hover:text-white bg-slate-800 hover:bg-sky-500 hover:text-slate-950 px-3 py-2 rounded-lg transition-all font-bold cursor-pointer flex-shrink-0 flex items-center gap-1.5 border border-white/10">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    <span class="hidden sm:inline">Copy</span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <p class="text-slate-500 font-medium select-none mb-1"># 4. Commit migration blueprints to remote Cloudflare D1 production database</p>
-                <div class="flex items-center justify-between group bg-slate-900/60 p-3 rounded-xl border border-white/5 hover:border-white/15 transition-all gap-3">
-                  <p class="text-emerald-400 font-bold break-words pr-2"><span class="text-slate-600 select-none mr-2">$</span>npx wrangler d1 migrations apply DB --remote</p>
-                  <button onclick="copyCommand('npx wrangler d1 migrations apply DB --remote', this)" class="text-[11px] text-slate-400 hover:text-white bg-slate-800 hover:bg-sky-500 hover:text-slate-950 px-3 py-2 rounded-lg transition-all font-bold cursor-pointer flex-shrink-0 flex items-center gap-1.5 border border-white/10">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    <span class="hidden sm:inline">Copy</span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <p class="text-slate-500 font-medium select-none mb-1"># 5. Compile and deploy your Worker logic directly to edge nodes</p>
-                <div class="flex items-center justify-between group bg-slate-900/60 p-3 rounded-xl border border-white/5 hover:border-white/15 transition-all gap-3">
-                  <p class="text-emerald-400 font-bold break-words pr-2"><span class="text-slate-600 select-none mr-2">$</span>npm run deploy</p>
-                  <button onclick="copyCommand('npm run deploy', this)" class="text-[11px] text-slate-400 hover:text-white bg-slate-800 hover:bg-sky-500 hover:text-slate-950 px-3 py-2 rounded-lg transition-all font-bold cursor-pointer flex-shrink-0 flex items-center gap-1.5 border border-white/10">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    <span class="hidden sm:inline">Copy</span>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-          
-          <p class="text-xs md:text-sm text-slate-400 mt-5 leading-relaxed">
-            Want to experiment completely offline? Simply execute <code>npm run dev</code>. Drizzle integration routines will securely interface with an isolated local SQLite `.sqlite` stub automatically maintained inside your hidden <code>.wrangler</code> workspace folder.
-          </p>
-        </div>
-
-        <!-- Section: Database Schema Model Definition -->
-        <div class="card relative" id="schema">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">Relational SQLite Database Schema</h2>
-          </div>
-          
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            The fully defined relational schema architecture maintained by Drizzle ORM. Optimized specifically for lightning-fast reads and indexed query execution across Cloudflare edge data centers:
-          </p>
-
-          <!-- Interactive Relational Model Selector -->
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-            
-            <!-- Table Selectors List -->
-            <div class="md:col-span-4 flex flex-row md:flex-col gap-2.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
-              <button onclick="showSchemaTable('users')" id="schema-btn-users" class="schema-btn text-left text-xs md:text-sm px-4 py-3 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-300 font-extrabold cursor-pointer w-full whitespace-nowrap shadow transition-all flex items-center justify-between">
-                <span>👤 users</span>
-                <span class="text-[10px] bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded font-mono">5 Cols</span>
-              </button>
-              
-              <button onclick="showSchemaTable('sessions')" id="schema-btn-sessions" class="schema-btn text-left text-xs md:text-sm px-4 py-3 rounded-xl border border-white/5 bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer w-full whitespace-nowrap transition-all flex items-center justify-between">
-                <span>🔑 sessions</span>
-                <span class="text-[10px] bg-white/5 text-slate-500 px-2 py-0.5 rounded font-mono">4 Cols</span>
-              </button>
-              
-              <button onclick="showSchemaTable('forms')" id="schema-btn-forms" class="schema-btn text-left text-xs md:text-sm px-4 py-3 rounded-xl border border-white/5 bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer w-full whitespace-nowrap transition-all flex items-center justify-between">
-                <span>📄 forms</span>
-                <span class="text-[10px] bg-white/5 text-slate-500 px-2 py-0.5 rounded font-mono">11 Cols</span>
-              </button>
-              
-              <button onclick="showSchemaTable('submissions')" id="schema-btn-submissions" class="schema-btn text-left text-xs md:text-sm px-4 py-3 rounded-xl border border-white/5 bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer w-full whitespace-nowrap transition-all flex items-center justify-between">
-                <span>📥 submissions</span>
-                <span class="text-[10px] bg-white/5 text-slate-500 px-2 py-0.5 rounded font-mono">6 Cols</span>
-              </button>
-
-              <button onclick="showSchemaTable('api_keys')" id="schema-btn-api_keys" class="schema-btn text-left text-xs md:text-sm px-4 py-3 rounded-xl border border-white/5 bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer w-full whitespace-nowrap transition-all flex items-center justify-between">
-                <span>🗝️ api_keys</span>
-                <span class="text-[10px] bg-white/5 text-slate-500 px-2 py-0.5 rounded font-mono">5 Cols</span>
-              </button>
-            </div>
-            
-            <!-- Complete Detailed Blueprint View -->
-            <div class="md:col-span-8 bg-slate-950 p-6 rounded-2xl border border-white/15 relative min-h-[260px] shadow-2xl flex flex-col justify-center">
-              <div id="schema-details-content" class="transition-opacity duration-200">
-                <!-- Javascript auto populates schema definition HTML here -->
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section: API & Integration Examples -->
-        <div class="card relative" id="api">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">API & Integration Implementation Examples</h2>
-          </div>
-          
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            Copy and incorporate these authentic production snippets directly into your projects to capture inputs securely. Fully supports any website tech stack:
-          </p>
-
-          <div class="space-y-8">
-            <!-- HTML Example -->
-            <div class="space-y-3">
-              <h3 class="text-base md:text-lg font-extrabold text-sky-300 my-0 flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span>
-                1. Standard HTML Form Integration (No JavaScript)
-              </h3>
-              <p class="text-slate-400 text-xs md:text-sm">
-                Process user entries directly via browser native posting. Includes complete configuration parameters for optional automated custom web success redirections:
-              </p>
-              
-              <div class="code-window shadow-2xl bg-[#090d16] border border-white/10 rounded-2xl overflow-hidden mt-3">
-                <div class="flex items-center justify-between px-4 py-2.5 bg-slate-900/80 border-b border-white/10 backdrop-blur-md">
-                  <div class="flex items-center gap-2">
-                    <span class="flex gap-1.5">
-                      <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
-                      <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
-                      <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
-                    </span>
-                    <span class="text-[11px] text-slate-400 font-mono ml-2 uppercase tracking-wider font-bold">HTML</span>
-                  </div>
-                  <button onclick="copyApiSnippet('html-code-block', 'copy-btn-html')" class="text-[11px] text-slate-400 hover:text-emerald-400 font-bold transition-colors flex items-center gap-1.5 cursor-pointer" id="copy-btn-html">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    <span>Copy Snippet</span>
-                  </button>
-                </div>
-                <pre class="line-numbers !m-0 !rounded-none !border-none !shadow-none"><code class="language-html" id="html-code-block">&lt;form method="POST" action="https://your-worker-subdomain.workers.dev/api/submit/contact_slug_123"&gt;
-  &lt;!-- Automated redirect parameter upon successful persistence --&gt;
-  &lt;input type="hidden" name="_redirect" value="https://yourdomain.com/success-thank-you"&gt;
-  
-  &lt;!-- Screen-reader-hidden anti-spam honeypot field --&gt;
-  &lt;input type="text" name="_honeypot" style="display:none" tabindex="-1" autocomplete="off"&gt;
-  
-  &lt;div class="input-wrapper"&gt;
-    &lt;label for="email"&gt;Your Email Address *&lt;/label&gt;
-    &lt;input type="email" id="email" name="email" required placeholder="hello@company.com"&gt;
-  &lt;/div&gt;
-  
-  &lt;div class="input-wrapper"&gt;
-    &lt;label for="message"&gt;Message Statement *&lt;/label&gt;
-    &lt;textarea id="message" name="message" required rows="4"&gt;&lt;/textarea&gt;
-  &lt;/div&gt;
-  
-  &lt;button type="submit"&gt;Transmit Entry&lt;/button&gt;
-&lt;/form&gt;</code></pre>
-              </div>
-            </div>
-
-            <!-- Programmatic JS Fetch Example -->
-            <div class="space-y-3">
-              <h3 class="text-base md:text-lg font-extrabold text-sky-300 my-0 flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span>
-                2. Programmatic JavaScript AJAX Execution
-              </h3>
-              <p class="text-slate-400 text-xs md:text-sm">
-                Incorporate structured asynchronous JSON payload posting inside your active React, Vue, Svelte components, or mobile applications with complete custom state handling:
-              </p>
-              
-              <div class="code-window shadow-2xl bg-[#090d16] border border-white/10 rounded-2xl overflow-hidden mt-3">
-                <div class="flex items-center justify-between px-4 py-2.5 bg-slate-900/80 border-b border-white/10 backdrop-blur-md">
-                  <div class="flex items-center gap-2">
-                    <span class="flex gap-1.5">
-                      <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
-                      <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
-                      <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
-                    </span>
-                    <span class="text-[11px] text-slate-400 font-mono ml-2 uppercase tracking-wider font-bold">JavaScript</span>
-                  </div>
-                  <button onclick="copyApiSnippet('fetch-code-block', 'copy-btn-js')" class="text-[11px] text-slate-400 hover:text-emerald-400 font-bold transition-colors flex items-center gap-1.5 cursor-pointer" id="copy-btn-js">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    <span>Copy Snippet</span>
-                  </button>
-                </div>
-                <pre class="line-numbers !m-0 !rounded-none !border-none !shadow-none"><code class="language-javascript" id="fetch-code-block">const transmitFormSubmission = async (event) => {
-  event.preventDefault();
-  
-  const formPayload = {
-    email: "customer@example.com",
-    name: "Samantha Wright",
-    message: "Inquiring about custom enterprise support plans.",
-    _honeypot: "" // Absolute requirement: MUST remain completely empty
-  };
-
-  try {
-    const response = await fetch("https://your-worker-subdomain.workers.dev/api/submit/contact_slug_123", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify(formPayload)
-    });
-
-    const returnedData = await response.json();
-    
-    if (response.ok && returnedData.success) {
-      alert("Submission successful! Recorded ID: " + returnedData.submissionId);
-    } else {
-      console.error("Submission rejected:", returnedData.message);
-    }
-  } catch (error) {
-    console.error("Critical network communication exception:", error);
+          <h3 style="color:#fff; margin-top:24px; margin-bottom: 6px;">2. Asynchronous Fetch Submission</h3>
+          <pre>const submitData = async (payload) => {
+  const response = await fetch("https://your-domain.workers.dev/api/submit/contact-form", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (data.ok) {
+    console.log("Submission successful:", data.data);
   }
-};</code></pre>
-              </div>
-            </div>
+};</pre>
+        </section>
 
-            <!-- Administrative System API Endpoints Reference -->
-            <div class="space-y-3">
-              <h3 class="text-base md:text-lg font-extrabold text-sky-300 my-0 flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span>
-                3. Administrative Owner API Interface
-              </h3>
-              <p class="text-slate-400 text-xs md:text-sm">
-                Control integration buckets and harvest recorded entry records programmatically using JSON Web Token authentication cookies or valid Bearer keys:
-              </p>
-              
-              <div class="overflow-x-auto rounded-2xl border border-white/10 shadow-xl">
-                <table class="table text-xs md:text-sm w-full">
-                  <thead>
-                    <tr class="bg-slate-900 text-slate-200 border-b border-white/10 uppercase text-[11px] tracking-wider font-bold">
-                      <th class="py-3.5 px-4 whitespace-nowrap">HTTP Method & Path</th>
-                      <th class="py-3.5 px-4 whitespace-nowrap">Authentication Header</th>
-                      <th class="py-3.5 px-4">Functional Purpose</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-white/5 bg-slate-950/60 font-medium">
-                    <tr class="hover:bg-white/5 transition-colors">
-                      <td class="font-mono text-emerald-400 font-extrabold px-4 py-3.5 whitespace-nowrap">POST /api/auth/register</td>
-                      <td class="text-slate-400 px-4 py-3.5">None (Initial Account Setup)</td>
-                      <td class="text-slate-300 px-4 py-3.5">Provision your primary administrative system credentials.</td>
-                    </tr>
-                    <tr class="hover:bg-white/5 transition-colors">
-                      <td class="font-mono text-emerald-400 font-extrabold px-4 py-3.5 whitespace-nowrap">POST /api/auth/login</td>
-                      <td class="text-slate-400 px-4 py-3.5">None</td>
-                      <td class="text-slate-300 px-4 py-3.5">Authenticate against your secret key, returning JWT authorization cookies.</td>
-                    </tr>
-                    <tr class="hover:bg-white/5 transition-colors">
-                      <td class="font-mono text-sky-400 font-extrabold px-4 py-3.5 whitespace-nowrap">GET /api/forms</td>
-                      <td class="font-mono text-slate-400 px-4 py-3.5">Cookie / Bearer Auth</td>
-                      <td class="text-slate-300 px-4 py-3.5">Fetch a complete list of all active form integration buckets managed by your user.</td>
-                    </tr>
-                    <tr class="hover:bg-white/5 transition-colors">
-                      <td class="font-mono text-sky-400 font-extrabold px-4 py-3.5 whitespace-nowrap">POST /api/forms</td>
-                      <td class="font-mono text-slate-400 px-4 py-3.5">Cookie / Bearer Auth</td>
-                      <td class="text-slate-300 px-4 py-3.5">Provision a new form ingestion container and generate its secure endpoint slug.</td>
-                    </tr>
-                    <tr class="hover:bg-white/5 transition-colors">
-                      <td class="font-mono text-sky-400 font-extrabold px-4 py-3.5 whitespace-nowrap">GET /api/forms/:formId/submissions</td>
-                      <td class="font-mono text-slate-400 px-4 py-3.5">Cookie / Bearer Auth</td>
-                      <td class="text-slate-300 px-4 py-3.5">Retrieve highly structured JSON data entries submitted to the designated Form target.</td>
-                    </tr>
-                    <tr class="hover:bg-white/5 transition-colors">
-                      <td class="font-mono text-purple-400 font-extrabold px-4 py-3.5 whitespace-nowrap">GET /api/forms/:formId/export</td>
-                      <td class="font-mono text-slate-400 px-4 py-3.5">Cookie / Bearer Auth</td>
-                      <td class="text-slate-300 px-4 py-3.5">Trigger an automated streaming CSV document download of all logged form submissions.</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        <!-- Dashboard Emulator -->
+        <section class="card" id="dashboard">
+          <div class="card-header">
+            <div class="card-icon">📊</div>
+            <h2>Dashboard Emulator</h2>
           </div>
-        </div>
+          <p>Experience how the responsive administration dashboard visualizes incoming form feed queues securely:</p>
+          
+          <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <button class="btn" onclick="selectDashForm('contact')">📩 Contact Form</button>
+            <button class="btn" onclick="selectDashForm('newsletter')">📧 Newsletter Sign Up</button>
+          </div>
 
-        <!-- Section: Interactive Live Admin Dashboard Emulator -->
-        <div class="card relative overflow-hidden" id="dashboard">
-          <div class="absolute top-4 right-4 bg-sky-500/10 text-sky-400 font-mono text-[10px] uppercase font-extrabold tracking-widest px-3 py-1 rounded-md border border-sky-400/20 shadow hidden sm:block">Fully Interactive Demo</div>
-          
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">Interactive Visual Admin Dashboard</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Email Address</th>
+                <th>Message Payload</th>
+                <th>Client IP Address</th>
+                <th>Submitted Time</th>
+              </tr>
+            </thead>
+            <tbody id="dash-tbody">
+              <!-- JS Injected Rows -->
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Privacy & GDPR -->
+        <section class="card" id="privacy">
+          <div class="card-header">
+            <div class="card-icon">🔒</div>
+            <h2>Privacy & GDPR</h2>
           </div>
-          
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            Test out the gorgeous responsive custom dashboard included out-of-the-box with your Cloudflare deployment. Manage target buckets, review entry logs, and perform raw data exports effortlessly:
+          <p>
+            FormForge is designed with privacy as a first-class citizen. Unlike commercial form providers, you run the database 
+            under your own Cloudflare account. No third-party tracks or accesses your user's inputs. 
           </p>
-
-          <!-- Fully Working Dashboard Emulator Application inside Docs -->
-          <div class="bg-slate-950 rounded-2xl border border-white/20 overflow-hidden font-sans text-xs md:text-sm shadow-2xl relative">
-            
-            <!-- Dashboard Application Header Mock -->
-            <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border-b border-white/10 px-5 md:px-7 py-4 flex flex-wrap gap-4 justify-between items-center">
-              <div class="flex items-center gap-3">
-                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500"></span>
-                <span class="font-extrabold text-white text-base md:text-lg tracking-tight">FormForge Central Management</span>
-                <span class="text-[10px] bg-sky-500/20 border border-sky-400/30 text-sky-300 rounded-full px-2.5 py-0.5 font-mono font-bold hidden sm:inline">Active Production View</span>
-              </div>
-              
-              <!-- Quick Stats inside Mockup -->
-              <div class="flex gap-5 text-xs bg-slate-950/80 px-3.5 py-1.5 rounded-xl border border-white/5 shadow-inner">
-                <span class="text-slate-400">Total Buckets: <strong class="text-white font-black font-mono ml-1">3</strong></span>
-                <span class="text-slate-400">Total Entries: <strong class="text-white font-black font-mono ml-1" id="dash-total-subs">10</strong></span>
-              </div>
-            </div>
-            
-            <!-- Application Main Column Layout -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 items-stretch">
-              
-              <!-- Emulator Buckets Selection Sidebar -->
-              <div class="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-white/10 p-4 md:p-5 bg-slate-900/40 space-y-2.5 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible">
-                <span class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 hidden lg:block px-1">Ingestion Buckets</span>
-                
-                <div onclick="selectDashForm('contact')" id="dash-btn-contact" class="p-3.5 rounded-xl border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/15 cursor-pointer transition-all flex-shrink-0 lg:flex-shrink w-64 lg:w-full shadow-md">
-                  <div class="flex justify-between items-center">
-                    <span class="font-extrabold text-white text-xs md:text-sm">Contact Page Form</span>
-                    <span class="text-[9px] bg-slate-950 text-emerald-400 px-2 py-0.5 rounded-md font-mono font-bold uppercase">Active</span>
-                  </div>
-                  <p class="text-[10px] md:text-xs text-sky-300/80 font-mono mt-1.5 truncate">contact_form_82c1</p>
-                </div>
-                
-                <div onclick="selectDashForm('newsletter')" id="dash-btn-newsletter" class="p-3.5 rounded-xl border border-white/5 bg-slate-950/40 hover:bg-white/5 cursor-pointer transition-all flex-shrink-0 lg:flex-shrink w-64 lg:w-full">
-                  <div class="flex justify-between items-center">
-                    <span class="font-extrabold text-slate-300 text-xs md:text-sm">Email Newsletter</span>
-                    <span class="text-[9px] bg-slate-950 text-emerald-400 px-2 py-0.5 rounded-md font-mono font-bold uppercase">Active</span>
-                  </div>
-                  <p class="text-[10px] md:text-xs text-slate-400 font-mono mt-1.5 truncate">newsletter_main_8c</p>
-                </div>
-
-                <div onclick="selectDashForm('job')" id="dash-btn-job" class="p-3.5 rounded-xl border border-white/5 bg-slate-950/40 hover:bg-white/5 cursor-pointer transition-all flex-shrink-0 lg:flex-shrink w-64 lg:w-full">
-                  <div class="flex justify-between items-center">
-                    <span class="font-extrabold text-slate-300 text-xs md:text-sm">Job Intake Portlet</span>
-                    <span class="text-[9px] bg-slate-950 text-amber-400 px-2 py-0.5 rounded-md font-mono font-bold uppercase">Maintenance</span>
-                  </div>
-                  <p class="text-[10px] md:text-xs text-slate-400 font-mono mt-1.5 truncate">career_intake_22</p>
-                </div>
-              </div>
-              
-              <!-- Ingested Submissions Data Main Panel -->
-              <div class="lg:col-span-8 p-5 md:p-6 flex flex-col justify-between space-y-6">
-                <div>
-                  <!-- Action Toolbar -->
-                  <div class="flex flex-wrap gap-4 justify-between items-center border-b border-white/10 pb-4">
-                    <div>
-                      <h3 class="text-sm md:text-base font-extrabold text-white uppercase tracking-wider my-0 flex items-center gap-2" id="dash-form-title">
-                        Contact Page Form Submissions
-                      </h3>
-                      <p class="text-xs text-slate-400 mt-1 mb-0 flex items-center gap-1.5 truncate max-w-lg">
-                        <span>Ingestion URL:</span> 
-                        <code class="text-sky-300 font-mono font-bold select-all bg-slate-900 px-2 py-0.5 rounded border border-white/10" id="dash-form-slug">https://formforge.workers.dev/api/submit/contact_form_82c1</code>
-                      </p>
-                    </div>
-                    
-                    <div class="flex items-center gap-2.5">
-                      <button onclick="downloadDashCSV()" class="btn primary py-2 px-3.5 text-xs font-extrabold flex items-center gap-1.5 shadow hover:scale-105 active:scale-95 cursor-pointer">
-                        <svg class="w-4 h-4 stroke-current" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        CSV Download
-                      </button>
-                      <button onclick="addMockSubmission()" class="btn py-2 px-3 text-xs border-white/15 hover:bg-white/10 flex items-center gap-1 hover:scale-105 active:scale-95 cursor-pointer font-bold text-slate-200">
-                        <span>+ Test Submit</span>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <!-- Responsive Submissions Log Table Data -->
-                  <div class="overflow-x-auto mt-4 rounded-xl border border-white/5 bg-slate-950/60 shadow-inner">
-                    <table class="w-full text-xs text-left">
-                      <thead>
-                        <tr class="bg-slate-900/90 text-slate-300 border-b border-white/10 uppercase text-[10px] tracking-wider font-extrabold">
-                          <th class="py-3 px-4">Submitter Profile</th>
-                          <th class="py-3 px-4">Message payload details</th>
-                          <th class="py-3 px-4">Ingested IP</th>
-                          <th class="py-3 px-4 text-right">Timestamp</th>
-                        </tr>
-                      </thead>
-                      <tbody id="dash-submissions-body" class="divide-y divide-white/5 font-medium">
-                        <!-- Custom rows will render here dynamically via JavaScript -->
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div class="bg-sky-500/5 border border-sky-500/20 rounded-xl p-3 text-[11px] text-slate-400 text-center flex items-center justify-center gap-2">
-                  <svg class="w-4 h-4 text-sky-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                  <span><strong>Tip:</strong> Click the 'CSV Download' button to instruct your browser to stream a real Excel-compatible comma-separated document immediately!</span>
-                </div>
-              </div>
-            </div>
+          <div class="alert green">
+            <strong>GDPR Compliance:</strong> FormForge supports strict CORS origin filtering, customizable client IP tracking controls, 
+            and complete control over data removal to assist with GDPR deletion requests.
           </div>
-        </div>
+        </section>
 
-        <!-- Section: Privacy & Security Protocols -->
-        <div class="card relative" id="privacy">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">Privacy, Security & Encryption Protocols</h2>
+        <!-- FAQ -->
+        <section class="card" id="faq">
+          <div class="card-header">
+            <div class="card-icon">❓</div>
+            <h2>Troubleshooting FAQ</h2>
           </div>
+          <h4 style="color:#fff; margin: 16px 0 6px;">Q: Why do I get a CORS error on form submission?</h4>
+          <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size:14px;">A: Ensure you have whitelisted the origin domain in your dashboard settings for the specific form.</p>
           
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            Engineered with extreme GDPR and security compliance in mind. Complete isolation keeps confidential visitor payloads protected from unauthorized access:
-          </p>
+          <h4 style="color:#fff; margin: 16px 0 6px;">Q: How do I change the redirect URL after an HTML form is submitted?</h4>
+          <p style="margin: 0; color: var(--text-secondary); font-size:14px;">A: You can configure the `Redirect URL` property inside the visual settings dashboard for the respective form.</p>
+        </section>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            <div class="border border-white/10 bg-slate-900/60 p-6 rounded-2xl hover:border-sky-500/40 transition-colors shadow-xl flex flex-col justify-between">
-              <div>
-                <span class="text-3xl block mb-3">🛡️</span>
-                <h3 class="text-base font-extrabold text-white my-0">Zero Third-Party Middlemen</h3>
-                <p class="text-slate-400 text-xs md:text-sm mt-2 leading-relaxed">
-                  Your submitted client records never pass through external middleware proxies. Client entry posts connect straight to your personal Cloudflare Workers runtime and write directly to your D1 SQLite layer.
-                </p>
-              </div>
-              <span class="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-widest mt-4 block">Complete Autonomy</span>
-            </div>
-            
-            <div class="border border-white/10 bg-slate-900/60 p-6 rounded-2xl hover:border-sky-500/40 transition-colors shadow-xl flex flex-col justify-between">
-              <div>
-                <span class="text-3xl block mb-3">🗝️</span>
-                <h3 class="text-base font-extrabold text-white my-0">HMAC-Hashed Cryptographic Keys</h3>
-                <p class="text-slate-400 text-xs md:text-sm mt-2 leading-relaxed">
-                  Active authentication connection sessions, operational API bearer tokens, and registered administrative account password rows are fully encrypted using military-grade cryptographic hashing functions (Web Crypto PBKDF2-SHA256).
-                </p>
-              </div>
-              <span class="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest mt-4 block">Cryptographic Protection</span>
-            </div>
-
-            <div class="border border-white/10 bg-slate-900/60 p-6 rounded-2xl hover:border-sky-500/40 transition-colors shadow-xl flex flex-col justify-between">
-              <div>
-                <span class="text-3xl block mb-3">🎭</span>
-                <h3 class="text-base font-extrabold text-white my-0">IP Anonymization Engine</h3>
-                <p class="text-slate-400 text-xs md:text-sm mt-2 leading-relaxed">
-                  Visitor IP addresses are never recorded as raw string assets. FormForge processes all ingested client IPs through an immutable SHA-256 cryptographic salting pipeline combined with your Form identifier salt.
-                </p>
-              </div>
-              <span class="text-[10px] font-mono font-bold text-purple-400 uppercase tracking-widest mt-4 block">100% GDPR Compliant</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section: Troubleshooting FAQ -->
-        <div class="card relative" id="troubleshooting">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-inner flex-shrink-0">
-              <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-white my-0">Troubleshooting FAQ & Build Solutions</h2>
-          </div>
-          
-          <p class="text-slate-300 mt-3 mb-8 text-sm md:text-base">
-            Commonly observed operational edge errors, local wrangler setup hurdles, and instant build-time configurations:
-          </p>
-
-          <div class="space-y-6">
-            <div class="border border-white/10 bg-slate-900/40 p-5 md:p-6 rounded-2xl shadow-lg space-y-2">
-              <h4 class="font-extrabold text-rose-400 text-base md:text-lg flex items-center gap-2.5 my-0">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-                <span>Error: "DATABASE_URL is required" during Next.js compile</span>
-              </h4>
-              <p class="text-slate-300 text-xs md:text-sm leading-relaxed pl-7">
-                This behavior is typically encountered when reusing legacy codebase templates that attempt to connect to external PostgreSQL database connections at the global Node.js module root. FormForge eliminates this codebase flaw completely. All database logic uses <code>drizzle-orm/d1</code> and is safely wrapped inside dynamic runtime operations via <code>getDb()</code>.
-              </p>
-            </div>
-
-            <div class="border border-white/10 bg-slate-900/40 p-5 md:p-6 rounded-2xl shadow-lg space-y-2">
-              <h4 class="font-extrabold text-rose-400 text-base md:text-lg flex items-center gap-2.5 my-0">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-                <span>Error: "D1 database is not bound" or `env.DB` throws undefined</span>
-              </h4>
-              <p class="text-slate-300 text-xs md:text-sm leading-relaxed pl-7">
-                Ensure your deployment or local workspace has bound your Cloudflare D1 integration exactly under the uppercase moniker <code>DB</code>. Inspect your local <code>wrangler.jsonc</code> configuration table to verify that it matches this structure:
-              </p>
-              <div class="pl-7 mt-3">
-                <div class="code-window shadow-xl bg-[#090d16] border border-white/10 rounded-2xl overflow-hidden mt-3">
-                  <div class="flex items-center justify-between px-4 py-2 bg-slate-900/80 border-b border-white/10 backdrop-blur-md">
-                    <div class="flex items-center gap-2">
-                      <span class="flex gap-1.5">
-                        <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
-                        <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
-                        <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
-                      </span>
-                      <span class="text-[11px] text-slate-400 font-mono ml-2 uppercase tracking-wider font-bold">JSON</span>
-                    </div>
-                    <button onclick="copyApiSnippet('d1-err-code', 'copy-btn-json')" class="text-[11px] text-slate-400 hover:text-emerald-400 font-bold transition-colors flex items-center gap-1.5 cursor-pointer" id="copy-btn-json">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                      <span>Copy Snippet</span>
-                    </button>
-                  </div>
-                  <pre class="line-numbers !m-0 !rounded-none !border-none !shadow-none"><code class="language-json" id="d1-err-code">"d1_databases": [
-  {
-    "binding": "DB",
-    "database_name": "formforge-db",
-    "database_id": "your-actual-uuid-from-wrangler-d1-create"
-  }
-]</code></pre>
-                </div>
-              </div>
-            </div>
-
-            <div class="border border-white/10 bg-slate-900/40 p-5 md:p-6 rounded-2xl shadow-lg space-y-2">
-              <h4 class="font-extrabold text-amber-400 text-base md:text-lg flex items-center gap-2.5 my-0">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                <span>Requests consistently fail with a "CORS Origin Rejected" status response</span>
-              </h4>
-              <p class="text-slate-300 text-xs md:text-sm leading-relaxed pl-7">
-                This happens when you have filled the "Origin Allowlist" settings field inside your administrative bucket panel, but are attempting to post input entries from an unauthorized local development server. Either add your local origins (like <code>http://localhost:3000</code> or <code>http://127.0.0.1:5173</code>) into your allowlist, or leave the allowlist entirely blank to accept entries from anywhere.
-              </p>
-            </div>
-
-            <div class="border border-white/10 bg-slate-900/40 p-5 md:p-6 rounded-2xl shadow-lg space-y-2">
-              <h4 class="font-extrabold text-amber-400 text-base md:text-lg flex items-center gap-2.5 my-0">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                <span>Does the deployment require or depend on my GitHub username?</span>
-              </h4>
-              <p class="text-slate-300 text-xs md:text-sm leading-relaxed pl-7">
-                Absolutely not. The primary GitHub repository link acts purely as a cloneable source blueprint during your initial one-click setup. When you authorize Cloudflare, all active runtime workers, databases, and continuous deployment webhooks are provisioned entirely independently inside your personal account space.
-              </p>
-            </div>
-          </div>
-        </div>
       </main>
     </div>
-  </div> <!-- End Wrap -->
 
-  <!-- Premium Mega Footer -->
-  <footer class="pt-16 pb-8 border-t border-white/10 bg-slate-950 relative overflow-hidden">
-    <!-- Gorgeous Top Gradient Line -->
-    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent"></div>
-    
-    <div class="max-w-[1320px] mx-auto px-6 lg:px-8">
-      <div class="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 mb-16">
-        
-        <!-- Brand & About -->
-        <div class="md:col-span-5 space-y-5">
-          <a class="flex items-center gap-3 group text-white w-max" href="./docs.html">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-sky-500/25">
-              <svg class="w-5 h-5 text-slate-950 fill-current" viewBox="0 0 24 24">
-                <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-            <div class="flex flex-col">
-              <span class="font-extrabold text-xl tracking-tight leading-none text-white">FormForge</span>
-              <span class="text-[10px] text-sky-400 font-mono font-medium tracking-widest mt-0.5 uppercase">v2.0 Edge Runtime</span>
-            </div>
-          </a>
-          <p class="text-slate-400 text-sm max-w-sm leading-relaxed">
-            The ultimate serverless form processing engine. Deploy to your own Cloudflare account in seconds and retain 100% data sovereignty. No middleman databases.
-          </p>
-          <div class="flex gap-4 pt-2">
-            <a href="https://github.com/SudhirDevOps1/FormForge" target="_blank" rel="noreferrer" class="text-slate-500 hover:text-white transition-colors" title="GitHub Repository">
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-            </a>
-          </div>
-        </div>
-        
-        <!-- Resources Links -->
-        <div class="md:col-span-3 lg:col-span-2 space-y-4">
-          <h4 class="text-white font-bold text-sm uppercase tracking-widest">Resources</h4>
-          <ul class="space-y-3 text-sm text-slate-400 font-medium">
-            <li><a href="#playground" class="hover:text-sky-400 transition-colors inline-block">Interactive Builder</a></li>
-            <li><a href="#api" class="hover:text-sky-400 transition-colors inline-block">API Reference</a></li>
-            <li><a href="#deploy" class="hover:text-sky-400 transition-colors inline-block">Deployment Guide</a></li>
-            <li><a href="#d1" class="hover:text-sky-400 transition-colors inline-block">CLI Commands</a></li>
-          </ul>
-        </div>
-
-        <!-- Tech Stack Links -->
-        <div class="md:col-span-4 lg:col-span-3 space-y-4">
-          <h4 class="text-white font-bold text-sm uppercase tracking-widest">Core Tech Stack</h4>
-          <ul class="space-y-3 text-sm text-slate-400 font-medium">
-            <li><a href="https://workers.cloudflare.com/" target="_blank" rel="noreferrer" class="hover:text-sky-400 transition-colors inline-block">Cloudflare Workers</a></li>
-            <li><a href="https://developers.cloudflare.com/d1/" target="_blank" rel="noreferrer" class="hover:text-sky-400 transition-colors inline-block">Cloudflare D1 (SQLite)</a></li>
-            <li><a href="https://orm.drizzle.team/" target="_blank" rel="noreferrer" class="hover:text-sky-400 transition-colors inline-block">Drizzle ORM</a></li>
-            <li><a href="https://nextjs.org/" target="_blank" rel="noreferrer" class="hover:text-sky-400 transition-colors inline-block">Next.js App Router</a></li>
-          </ul>
-        </div>
-
-        <!-- Legal Links -->
-        <div class="md:col-span-12 lg:col-span-2 space-y-4">
-          <h4 class="text-white font-bold text-sm uppercase tracking-widest">Legal</h4>
-          <ul class="space-y-3 text-sm text-slate-400 font-medium">
-            <li><a href="#privacy" class="hover:text-sky-400 transition-colors inline-block">Data Privacy</a></li>
-            <li><a href="#schema" class="hover:text-sky-400 transition-colors inline-block">GDPR Compliance</a></li>
-            <li><a href="https://github.com/SudhirDevOps1/FormForge/blob/main/LICENSE" target="_blank" rel="noreferrer" class="hover:text-sky-400 transition-colors inline-block">MIT License</a></li>
-          </ul>
-        </div>
-        
-      </div>
-
-      <div class="border-t border-white/10 pt-8 flex flex-col lg:flex-row items-center justify-between gap-5 text-center lg:text-left">
-        <p class="text-xs text-slate-500 font-medium">
-          &copy; 2026 FormForge Serverless Framework. Open-sourced under MIT License.
-        </p>
-        <p class="text-xs text-sky-400/80 font-mono tracking-wider flex items-center justify-center gap-2">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-          Engineered for High-Performance Edge Isolates
-        </p>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Mobile Bottom/Side Navigation Drawer Sheet Component -->
-  <div id="mobile-nav-sheet" class="mobile-sheet fixed inset-0 z-50 transform translate-x-full bg-slate-950/95 backdrop-blur-2xl p-6 border-l border-white/10 flex flex-col justify-between sm:hidden shadow-2xl overflow-y-auto">
-    <div>
-      <div class="flex items-center justify-between pb-6 border-b border-white/10">
-        <div class="flex items-center gap-3 text-white">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-600 flex items-center justify-center font-black text-slate-950">⚡</div>
-          <span class="font-black text-xl">FormForge Docs</span>
-        </div>
-        <button onclick="toggleMobileSheet()" class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-slate-400 hover:text-white font-black text-lg">&times;</button>
-      </div>
-      
-      <div class="my-6">
-        <label for="mobile-drawer-search" class="sr-only">Search</label>
-        <input type="text" id="mobile-drawer-search" placeholder="Search sections..." 
-               class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
-      </div>
-
-      <h4 class="text-xs font-bold text-sky-400 uppercase tracking-widest font-mono mb-4">Contents</h4>
-      
-      <nav class="space-y-2 text-base font-bold flex flex-col" id="mobile-toc-list">
-        <a href="#features" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>Core Features</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#playground" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>Interactive Sandbox</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#architecture" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>Architecture</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#deploy" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>One-Click Deploy</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#env" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>Environment Secrets</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#d1" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>D1 CLI Integration</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#schema" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>Relational Schema</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#api" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>API Execution Code</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#dashboard" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>Admin Visual Emulator</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#privacy" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>Privacy & GDPR</span> <span class="text-sky-400">&rarr;</span></a>
-        <a href="#troubleshooting" onclick="toggleMobileSheet()" class="p-3 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between border border-white/5"><span>Troubleshooting FAQ</span> <span class="text-sky-400">&rarr;</span></a>
-      </nav>
-    </div>
-    
-    <div class="mt-8 pt-6 border-t border-white/10 text-center">
-      <a class="btn primary w-full py-3.5 text-base" href="https://deploy.workers.cloudflare.com/?url=https://github.com/SudhirDevOps1/FormForge" target="_blank" rel="noreferrer">Deploy to Cloudflare</a>
-    </div>
+    <!-- Footer -->
+    <footer class="footer">
+      <p>© 2026 FormForge Serverless Framework. Open-sourced under the MIT License.</p>
+    </footer>
   </div>
 
-  <!-- Prism.js Premium Syntax Highlighting Engine & Plugins scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
-
-  <!-- Complete Interactive Custom Logic Script -->
   <script>
-    // Database Schema Model Blueprints Summary
-    const schemaDefinitions = {
-      users: `
-        <h4 class="text-sky-400 font-mono text-sm uppercase tracking-widest font-black mb-2 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-sky-400 inline-block animate-pulse"></span> Table: users
-        </h4>
-        <p class="text-slate-300 text-xs md:text-sm mb-4 leading-relaxed">Persists primary administrative account setups authorized to establish buckets and view confidential entry records.</p>
-        <div class="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/60 shadow-inner">
-          <table class="w-full text-xs text-left">
-            <thead>
-              <tr class="bg-slate-950 text-slate-300 border-b border-white/10 uppercase text-[10px] tracking-wider font-extrabold">
-                <th class="py-3 px-4">Column Moniker</th>
-                <th class="py-3 px-4">Data Type</th>
-                <th class="py-3 px-4">Drizzle SQL Attributes</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5 font-mono">
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">primaryKey (UUID random generator)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">email</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">unique(), notNull()</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">password_hash</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">notNull() (PBKDF2 web crypto key)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">role</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; 'owner')</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">created_at</td><td class="text-sky-300 px-4 py-3">integer</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; Date.now())</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `,
-      sessions: `
-        <h4 class="text-sky-400 font-mono text-sm uppercase tracking-widest font-black mb-2 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-sky-400 inline-block animate-pulse"></span> Table: sessions
-        </h4>
-        <p class="text-slate-300 text-xs md:text-sm mb-4 leading-relaxed">Maintains active verification browser sessions to persist administrative UI logins safely.</p>
-        <div class="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/60 shadow-inner">
-          <table class="w-full text-xs text-left">
-            <thead>
-              <tr class="bg-slate-950 text-slate-300 border-b border-white/10 uppercase text-[10px] tracking-wider font-extrabold">
-                <th class="py-3 px-4">Column Moniker</th>
-                <th class="py-3 px-4">Data Type</th>
-                <th class="py-3 px-4">Drizzle SQL Attributes</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5 font-mono">
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">primaryKey()</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">user_id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">references(() =&gt; users.id), notNull()</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">expires_at</td><td class="text-sky-300 px-4 py-3">integer</td><td class="text-slate-400 px-4 py-3">notNull() (Unix execution timestamp)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">created_at</td><td class="text-sky-300 px-4 py-3">integer</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; Date.now())</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `,
-      forms: `
-        <h4 class="text-sky-400 font-mono text-sm uppercase tracking-widest font-black mb-2 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-sky-400 inline-block animate-pulse"></span> Table: forms
-        </h4>
-        <p class="text-slate-300 text-xs md:text-sm mb-4 leading-relaxed">Houses target ingestion specifications, dynamic origin routing limits, and automated web alert routines.</p>
-        <div class="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/60 shadow-inner">
-          <table class="w-full text-xs text-left">
-            <thead>
-              <tr class="bg-slate-950 text-slate-300 border-b border-white/10 uppercase text-[10px] tracking-wider font-extrabold">
-                <th class="py-3 px-4">Column Moniker</th>
-                <th class="py-3 px-4">Data Type</th>
-                <th class="py-3 px-4">Drizzle SQL Attributes</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5 font-mono">
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">primaryKey (UUID)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">user_id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">references(() =&gt; users.id), notNull()</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">name</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">notNull() (e.g. 'Main Portal Feed')</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">endpoint_slug</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">unique(), notNull() (e.g. 'contact_82c1')</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">origin_allowlist</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">CSV origin list values</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">email_notifications</td><td class="text-sky-300 px-4 py-3">integer</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; 0) (Boolean toggle)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">target_email</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">null() (Alert recipient pointer)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">webhook_url</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">null() (Discord / Zapier target URL)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">redirect_url</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">null() (Success execution jump link)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">is_active</td><td class="text-sky-300 px-4 py-3">integer</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; 1)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">created_at</td><td class="text-sky-300 px-4 py-3">integer</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; Date.now())</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `,
-      submissions: `
-        <h4 class="text-sky-400 font-mono text-sm uppercase tracking-widest font-black mb-2 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-sky-400 inline-block animate-pulse"></span> Table: submissions
-        </h4>
-        <p class="text-slate-300 text-xs md:text-sm mb-4 leading-relaxed">Captures unstructured and structured JSON inputs, salting client IP assets, and user-agent metadata.</p>
-        <div class="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/60 shadow-inner">
-          <table class="w-full text-xs text-left">
-            <thead>
-              <tr class="bg-slate-950 text-slate-300 border-b border-white/10 uppercase text-[10px] tracking-wider font-extrabold">
-                <th class="py-3 px-4">Column Moniker</th>
-                <th class="py-3 px-4">Data Type</th>
-                <th class="py-3 px-4">Drizzle SQL Attributes</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5 font-mono">
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">primaryKey (UUID)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">form_id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">references(() =&gt; forms.id), notNull()</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">data_json</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">notNull() (Full ingested JSON string)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">ip_hash</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">notNull() (SHA-256 IP token string)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">user_agent</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">null() (Browser identity string)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">created_at</td><td class="text-sky-300 px-4 py-3">integer</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; Date.now())</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `,
-      api_keys: `
-        <h4 class="text-sky-400 font-mono text-sm uppercase tracking-widest font-black mb-2 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-sky-400 inline-block animate-pulse"></span> Table: api_keys
-        </h4>
-        <p class="text-slate-300 text-xs md:text-sm mb-4 leading-relaxed">Authenticates remote Continuous Integration systems or administrative Python/Node automation scripts safely.</p>
-        <div class="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/60 shadow-inner">
-          <table class="w-full text-xs text-left">
-            <thead>
-              <tr class="bg-slate-950 text-slate-300 border-b border-white/10 uppercase text-[10px] tracking-wider font-extrabold">
-                <th class="py-3 px-4">Column Moniker</th>
-                <th class="py-3 px-4">Data Type</th>
-                <th class="py-3 px-4">Drizzle SQL Attributes</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5 font-mono">
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">primaryKey()</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">user_id</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">references(() =&gt; users.id), notNull()</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">key_hash</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">unique(), notNull() (HMAC 256 hash)</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">name</td><td class="text-sky-300 px-4 py-3">text</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; 'production_api_token')</td></tr>
-              <tr class="hover:bg-white/5 transition-colors"><td class="text-emerald-400 font-bold px-4 py-3">created_at</td><td class="text-sky-300 px-4 py-3">integer</td><td class="text-slate-400 px-4 py-3">$defaultFn(() =&gt; Date.now())</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `
+    // Sandbox State
+    let format = 'html';
+    
+    function setSandboxFormat(newFormat) {
+      format = newFormat;
+      document.getElementById('btn-tab-html').className = format === 'html' ? 'tab-btn active' : 'tab-btn';
+      document.getElementById('btn-tab-json').className = format === 'json' ? 'tab-btn active' : 'tab-btn';
+      updateSandbox();
+    }
+
+    function updateSandbox() {
+      const formId = document.getElementById('sb-form-id').value || 'contact_form_82c1';
+      const codeBlock = document.getElementById('sb-code-block');
+      
+      if (format === 'html') {
+        codeBlock.innerText = `<form action="https://your-domain.workers.dev/api/submit/${formId}" method="POST">
+  <input type="text" name="_honeypot" style="display: none;" />
+  <input type="email" name="email" required />
+  <textarea name="message" required></textarea>
+  <button type="submit">Submit</button>
+</form>`;
+      } else {
+        codeBlock.innerText = `fetch("https://your-domain.workers.dev/api/submit/${formId}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: "user@example.com",
+    message: "Hello Edge!"
+  })
+}).then(r => r.json());`;
+      }
+    }
+    updateSandbox();
+
+    function runSimulation() {
+      const formId = document.getElementById('sb-form-id').value || 'contact_form_82c1';
+      const consoleDiv = document.getElementById('sim-console');
+      const logs = document.getElementById('console-logs');
+      consoleDiv.style.display = 'block';
+      
+      logs.innerHTML = `<p style="color:#6b7280;">[Runtime Process] Connecting to simulated Edge Worker isolation layer...</p>
+<p style="color:var(--accent); font-weight:bold;">&gt; POST https://formforge.workers.dev/api/submit/${formId}</p>
+<p>1. Origin Whitelist Check: <span style="color:var(--green); font-weight:bold;">✓ ALLOWED</span></p>
+<p>2. Anti-Spam Honeypot Probe: <span style="color:var(--green); font-weight:bold;">✓ PASSED</span></p>
+<p>3. SQLite D1 Transaction Write: <span style="color:var(--green); font-weight:bold;">✓ COMMITTED (1 Row affected)</span></p>
+<p style="color:var(--green); font-weight:bold; margin-top:10px;">Returned JSON Body (200 OK):</p>
+<pre style="margin:4px 0; border:none; padding:4px 0; background:transparent;">{
+  "success": true,
+  "message": "Form submission securely saved to Cloudflare D1",
+  "submissionId": "sub_${Math.random().toString(36).substring(2, 10)}"
+}</pre>`;
+    }
+
+    // Cryptographic Generator
+    function generateSecret() {
+      const array = new Uint8Array(24);
+      window.crypto.getRandomValues(array);
+      const secret = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+      document.getElementById('auth-secret-input').value = secret;
+    }
+
+    // Schema Display
+    const schemas = {
+      users: `CREATE TABLE users (
+  id TEXT PRIMARY KEY NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);`,
+      forms: `CREATE TABLE forms (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  name TEXT NOT NULL,
+  redirect_url TEXT,
+  allowed_origins TEXT DEFAULT '*',
+  collect_ip INTEGER DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);`,
+      submissions: `CREATE TABLE submissions (
+  id TEXT PRIMARY KEY NOT NULL,
+  form_id TEXT NOT NULL REFERENCES forms(id),
+  payload TEXT NOT NULL,
+  client_ip TEXT,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);`
     };
 
-    // Schema Visualizer Rendering Engine
-    function showSchemaTable(tableName) {
-      document.querySelectorAll('.schema-btn').forEach(btn => {
-        btn.className = "schema-btn text-left text-xs md:text-sm px-4 py-3 rounded-xl border border-white/5 bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer w-full whitespace-nowrap transition-all flex items-center justify-between";
-      });
-      
-      const activeBtn = document.getElementById(`schema-btn-${tableName}`);
-      if (activeBtn) {
-        activeBtn.className = "schema-btn text-left text-xs md:text-sm px-4 py-3 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-300 font-extrabold cursor-pointer w-full whitespace-nowrap shadow transition-all flex items-center justify-between";
-      }
-      
-      const detailsBox = document.getElementById('schema-details-content');
-      detailsBox.style.opacity = 0;
-      setTimeout(() => {
-        detailsBox.innerHTML = schemaDefinitions[tableName];
-        detailsBox.style.opacity = 1;
-      }, 150);
+    function selectSchema(table) {
+      document.getElementById('sch-btn-users').className = table === 'users' ? 'schema-btn active' : 'schema-btn';
+      document.getElementById('sch-btn-forms').className = table === 'forms' ? 'schema-btn active' : 'schema-btn';
+      document.getElementById('sch-btn-submissions').className = table === 'submissions' ? 'schema-btn active' : 'schema-btn';
+      document.getElementById('schema-display-block').innerText = schemas[table];
     }
-    showSchemaTable('users');
+    selectSchema('users');
 
-    // Interactive Codeblock Synchronizer Core Setup
-    const workerInputEl = document.getElementById('play-worker-url');
-    const slugInputEl = document.getElementById('play-form-id');
-    const typeSelectEl = document.getElementById('play-sub-type');
-    const honeypotSelectEl = document.getElementById('play-honeypot');
-    const fieldNameEl = document.getElementById('field-name');
-    const fieldMessageEl = document.getElementById('field-message');
-    const fieldSubjectEl = document.getElementById('field-subject');
-    const codeContainerEl = document.getElementById('playground-code-container');
-    const playLangLabel = document.getElementById('play-lang-label');
-
-    function syncPlaygroundCode() {
-      const url = workerInputEl.value.replace(/\/$/, "");
-      const slug = slugInputEl.value;
-      const type = typeSelectEl.value;
-      const honeypot = honeypotSelectEl.value;
-      
-      let code = "";
-      if (type === "html") {
-        playLangLabel.innerText = "HTML";
-        code += `&lt;!-- FormForge Ingestion Target Implementation --&gt;\n`;
-        code += `&lt;form method="POST" action="${url}/api/submit/${slug}"&gt;\n`;
-        if (honeypot === "enabled") {
-          code += `  &lt;!-- Screen-reader-hidden honeypot element --&gt;\n`;
-          code += `  &lt;input type="text" name="_honeypot" style="display:none" tabindex="-1" autocomplete="off"&gt;\n\n`;
-        }
-        code += `  &lt;div class="form-row"&gt;\n`;
-        code += `    &lt;label for="email"&gt;Email Address *&lt;/label&gt;\n`;
-        code += `    &lt;input type="email" id="email" name="email" required placeholder="visitor@domain.com"&gt;\n`;
-        code += `  &lt;/div&gt;\n`;
-        
-        if (fieldNameEl.checked) {
-          code += `  &lt;div class="form-row"&gt;\n`;
-          code += `    &lt;label for="name"&gt;Full Name&lt;/label&gt;\n`;
-          code += `    &lt;input type="text" id="name" name="name" placeholder="Alex Smith"&gt;\n`;
-          code += `  &lt;/div&gt;\n`;
-        }
-        if (fieldSubjectEl.checked) {
-          code += `  &lt;div class="form-row"&gt;\n`;
-          code += `    &lt;label for="subject"&gt;Subject Inquiry&lt;/label&gt;\n`;
-          code += `    &lt;input type="text" id="subject" name="subject" placeholder="Partnership opportunity"&gt;\n`;
-          code += `  &lt;/div&gt;\n`;
-        }
-        if (fieldMessageEl.checked) {
-          code += `  &lt;div class="form-row"&gt;\n`;
-          code += `    &lt;label for="message"&gt;Message Notes *&lt;/label&gt;\n`;
-          code += `    &lt;textarea id="message" name="message" required rows="4" placeholder="How can we help?"&gt;&lt;/textarea&gt;\n`;
-          code += `  &lt;/div&gt;\n`;
-        }
-        code += `  &lt;button type="submit"&gt;Transmit Ingestion Post&lt;/button&gt;\n&lt;/form&gt;`;
-        
-        codeContainerEl.innerHTML = `<code class="language-html" id="playground-code-block">${code}</code>`;
-      } else {
-        playLangLabel.innerText = "JavaScript";
-        code += `// Asynchronous Fetch Execution Implementation\n`;
-        code += `const submitToFormForge = async () => {\n`;
-        code += `  const targetEndpoint = "${url}/api/submit/${slug}";\n`;
-        code += `  const payloadData = {\n`;
-        code += `    email: "visitor@example.com",\n`;
-        if (fieldNameEl.checked) code += `    name: "Alex Johnson",\n`;
-        if (fieldSubjectEl.checked) code += `    subject: "Enterprise Deployment",\n`;
-        if (fieldMessageEl.checked) code += `    message: "We need custom pricing queries answered...",\n`;
-        if (honeypot === "enabled") code += `    _honeypot: "", // Immutable property: MUST remain exactly empty\n`;
-        code += `  };\n\n`;
-        code += `  try {\n`;
-        code += `    const response = await fetch(targetEndpoint, {\n`;
-        code += `      method: "POST",\n`;
-        code += `      headers: {\n`;
-        code += `        "Content-Type": "application/json",\n`;
-        code += `        "Accept": "application/json"\n`;
-        code += `      },\n`;
-        code += `      body: JSON.stringify(payloadData)\n`;
-        code += `    });\n\n`;
-        code += `    const result = await response.json();\n`;
-        code += `    if (response.ok && result.success) {\n`;
-        code += `      console.log("Success! Logged Entry ID:", result.submissionId);\n`;
-        code += `    } else {\n`;
-        code += `      console.error("Ingestion completely rejected:", result.message);\n`;
-        code += `    }\n`;
-        code += `  } catch (error) {\n`;
-        code += `    console.error("Critical network communication exception:", error);\n`;
-        code += `  }\n`;
-        code += `};`;
-        
-        codeContainerEl.innerHTML = `<code class="language-javascript" id="playground-code-block">${code}</code>`;
-      }
-      
-      // Instruct Prism to highlight the newly populated dynamic code element
-      if (window.Prism) {
-        Prism.highlightAllUnder(codeContainerEl);
-      }
-    }
-
-    [workerInputEl, slugInputEl, typeSelectEl, honeypotSelectEl, fieldNameEl, fieldMessageEl, fieldSubjectEl].forEach(element => {
-      element.addEventListener('input', () => {
-        syncPlaygroundCode();
-        const statusPill = document.getElementById('play-status-pill');
-        statusPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping"></span> Synchronizing...`;
-        statusPill.className = "text-[10px] text-sky-400 font-mono bg-sky-950 border border-sky-400/30 px-2.5 py-1 rounded-md font-bold flex items-center gap-1.5";
-        setTimeout(() => {
-          statusPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Synchronized`;
-          statusPill.className = "text-[10px] text-emerald-400 font-mono bg-slate-900 border border-emerald-500/30 px-2.5 py-1 rounded-md font-bold flex items-center gap-1.5";
-        }, 350);
-      });
-    });
-    
-    // Defer initial sync to ensure Prism is instantiated
-    document.addEventListener('DOMContentLoaded', () => {
-      syncPlaygroundCode();
-    });
-
-    // Highly Robust Copy Code Script (Avoids Line-Numbers bug perfectly)
-    function copyApiSnippet(elementId, btnId) {
-      const el = document.getElementById(elementId);
-      if (!el) return;
-      
-      // Clone element to manipulate safely without mutating actual DOM visualization
-      const clone = el.cloneNode(true);
-      
-      // Target Prism.js artifact and destroy it
-      const lineNumbers = clone.querySelector('.line-numbers-rows');
-      if (lineNumbers) lineNumbers.remove();
-      
-      // Extract pristine raw code without CSS line-number wrappers
-      const snippetText = clone.textContent;
-      navigator.clipboard.writeText(snippetText);
-      
-      const button = document.getElementById(btnId);
-      const originalHTML = button.innerHTML;
-      
-      // Instant visual feedback swap
-      button.innerHTML = `<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg><span class="text-emerald-400">Copied!</span>`;
-      
-      setTimeout(() => {
-        button.innerHTML = originalHTML;
-      }, 1800);
-    }
-
-    function copyPlayCode() {
-      copyApiSnippet('playground-code-block', 'copy-play-btn');
-    }
-
-    function copyCommand(cmd, btn) {
-      navigator.clipboard.writeText(cmd);
-      const originalHTML = btn.innerHTML;
-      
-      btn.innerHTML = `<span class="text-emerald-400 font-bold">✓ Copied</span>`;
-      btn.classList.add('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-400');
-      btn.classList.remove('hover:bg-sky-500', 'hover:text-slate-950', 'text-slate-400');
-      
-      setTimeout(() => {
-        btn.innerHTML = originalHTML;
-        btn.classList.remove('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-400');
-        btn.classList.add('hover:bg-sky-500', 'hover:text-slate-950', 'text-slate-400');
-      }, 1500);
-    }
-
-    // Trigger Real-Time Request Interactive Simulation
-    function testSubSimulate() {
-      const consolePanel = document.getElementById('sim-console');
-      consolePanel.classList.remove('hidden');
-      consolePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      
-      const customSlug = slugInputEl.value;
-      const customUrl = workerInputEl.value.replace(/\/$/, "");
-      const timeStr = new Date().toLocaleTimeString();
-      
-      const collectedFields = { email: "visitor@domain.com" };
-      if (fieldNameEl.checked) collectedFields.name = "Alex Smith";
-      if (fieldSubjectEl.checked) collectedFields.subject = "Partnership opportunity";
-      if (fieldMessageEl.checked) collectedFields.message = "Interactive sandbox query executing...";
-      
-      document.getElementById('sim-route-display').innerText = `&gt; POST ${customUrl}/api/submit/${customSlug}`;
-      document.getElementById('sim-response-block').innerText = JSON.stringify({
-        success: true,
-        message: "Form submission securely saved to Cloudflare D1",
-        submissionId: "sub_" + Math.random().toString(36).substr(2, 9),
-        recordedData: collectedFields
-      }, null, 2);
-      
-      // Request Prism to highlight response JSON block
-      if (window.Prism) {
-        document.getElementById('sim-response-block').className = "console-output language-json shadow-inner";
-        Prism.highlightElement(document.getElementById('sim-response-block'));
-      }
-    }
-
-    function closeConsole() {
-      document.getElementById('sim-console').classList.add('hidden');
-    }
-
-    // High Entropy Secure Secret Key Hex Generator
-    function generateSecureSecret() {
-      const buffer = new Uint8Array(32);
-      window.crypto.getRandomValues(buffer);
-      const exactHex = Array.from(buffer, byte => byte.toString(16).padStart(2, '0')).join('');
-      document.getElementById('generated-secret').value = exactHex;
-    }
-
-    // Mobile sheet toggle implementation
-    function toggleMobileSheet() {
-      const sheet = document.getElementById('mobile-nav-sheet');
-      sheet.classList.toggle('translate-x-full');
-      document.body.classList.toggle('overflow-hidden');
-    }
-
-    // Visual Administrative Dashboard Mock Application Data
-    const mockDashboardRecords = {
+    // Dashboard Emulator
+    const mockData = {
       contact: [
-        { email: 'sarah.k@designco.io', message: 'Hello, looking for custom deployment details for enterprise setup.', ip: '192.168.1.44', time: '2 mins ago' },
-        { email: 'jeff_dev@stackflow.com', message: 'Is there a limit on submission speed or volume per minute?', ip: '102.15.22.4', time: '1 hour ago' },
-        { email: 'billing@agencyone.net', message: 'Just confirming this has no database charges or hidden fees.', ip: '201.8.192.2', time: '5 hours ago' },
-        { email: 'support@formforge.dev', message: 'Form setup test submission. D1 is properly bound and operational.', ip: '127.0.0.1', time: '1 day ago' },
-        { email: 'alex@cloudflare.com', message: 'Incredible v8 performance observed on European nodes.', ip: '141.101.98.5', time: '2 days ago' }
+        { email: 'clara_ventures@gmail.com', message: '[Newsletter Sign Up]', ip: '44.22.181.5', time: '12 mins ago' },
+        { email: 'harsh@devmail.in', message: '[Newsletter Sign Up]', ip: '157.34.8.19', time: '40 mins ago' },
+        { email: 'peter.smith@outlook.com', message: '[Newsletter Sign Up]', ip: '98.5.111.42', time: '2 hours ago' }
       ],
       newsletter: [
-        { email: 'clara_ventures@gmail.com', message: 'Subscribed to Weekly Dispatch updates.', ip: '44.22.181.5', time: '12 mins ago' },
-        { email: 'harsh@devmail.in', message: 'Subscribed to Weekly Dispatch updates.', ip: '157.34.8.19', time: '40 mins ago' },
-        { email: 'peter.smith@outlook.com', message: 'Subscribed to Weekly Dispatch updates.', ip: '98.5.111.42', time: '2 hours ago' }
-      ],
-      job: [
-        { email: 'developer@rustcore.net', message: 'Resume attached. Applying for senior full-stack backend lead role.', ip: '82.90.15.11', time: '2 days ago' },
-        { email: 'design_by_mia@dribble.org', message: 'Portfolio link included. Appreciate looking into my application.', ip: '14.155.9.212', time: '4 days ago' }
+        { email: 'nora_active@me.com', message: '[Newsletter Sign Up]', ip: '110.12.92.3', time: '3 hours ago' },
+        { email: 'sam.uiux@design.io', message: '[Newsletter Sign Up]', ip: '185.92.12.191', time: '5 hours ago' }
       ]
     };
 
-    let selectedDashboardBucket = 'contact';
-
-    function selectDashForm(bucketKey) {
-      selectedDashboardBucket = bucketKey;
-      
-      ['contact', 'newsletter', 'job'].forEach(key => {
-        const item = document.getElementById(`dash-btn-${key}`);
-        item.className = "p-3.5 rounded-xl border border-white/5 bg-slate-950/40 hover:bg-white/5 cursor-pointer transition-all flex-shrink-0 lg:flex-shrink w-64 lg:w-full";
-      });
-      document.getElementById(`dash-btn-${bucketKey}`).className = "p-3.5 rounded-xl border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/15 cursor-pointer transition-all flex-shrink-0 lg:flex-shrink w-64 lg:w-full shadow-md";
-      
-      const bucketTitle = document.getElementById('dash-form-title');
-      const bucketSlug = document.getElementById('dash-form-slug');
-      
-      if (bucketKey === 'contact') {
-        bucketTitle.innerText = "Contact Page Form Submissions";
-        bucketSlug.innerText = "https://formforge.workers.dev/api/submit/contact_form_82c1";
-      } else if (bucketKey === 'newsletter') {
-        bucketTitle.innerText = "Email Newsletter Entry Feed";
-        bucketSlug.innerText = "https://formforge.workers.dev/api/submit/newsletter_main_8c";
-      } else {
-        bucketTitle.innerText = "Job Intake Application Portlet";
-        bucketSlug.innerText = "https://formforge.workers.dev/api/submit/career_intake_22";
-      }
-      
-      renderDashboardTable();
-    }
-
-    function renderDashboardTable() {
-      const tbody = document.getElementById('dash-submissions-body');
-      tbody.innerHTML = "";
-      
-      const targetRows = mockDashboardRecords[selectedDashboardBucket];
-      targetRows.forEach(row => {
-        const trEl = document.createElement('tr');
-        trEl.className = "hover:bg-white/5 transition-colors font-sans";
-        trEl.innerHTML = `
-          <td class="py-3 px-4 font-bold text-white">${row.email}</td>
-          <td class="py-3 px-4 text-slate-300 max-w-[220px] md:max-w-[340px] truncate" title="${row.message}">${row.message}</td>
-          <td class="py-3 px-4 font-mono text-[11px] text-slate-400">${row.ip}</td>
-          <td class="py-3 px-4 text-right text-slate-400 whitespace-nowrap">${row.time}</td>
+    function selectDashForm(type) {
+      const tbody = document.getElementById('dash-tbody');
+      tbody.innerHTML = '';
+      const items = mockData[type] || [];
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight:bold; color:#fff;">${item.email}</td>
+          <td style="color:var(--text-secondary);">${item.message}</td>
+          <td style="font-family:var(--font-mono); font-size:11px;">${item.ip}</td>
+          <td style="color:var(--text-secondary);">${item.time}</td>
         `;
-        tbody.appendChild(trEl);
-      });
-      
-      const totalEntriesCount = mockDashboardRecords.contact.length + mockDashboardRecords.newsletter.length + mockDashboardRecords.job.length;
-      document.getElementById('dash-total-subs').innerText = totalEntriesCount;
-    }
-    renderDashboardTable();
-
-    function addMockSubmission() {
-      const emailInput = prompt("Enter simulated visitor profile email address:", "new.visitor@company.org");
-      if (!emailInput) return;
-      const messageInput = prompt("Enter simulated payload notes:", "Programmatic live test message simulating edge entry synchronization.");
-      if (!messageInput) return;
-      
-      mockDashboardRecords[selectedDashboardBucket].unshift({
-        email: emailInput,
-        message: messageInput,
-        ip: '127.0.0.1',
-        time: 'Just now'
-      });
-      
-      renderDashboardTable();
-    }
-
-    function downloadDashCSV() {
-      const selectedRows = mockDashboardRecords[selectedDashboardBucket];
-      let csvDataString = "data:text/csv;charset=utf-8,";
-      csvDataString += "Visitor Email,Payload Statement,Ingested Client IP,Submission Time\r\n";
-      
-      selectedRows.forEach(item => {
-        const safeEmail = item.email.replace(/"/g, '""');
-        const safeMsg = item.message.replace(/"/g, '""');
-        csvDataString += `"${safeEmail}","${safeMsg}","${item.ip}","${item.time}"\r\n`;
-      });
-      
-      const encodedDownloadUri = encodeURI(csvDataString);
-      const anchor = document.createElement("a");
-      anchor.setAttribute("href", encodedDownloadUri);
-      anchor.setAttribute("download", `FormForge_DataStream_${selectedDashboardBucket}.csv`);
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-    }
-
-    // Dual Navigation Search Implementation (Desktop Sidebar & Mobile Sheet)
-    const desktopSearchInput = document.getElementById('desktop-search');
-    const mobileSearchInput = document.getElementById('mobile-drawer-search');
-    const contentSections = document.querySelectorAll('#docs-content > div');
-
-    function performSectionSearch(queryString) {
-      const normalizedQuery = queryString.toLowerCase().trim();
-      contentSections.forEach(sec => {
-        const sectionTextContent = sec.innerText.toLowerCase();
-        if (sectionTextContent.includes(normalizedQuery)) {
-          sec.style.display = 'block';
-        } else {
-          sec.style.display = 'none';
-        }
+        tbody.appendChild(tr);
       });
     }
-
-    if (desktopSearchInput) {
-      desktopSearchInput.addEventListener('input', (e) => performSectionSearch(e.target.value));
-    }
-    if (mobileSearchInput) {
-      mobileSearchInput.addEventListener('input', (e) => performSectionSearch(e.target.value));
-    }
-
-    // Scroll Tracking to Automatically Highlight Active TOC item
-    const desktopTocLinks = document.querySelectorAll('#desktop-toc-list .toc-item');
-    
-    window.addEventListener('scroll', () => {
-      let activeSectionId = "";
-      
-      contentSections.forEach(sec => {
-        const sectionTopOffset = sec.offsetTop;
-        if (window.scrollY >= sectionTopOffset - 200) {
-          activeSectionId = sec.getAttribute('id');
-        }
-      });
-      
-      desktopTocLinks.forEach(link => {
-        link.classList.remove('active');
-        const targetId = link.getAttribute('href').substring(1);
-        if (targetId === activeSectionId) {
-          link.classList.add('active');
-        }
-      });
-    });
+    selectDashForm('contact');
   </script>
+
 </body>
 </html>
