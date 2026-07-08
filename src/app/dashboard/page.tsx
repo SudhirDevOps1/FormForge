@@ -698,6 +698,16 @@ print(response.json())`;
       <div className="px-5 pb-5">
         {view === "submissions" && (
           <div id="view-submissions-panel" role="tabpanel" aria-label="Submissions List">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-slate-500">Form Submission History</span>
+              <button
+                type="button"
+                onClick={() => loadSubs()}
+                className="flex items-center gap-1.5 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1 text-xs text-cyan-200 hover:bg-white/10 transition"
+              >
+                🔄 Refresh
+              </button>
+            </div>
             {loading ? (
               <p className="py-6 text-center text-sm text-slate-500">Loading submissions…</p>
             ) : subs.length === 0 ? (

@@ -31,6 +31,9 @@ export function getRuntimeEnv(): CloudflareEnv {
   };
 }
 
+let cachedDb: AppDb | null = null;
+let cachedD1: D1Database | null = null;
+
 export function getDb(): AppDb | null {
   const d1 = getRuntimeEnv().DB;
 
@@ -38,7 +41,13 @@ export function getDb(): AppDb | null {
     return null;
   }
 
-  return drizzle(d1, { schema });
+  if (cachedDb && cachedD1 === d1) {
+    return cachedDb;
+  }
+
+  cachedD1 = d1;
+  cachedDb = drizzle(d1, { schema });
+  return cachedDb;
 }
 
 export function databaseUnavailableResponse() {

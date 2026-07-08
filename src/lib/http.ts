@@ -3,7 +3,11 @@ import { randomId } from "./crypto";
 export type JsonRecord = Record<string, unknown>;
 
 export function jsonOk<T>(data: T, init?: ResponseInit): Response {
-  return Response.json({ ok: true, data }, init);
+  const headers = new Headers(init?.headers);
+  headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  headers.set("Pragma", "no-cache");
+  headers.set("Expires", "0");
+  return Response.json({ ok: true, data }, { ...init, headers });
 }
 
 export function jsonError(code: string, message: string, status = 400, details?: JsonRecord): Response {

@@ -1,4 +1,23 @@
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+
+// Helper to copy directory recursively
+function copyFolderSync(from, to) {
+  if (!fs.existsSync(from)) return;
+  if (!fs.existsSync(to)) {
+    fs.mkdirSync(to, { recursive: true });
+  }
+  fs.readdirSync(from).forEach(element => {
+    const fromPath = path.join(from, element);
+    const toPath = path.join(to, element);
+    if (fs.lstatSync(fromPath).isDirectory()) {
+      copyFolderSync(fromPath, toPath);
+    } else {
+      fs.copyFileSync(fromPath, toPath);
+    }
+  });
+}
 
 if (process.env.IN_OPEN_NEXT === 'true') {
   console.log("--- Inside OpenNext: Running standard Next.js build ---");
@@ -14,4 +33,21 @@ if (process.env.IN_OPEN_NEXT === 'true') {
   
   execSync(`${cmd} opennextjs-cloudflare build`, { stdio: 'inherit', env: process.env });
   console.log("--- OpenNext Cloudflare Build completed successfully ---");
+
+  // --- WINDOWS COMPATIBILITY FIX: Manually copy static assets ---
+  console.log("--- Windows Assets copy fix starting... ---");
+  const assetsDir = path.join(__dirname, '.open-next', 'assets');
+  
+  // 1. Copy public assets (e.g. docs.html, guide.html, logo.svg)
+  const publicDir = path.join(__dirname, 'public');
+  copyFolderSync(publicDir, assetsDir);
+  console.log("Copied public folder contents to .open-next/assets");
+
+  // 2. Copy Next.js compiled static CSS/JS chunks
+  const staticDir = path.join(__dirname, '.next', 'static');
+  const targetStaticDir = path.join(assetsDir, '_next', 'static');
+  copyFolderSync(staticDir, targetStaticDir);
+  console.log("Copied .next/static folder contents to .open-next/assets/_next/static");
+
+  console.log("--- Windows Assets copy fix completed successfully ---");
 }
