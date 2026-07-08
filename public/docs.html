@@ -220,6 +220,59 @@
       text-decoration: none;
     }
 
+    /* Mobile Menu Drawer */
+    .mobile-menu-btn {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--accent);
+      color: #030712;
+      border: none;
+      border-radius: 50%;
+      width: 54px;
+      height: 54px;
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(56, 189, 248, 0.4);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .mobile-drawer {
+      position: fixed;
+      top: 0;
+      right: -280px;
+      width: 280px;
+      height: 100%;
+      background: var(--bg-elevated);
+      border-left: 1px solid var(--border);
+      z-index: 1001;
+      padding: 30px 20px;
+      transition: right 0.3s ease;
+      box-shadow: -5px 0 30px rgba(0,0,0,0.5);
+    }
+    .mobile-drawer.open {
+      right: 0;
+    }
+    .mobile-drawer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      display: none;
+      backdrop-filter: blur(4px);
+    }
+    .mobile-drawer-overlay.open {
+      display: block;
+    }
+    @media (max-width: 1024px) {
+      .mobile-menu-btn { display: flex; }
+    }
+
     /* Cards */
     .card {
       background: var(--panel);
@@ -327,16 +380,18 @@
       overflow-x: auto;
       font-family: var(--font-mono);
       font-size: 13px;
-      color: #a7f3d0;
+      color: #f3f4f6;
       margin: 12px 0;
     }
     code {
       font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    p code, li code {
       color: var(--accent);
       background: rgba(255, 255, 255, 0.04);
       padding: 2px 6px;
       border-radius: 4px;
-      font-size: 13px;
     }
 
     /* Relational Database Setup Styles */
@@ -443,6 +498,30 @@
 </head>
 <body>
 
+  <!-- Floating Mobile Menu Button -->
+  <button class="mobile-menu-btn" onclick="toggleDrawer()">TOC</button>
+
+  <!-- Mobile Drawer Overlay -->
+  <div class="mobile-drawer-overlay" id="drawer-overlay" onclick="toggleDrawer()"></div>
+
+  <!-- Mobile Drawer -->
+  <div class="mobile-drawer" id="drawer-menu">
+    <h3 style="margin-top: 0; color:#fff; border-bottom:1px solid var(--border); padding-bottom:10px;">Navigation Menu</h3>
+    <div class="toc-menu">
+      <a class="toc-link" href="#features" onclick="toggleDrawer()">Core Features</a>
+      <a class="toc-link" href="#playground" onclick="toggleDrawer()">Interactive Sandbox</a>
+      <a class="toc-link" href="#architecture" onclick="toggleDrawer()">System Architecture</a>
+      <a class="toc-link" href="#deploy" onclick="toggleDrawer()">One-Click Deploy</a>
+      <a class="toc-link" href="#env" onclick="toggleDrawer()">Environment Variables</a>
+      <a class="toc-link" href="#d1" onclick="toggleDrawer()">D1 Database Setup</a>
+      <a class="toc-link" href="#schema" onclick="toggleDrawer()">SQLite Database Schema</a>
+      <a class="toc-link" href="#api" onclick="toggleDrawer()">API Integration Code</a>
+      <a class="toc-link" href="#dashboard" onclick="toggleDrawer()">Dashboard Emulator</a>
+      <a class="toc-link" href="#privacy" onclick="toggleDrawer()">Privacy & GDPR</a>
+      <a class="toc-link" href="#faq" onclick="toggleDrawer()">Troubleshooting FAQ</a>
+    </div>
+  </div>
+
   <div class="wrap">
     <!-- Top Navigation -->
     <nav class="nav">
@@ -532,7 +611,7 @@
             
             <div>
               <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Generated Code</label>
-              <pre id="sb-code-block"></pre>
+              <pre id="sb-code-block"><code class="language-html"></code></pre>
             </div>
           </div>
 
@@ -644,7 +723,7 @@
               <button class="schema-btn" id="sch-btn-submissions" onclick="selectSchema('submissions')">📥 submissions</button>
             </div>
             <div>
-              <pre id="schema-display-block"></pre>
+              <pre id="schema-display-block"><code class="language-sql"></code></pre>
             </div>
           </div>
         </section>
@@ -657,17 +736,17 @@
           </div>
           
           <h3 style="color:#fff; margin-bottom: 6px;">1. Standard HTML Form (No JS)</h3>
-          <pre>&lt;form action="https://your-domain.workers.dev/api/submit/contact_form_82c1" method="POST"&gt;
+          <pre><code class="language-html">&lt;form action="https://your-domain.workers.dev/api/submit/contact_form_82c1" method="POST"&gt;
   &lt;!-- Honeypot anti-spam protection (Invisible field) --&gt;
   &lt;input type="text" name="_honeypot" style="display: none;" /&gt;
 
   &lt;input type="email" name="email" required placeholder="Enter email" /&gt;
   &lt;textarea name="message" required placeholder="Message"&gt;&lt;/textarea&gt;
   &lt;button type="submit"&gt;Submit Form&lt;/button&gt;
-&lt;/form&gt;</pre>
+&lt;/form&gt;</code></pre>
 
           <h3 style="color:#fff; margin-top:24px; margin-bottom: 6px;">2. Asynchronous Fetch Submission</h3>
-          <pre>const submitData = async (payload) => {
+          <pre><code class="language-javascript">const submitData = async (payload) => {
   const response = await fetch("https://your-domain.workers.dev/api/submit/contact-form", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -677,7 +756,7 @@
   if (data.ok) {
     console.log("Submission successful:", data.data);
   }
-};</pre>
+};</code></pre>
         </section>
 
         <!-- Dashboard Emulator -->
@@ -689,23 +768,25 @@
           <p>Experience how the responsive administration dashboard visualizes incoming form feed queues securely:</p>
           
           <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-            <button class="btn" onclick="selectDashForm('contact')">📩 Contact Form</button>
-            <button class="btn" onclick="selectDashForm('newsletter')">📧 Newsletter Sign Up</button>
+            <button class="btn" id="dash-tab-contact" onclick="selectDashForm('contact')">📩 Contact Form</button>
+            <button class="btn" id="dash-tab-newsletter" onclick="selectDashForm('newsletter')">📧 Newsletter Sign Up</button>
           </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Email Address</th>
-                <th>Message Payload</th>
-                <th>Client IP Address</th>
-                <th>Submitted Time</th>
-              </tr>
-            </thead>
-            <tbody id="dash-tbody">
-              <!-- JS Injected Rows -->
-            </tbody>
-          </table>
+          <div style="overflow-x: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email Address</th>
+                  <th>Message Payload</th>
+                  <th>Client IP Address</th>
+                  <th>Submitted Time</th>
+                </tr>
+              </thead>
+              <tbody id="dash-tbody">
+                <!-- JS Injected Rows -->
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <!-- Privacy & GDPR -->
@@ -747,6 +828,48 @@
   </div>
 
   <script>
+    // Toggle Mobile Drawer TOC
+    function toggleDrawer() {
+      const menu = document.getElementById('drawer-menu');
+      const overlay = document.getElementById('drawer-overlay');
+      menu.classList.toggle('open');
+      overlay.classList.toggle('open');
+    }
+
+    // Custom pure client-side regex syntax highlighter for CSP compliance
+    function highlightCodeBlocks() {
+      const codeElements = document.querySelectorAll('pre code');
+      codeElements.forEach(block => {
+        let code = block.innerText;
+        
+        // Escape standard HTML tags
+        let html = code
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        // Format Strings (cyan)
+        html = html.replace(/(["'])(.*?)\1/g, '<span style="color:#a5f3fc;">$1$2$1</span>');
+
+        // Format JavaScript Keywords (rose)
+        const jsKeywords = /\b(const|let|var|function|return|await|async|import|export|from|fetch|method|headers|body|JSON|stringify|then|catch|class|default|null|true|false)\b/g;
+        html = html.replace(jsKeywords, '<span style="color:#fb7185; font-weight:bold;">$1</span>');
+
+        // Format SQL Keywords (blue)
+        const sqlKeywords = /\b(CREATE TABLE|PRIMARY KEY|NOT NULL|TEXT|INTEGER|REFERENCES|UNIQUE|DEFAULT|FOREIGN KEY)\b/g;
+        html = html.replace(sqlKeywords, '<span style="color:#60a5fa; font-weight:bold;">$1</span>');
+
+        // Format HTML Tags (amber)
+        html = html.replace(/(&lt;\/?[a-zA-Z0-9-]+.*?&gt;)/g, '<span style="color:#fcd34d;">$1</span>');
+
+        // Format Comments (grey)
+        html = html.replace(/(&lt;!--.*?--&gt;)/g, '<span style="color:#6b7280; font-style:italic;">$1</span>');
+        html = html.replace(/(\/\/.*)/g, '<span style="color:#6b7280; font-style:italic;">$1</span>');
+
+        block.innerHTML = html;
+      });
+    }
+
     // Sandbox State
     let format = 'html';
     
@@ -759,7 +882,7 @@
 
     function updateSandbox() {
       const formId = document.getElementById('sb-form-id').value || 'contact_form_82c1';
-      const codeBlock = document.getElementById('sb-code-block');
+      const codeBlock = document.getElementById('sb-code-block').querySelector('code');
       
       if (format === 'html') {
         codeBlock.innerText = `<form action="https://your-domain.workers.dev/api/submit/${formId}" method="POST">
@@ -778,8 +901,8 @@
   })
 }).then(r => r.json());`;
       }
+      highlightCodeBlocks();
     }
-    updateSandbox();
 
     function runSimulation() {
       const formId = document.getElementById('sb-form-id').value || 'contact_form_82c1';
@@ -787,17 +910,17 @@
       const logs = document.getElementById('console-logs');
       consoleDiv.style.display = 'block';
       
-      logs.innerHTML = `<p style="color:#6b7280;">[Runtime Process] Connecting to simulated Edge Worker isolation layer...</p>
-<p style="color:var(--accent); font-weight:bold;">&gt; POST https://formforge.workers.dev/api/submit/${formId}</p>
-<p>1. Origin Whitelist Check: <span style="color:var(--green); font-weight:bold;">✓ ALLOWED</span></p>
-<p>2. Anti-Spam Honeypot Probe: <span style="color:var(--green); font-weight:bold;">✓ PASSED</span></p>
-<p>3. SQLite D1 Transaction Write: <span style="color:var(--green); font-weight:bold;">✓ COMMITTED (1 Row affected)</span></p>
-<p style="color:var(--green); font-weight:bold; margin-top:10px;">Returned JSON Body (200 OK):</p>
-<pre style="margin:4px 0; border:none; padding:4px 0; background:transparent;">{
+      logs.innerHTML = `<p style="color:#6b7280; margin:0;">[Runtime Process] Connecting to simulated Edge Worker isolation layer...</p>
+<p style="color:var(--accent); font-weight:bold; margin:4px 0;">&gt; POST https://formforge.workers.dev/api/submit/${formId}</p>
+<p style="margin:2px 0;">1. Origin Whitelist Check: <span style="color:var(--green); font-weight:bold;">✓ ALLOWED</span></p>
+<p style="margin:2px 0;">2. Anti-Spam Honeypot Probe: <span style="color:var(--green); font-weight:bold;">✓ PASSED</span></p>
+<p style="margin:2px 0;">3. SQLite D1 Transaction Write: <span style="color:var(--green); font-weight:bold;">✓ COMMITTED (1 Row affected)</span></p>
+<p style="color:var(--green); font-weight:bold; margin-top:10px; margin-bottom:4px;">Returned JSON Body (200 OK):</p>
+<pre style="margin:0; border:none; padding:0; background:transparent;"><code style="color:var(--green);">{
   "success": true,
   "message": "Form submission securely saved to Cloudflare D1",
   "submissionId": "sub_${Math.random().toString(36).substring(2, 10)}"
-}</pre>`;
+}</code></pre>`;
     }
 
     // Cryptographic Generator
@@ -838,9 +961,11 @@
       document.getElementById('sch-btn-users').className = table === 'users' ? 'schema-btn active' : 'schema-btn';
       document.getElementById('sch-btn-forms').className = table === 'forms' ? 'schema-btn active' : 'schema-btn';
       document.getElementById('sch-btn-submissions').className = table === 'submissions' ? 'schema-btn active' : 'schema-btn';
-      document.getElementById('schema-display-block').innerText = schemas[table];
+      
+      const codeBlock = document.getElementById('schema-display-block').querySelector('code');
+      codeBlock.innerText = schemas[table];
+      highlightCodeBlocks();
     }
-    selectSchema('users');
 
     // Dashboard Emulator
     const mockData = {
@@ -856,6 +981,9 @@
     };
 
     function selectDashForm(type) {
+      document.getElementById('dash-tab-contact').className = type === 'contact' ? 'btn primary' : 'btn';
+      document.getElementById('dash-tab-newsletter').className = type === 'newsletter' ? 'btn primary' : 'btn';
+
       const tbody = document.getElementById('dash-tbody');
       tbody.innerHTML = '';
       const items = mockData[type] || [];
@@ -864,13 +992,19 @@
         tr.innerHTML = `
           <td style="font-weight:bold; color:#fff;">${item.email}</td>
           <td style="color:var(--text-secondary);">${item.message}</td>
-          <td style="font-family:var(--font-mono); font-size:11px;">${item.ip}</td>
+          <td style="font-family:var(--font-mono); font-size:11px; color:var(--accent);">${item.ip}</td>
           <td style="color:var(--text-secondary);">${item.time}</td>
         `;
         tbody.appendChild(tr);
       });
     }
-    selectDashForm('contact');
+
+    // Initial Trigger
+    window.addEventListener('DOMContentLoaded', () => {
+      updateSandbox();
+      selectSchema('users');
+      selectDashForm('contact');
+    });
   </script>
 
 </body>
