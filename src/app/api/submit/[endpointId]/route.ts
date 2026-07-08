@@ -217,7 +217,7 @@ export async function POST(request: Request, context: RouteContext) {
     formId: form.id,
     payload: serialized,
     email: findEmail(payload),
-    ipHash: form.storeIpHash && ip ? await sha256(`${form.id}:${ip}`) : undefined,
+    ipHash: form.storeIpHash && ip ? await sha256(`${form.id}:${ip}`) : (ip ?? undefined),
     userAgent: request.headers.get("user-agent") ?? undefined,
     referer: request.headers.get("referer") ?? undefined,
     status,

@@ -99,6 +99,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     autoresponderBody: readString(body.autoresponderBody, result.form.autoresponderBody ?? "") || null,
     spamBlocklist: readString(body.spamBlocklist, result.form.spamBlocklist ?? "") || null,
     retentionDays: typeof body.retentionDays === "number" ? body.retentionDays : result.form.retentionDays,
+    storeIpHash: typeof body.storeIpHash === "boolean" ? body.storeIpHash : result.form.storeIpHash,
     updatedAt: new Date().toISOString(),
   };
 

@@ -922,6 +922,13 @@ function SubmissionRow({ sub }: { sub: Submission }) {
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-[10px] text-slate-500">
             {sub.referer && <span>Referer: <a href={sub.referer} target="_blank" className="hover:underline text-slate-400">{sub.referer}</a></span>}
+            {sub.ipHash && (
+              <span>
+                IP: <code className="select-all">
+                  {sub.ipHash.length === 64 ? `${sub.ipHash.slice(0, 8)}... (Hashed)` : sub.ipHash}
+                </code>
+              </span>
+            )}
             <span>ID: <code className="select-all">{sub.id}</code></span>
           </div>
         </div>
@@ -949,6 +956,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [retentionDays, setRetentionDays] = useState(form.retentionDays ?? 0);
   const [customDays, setCustomDays] = useState((form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? form.retentionDays : 15);
   const [isCustom, setIsCustom] = useState((form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false);
+  const [storeIpHash, setStoreIpHash] = useState(form.storeIpHash ?? true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -967,6 +975,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setAutoresponderBody(form.autoresponderBody ?? "");
     setSpamBlocklist(form.spamBlocklist ?? "");
     setRetentionDays(form.retentionDays ?? 0);
+    setStoreIpHash(form.storeIpHash ?? true);
     const custom = (form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false;
     setIsCustom(custom);
     if (custom) {
@@ -995,7 +1004,8 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           autoresponderSubject: autoresponderSubject || null,
           autoresponderBody: autoresponderBody || null,
           spamBlocklist: spamBlocklist || null,
-          retentionDays: isCustom ? Number(customDays) : Number(retentionDays)
+          retentionDays: isCustom ? Number(customDays) : Number(retentionDays),
+          storeIpHash
         }),
       });
       const data = await res.json();
@@ -1088,6 +1098,14 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
               <input id="settings-turnstile-secret" type="password" value={turnstileSecretKey} onChange={(e) => setTurnstileSecretKey(e.target.value)} className="ff-input text-sm" placeholder="0x4AAAAAA..." />
             </div>
           )}
+        </div>
+
+        <div className="border-t border-white/5 pt-4 space-y-3">
+          <label className="flex items-center gap-2 text-xs text-slate-300">
+            <input type="checkbox" checked={!storeIpHash} onChange={() => setStoreIpHash(!storeIpHash)} className="h-4 w-4 rounded" />
+            Collect and show Client IP addresses in submissions
+          </label>
+          <p className="text-[10px] text-slate-500 pl-6">If enabled, the submitter's raw IP address (e.g. 44.22.181.5) will be stored and displayed on the dashboard instead of a secure anonymized hash.</p>
         </div>
       </div>
 
