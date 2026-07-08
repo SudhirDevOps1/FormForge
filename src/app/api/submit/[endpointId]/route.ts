@@ -56,10 +56,23 @@ async function parsePayload(request: Request): Promise<ParsedSubmission> {
   return payload;
 }
 
+function hasInvalidEmail(payload: ParsedSubmission): boolean {
+  for (const key of ["email", "Email", "reply_to", "replyTo"]) {
+    const value = payload[key];
+    if (value !== undefined && value !== null && value !== "") {
+      const valStr = String(value).trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valStr)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function findEmail(payload: ParsedSubmission): string | undefined {
   for (const key of ["email", "Email", "reply_to", "replyTo"]) {
     const value = payload[key];
-    if (typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+    if (typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim())) {
       return value.trim().toLowerCase();
     }
   }
@@ -209,6 +222,18 @@ export async function POST(request: Request, context: RouteContext) {
         headers: { ...cors, "Content-Type": "application/json" },
       });
     }
+  }
+
+  // Validate email format strictly to reject typos/spambots like admin@gmailcom
+  if (hasInvalidEmail(payload)) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: "INVALID_EMAIL",
+      message: "The email address provided is invalid. Please ensure it follows a valid format (e.g., name@domain.com)."
+    }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" }
+    });
   }
 
   const { score, reasons, serialized } = await calculateSpamScore(form, payload, request);
