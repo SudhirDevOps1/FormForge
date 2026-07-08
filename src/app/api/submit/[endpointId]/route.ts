@@ -159,6 +159,19 @@ export async function POST(request: Request, context: RouteContext) {
   const allowedOrigin = form ? resolveAllowedOrigin(form.allowedOrigins, origin) : null;
   const cors = corsHeaders(allowedOrigin);
 
+  // Guard against DDOS / storage exhaustion: reject submissions > 128KB immediately
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > 128 * 1024) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: "PAYLOAD_TOO_LARGE",
+      message: "Request payload size exceeds the maximum allowed limit of 128KB."
+    }), {
+      status: 413,
+      headers: { ...cors, "Content-Type": "application/json" }
+    });
+  }
+
   if (!form || !form.isActive) {
     return new Response(JSON.stringify({ ok: false, code: "FORM_NOT_FOUND", message: "This FormForge endpoint is not active." }), {
       status: 404,

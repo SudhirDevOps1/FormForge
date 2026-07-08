@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       return jsonError("INVALID_CREDENTIALS", "Email or password is incorrect.", 401);
     }
 
-    const session = await createSession(db, user.id);
+    const session = await createSession(db, user.id, request);
     if (!session) {
       return jsonError("AUTH_SECRET_MISSING", "Set AUTH_SECRET before creating sessions.", 503);
     }

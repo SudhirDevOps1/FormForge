@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     });
 
-    const session = await createSession(db, userId);
+    const session = await createSession(db, userId, request);
     if (!session) {
       return jsonError("AUTH_SECRET_MISSING", "Set AUTH_SECRET before creating sessions.", 503);
     }
