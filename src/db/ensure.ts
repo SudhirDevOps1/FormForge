@@ -41,12 +41,6 @@ const SCHEMA_STATEMENTS = [
     is_active integer NOT NULL DEFAULT 1,
     submissions_count integer NOT NULL DEFAULT 0,
     email_verification_enabled integer NOT NULL DEFAULT 0,
-    smtp_enabled integer NOT NULL DEFAULT 0,
-    smtp_host text,
-    smtp_port integer,
-    smtp_user text,
-    smtp_pass text,
-    smtp_from text,
     created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
   );`,
@@ -144,13 +138,7 @@ export async function ensureSchema(db: AppDb): Promise<void> {
         `ALTER TABLE forms ADD COLUMN spam_blocklist text;`,
         `ALTER TABLE api_keys ADD COLUMN expires_at text;`,
         `ALTER TABLE forms ADD COLUMN email_verification_enabled integer NOT NULL DEFAULT 0;`,
-        `ALTER TABLE forms ADD COLUMN retention_days integer DEFAULT 0;`,
-        `ALTER TABLE forms ADD COLUMN smtp_enabled integer NOT NULL DEFAULT 0;`,
-        `ALTER TABLE forms ADD COLUMN smtp_host text;`,
-        `ALTER TABLE forms ADD COLUMN smtp_port integer;`,
-        `ALTER TABLE forms ADD COLUMN smtp_user text;`,
-        `ALTER TABLE forms ADD COLUMN smtp_pass text;`,
-        `ALTER TABLE forms ADD COLUMN smtp_from text;`
+        `ALTER TABLE forms ADD COLUMN retention_days integer DEFAULT 0;`
       ];
       for (const stmt of alterStatements) {
         try {

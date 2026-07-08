@@ -1,41 +1,5 @@
 import { getRuntimeEnv, type AppDb } from "@/db";
 import { notifications, type Form, type Submission } from "@/db/schema";
-import nodemailer from "nodemailer";
-
-async function sendSmtpEmail(
-  host: string,
-  port: number,
-  user: string,
-  pass: string,
-  from: string,
-  to: string,
-  subject: string,
-  text: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const transporter = nodemailer.createTransport({
-      host,
-      host,
-      port,
-      secure: port === 465, // secure:true for 465, false for 587
-      auth: {
-        user,
-        pass,
-      },
-      connectionTimeout: 10000,
-    });
-
-    const info = await transporter.sendMail({
-      from,
-      to,
-      subject,
-      text,
-    });
-    return { success: !!info.messageId };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
 
 type DeliveryResult = {
   channel: "email" | "webhook";
@@ -62,99 +26,57 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   const env = getRuntimeEnv();
   const payload = JSON.parse(submission.payload) as Record<string, unknown>;
 
-  if (form.notifyEmail && form.emailTo) {
-    if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
-      try {
-        const text = `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`;
-        const res = await sendSmtpEmail(
-          form.smtpHost,
-          Number(form.smtpPort),
-          form.smtpUser,
-          form.smtpPass,
-          form.smtpFrom,
-          form.emailTo,
-          `New ${form.name} submission`,
-          text
-        );
-        results.push(
-          res.success
-            ? { channel: "email", status: "sent" }
-            : { channel: "email", status: "failed", error: res.error }
-        );
-      } catch (error) {
-        results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
-      }
-    } else if (env.RESEND_API_KEY && env.RESEND_FROM) {
-      try {
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${env.RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: env.RESEND_FROM,
-            to: form.emailTo,
-            subject: `New ${form.name} submission`,
-            text: `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`,
-          }),
-        });
+  if (form.notifyEmail && form.emailTo && env.RESEND_API_KEY && env.RESEND_FROM) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM,
+          to: form.emailTo,
+          subject: `New ${form.name} submission`,
+          text: `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`,
+        }),
+      });
 
-        results.push(
-          response.ok
-            ? { channel: "email", status: "sent" }
-            : { channel: "email", status: "failed", error: await response.text() },
-        );
-      } catch (error) {
-        results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
-      }
-    } else {
-      results.push({ channel: "email", status: "skipped" });
+      results.push(
+        response.ok
+          ? { channel: "email", status: "sent" }
+          : { channel: "email", status: "failed", error: await response.text() },
+      );
+    } catch (error) {
+      results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
     }
   } else {
     results.push({ channel: "email", status: "skipped" });
   }
 
   // Autoresponder to Submitter
-  if (submission.email && form.autoresponderSubject && form.autoresponderBody) {
-    let bodyText = form.autoresponderBody;
-    Object.entries(payload).forEach(([k, v]) => {
-      bodyText = bodyText.replace(new RegExp(`{${k}}`, "g"), String(v));
-    });
+  if (submission.email && form.autoresponderSubject && form.autoresponderBody && env.RESEND_API_KEY && env.RESEND_FROM) {
+    try {
+      let bodyText = form.autoresponderBody;
+      Object.entries(payload).forEach(([k, v]) => {
+        bodyText = bodyText.replace(new RegExp(`{${k}}`, "g"), String(v));
+      });
 
-    if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
-      try {
-        await sendSmtpEmail(
-          form.smtpHost,
-          Number(form.smtpPort),
-          form.smtpUser,
-          form.smtpPass,
-          form.smtpFrom,
-          submission.email,
-          form.autoresponderSubject,
-          bodyText
-        );
-      } catch (error) {
-        console.error("Autoresponder SMTP delivery failed:", error);
-      }
-    } else if (env.RESEND_API_KEY && env.RESEND_FROM) {
-      try {
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${env.RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: env.RESEND_FROM,
-            to: submission.email,
-            subject: form.autoresponderSubject,
-            text: bodyText,
-          }),
-        });
-      } catch (error) {
-        console.error("Autoresponder email delivery failed:", error);
-      }
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM,
+          to: submission.email,
+          subject: form.autoresponderSubject,
+          text: bodyText,
+        }),
+      });
+    } catch (error) {
+      console.error("Autoresponder email delivery failed:", error);
     }
   }
 
@@ -245,36 +167,11 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
 
 export async function sendVerificationEmail(db: AppDb, form: Form, submission: Submission, appUrl: string): Promise<boolean> {
   const env = getRuntimeEnv();
-  if (!submission.email) {
+  if (!submission.email || !env.RESEND_API_KEY || !env.RESEND_FROM) {
     return false;
   }
 
   const verifyUrl = `${appUrl}/api/submissions/${submission.id}/verify`;
-  const subject = `⚠️ Verify your submission to ${form.name}`;
-  const text = `Hello,\n\nWe received a form submission using your email address for "${form.name}".\n\nPlease verify your email and confirm your submission by clicking the link below:\n\n${verifyUrl}\n\nIf you did not make this submission, you can safely ignore this email.`;
-
-  if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
-    try {
-      const res = await sendSmtpEmail(
-        form.smtpHost,
-        Number(form.smtpPort),
-        form.smtpUser,
-        form.smtpPass,
-        form.smtpFrom,
-        submission.email,
-        subject,
-        text
-      );
-      return res.success;
-    } catch (error) {
-      console.error("Failed to send SMTP email verification:", error);
-      return false;
-    }
-  }
-
-  if (!env.RESEND_API_KEY || !env.RESEND_FROM) {
-    return false;
-  }
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
@@ -286,8 +183,8 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
       body: JSON.stringify({
         from: env.RESEND_FROM,
         to: submission.email,
-        subject,
-        text,
+        subject: `⚠️ Verify your submission to ${form.name}`,
+        text: `Hello,\n\nWe received a form submission using your email address for "${form.name}".\n\nPlease verify your email and confirm your submission by clicking the link below:\n\n${verifyUrl}\n\nIf you did not make this submission, you can safely ignore this email.`,
       }),
     });
     return response.ok;

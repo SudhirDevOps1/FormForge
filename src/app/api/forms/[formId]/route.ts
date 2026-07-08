@@ -101,12 +101,6 @@ export async function PATCH(request: Request, context: RouteContext) {
     retentionDays: typeof body.retentionDays === "number" ? body.retentionDays : result.form.retentionDays,
     emailVerificationEnabled: typeof body.emailVerificationEnabled === "boolean" ? body.emailVerificationEnabled : result.form.emailVerificationEnabled,
     storeIpHash: typeof body.storeIpHash === "boolean" ? body.storeIpHash : result.form.storeIpHash,
-    smtpEnabled: typeof body.smtpEnabled === "boolean" ? body.smtpEnabled : result.form.smtpEnabled,
-    smtpHost: readString(body.smtpHost, result.form.smtpHost ?? "") || null,
-    smtpPort: typeof body.smtpPort === "number" ? body.smtpPort : (body.smtpPort ? Number(body.smtpPort) : result.form.smtpPort),
-    smtpUser: readString(body.smtpUser, result.form.smtpUser ?? "") || null,
-    smtpPass: readString(body.smtpPass, result.form.smtpPass ?? "") || null,
-    smtpFrom: readString(body.smtpFrom, result.form.smtpFrom ?? "") || null,
     updatedAt: new Date().toISOString(),
   };
 
