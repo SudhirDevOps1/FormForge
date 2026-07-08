@@ -1140,6 +1140,9 @@ function KeysTab() {
   const [created, setCreated] = useState("");
   const [keyCopied, setKeyCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [formsList, setFormsList] = useState<{ id: string, name: string }[]>([]);
+  const [selectedFormId, setSelectedFormId] = useState("");
+  const [apiTab, setApiTab] = useState("curl");
 
   const copyKey = async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -1153,7 +1156,23 @@ function KeysTab() {
     if (data.ok) setKeys(data.data.apiKeys);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const fetchForms = async () => {
+      try {
+        const res = await fetch("/api/forms", { credentials: "include" });
+        const data = await res.json();
+        if (data.ok && data.data.forms && data.data.forms.length > 0) {
+          setFormsList(data.data.forms);
+          setSelectedFormId(data.data.forms[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to load forms list", err);
+      }
+    };
+    fetchForms();
+  }, [load]);
+
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -1212,7 +1231,7 @@ function KeysTab() {
       </form>
 
       {created && (
-        <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-5 space-y-4">
+        <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-5 space-y-5">
           <div>
             <p className="text-sm font-semibold text-amber-200">⚠️ Copy this key now — it will NOT be shown again:</p>
             <div className="mt-2 flex items-center gap-2 rounded-xl bg-black/40 px-3 py-2">
@@ -1226,30 +1245,96 @@ function KeysTab() {
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-4 space-y-3">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider">📖 API Integration Guide</h4>
-            <p className="text-xs text-slate-300 leading-5">To retrieve form submissions programmatically, send a <code>GET</code> request to the endpoint below. Make sure to authenticate by sending your API Key inside the <code>Authorization</code> header.</p>
-            
-            <div className="space-y-1">
-              <span className="block text-[10px] text-slate-500 font-semibold uppercase">API Endpoint</span>
-              <code className="block break-all text-xs bg-slate-950 p-2 rounded-lg text-cyan-300">
-                GET {typeof window !== "undefined" ? window.location.origin : ""}/api/forms/<span className="text-amber-300 font-bold">YOUR_FORM_ID</span>/submissions
-              </code>
+          <div className="border-t border-white/10 pt-4 space-y-4">
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider">📖 API Integration Guide (आसान गाइड)</h4>
+            <p className="text-xs text-slate-300 leading-5">
+              <strong>यह किसलिए है?</strong> अगर आप अपने फॉर्म्स का सबमिशन डेटा अपनी किसी दूसरी वेबसाइट, ऐप, या कोड में ऑटोमेटिकली लोड करना चाहते हैं, तो इस API का उपयोग करें।
+            </p>
+
+            {/* Step 1: Select Form */}
+            <div className="rounded-xl bg-black/20 p-3 space-y-2 border border-white/5">
+              <label className="block text-xs font-semibold text-slate-300">1. अपना फ़ॉर्म सेलेक्ट करें (Select Form ID):</label>
+              <select
+                value={selectedFormId}
+                onChange={(e) => setSelectedFormId(e.target.value)}
+                className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2 text-xs text-white"
+              >
+                <option value="">-- Choose a Form --</option>
+                {formsList.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name} ({f.id})</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-500">यहाँ फ़ॉर्म चुनने पर नीचे दिए गए कोड में आपकी Form ID और API Key खुद-ब-खुद जुड़ जाएगी।</p>
             </div>
 
-            <div className="space-y-1">
-              <span className="block text-[10px] text-slate-500 font-semibold uppercase">Request Headers</span>
-              <pre className="text-[11px] bg-slate-950 p-2.5 rounded-lg text-slate-300 font-mono">
-                Authorization: Bearer &lt;your_api_key&gt;
-              </pre>
-            </div>
+            {/* Step 2: Code Snippets with Tabs */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-300">2. कोड को कॉपी करें (Copy Code):</label>
+              <div className="flex gap-1.5 border-b border-white/5 pb-2">
+                {[
+                  { id: "curl", name: "cURL (Terminal)" },
+                  { id: "js", name: "JavaScript (Fetch)" },
+                  { id: "python", name: "Python" }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setApiTab(tab.id)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${apiTab === tab.id ? "bg-white/10 text-white border border-white/10" : "text-slate-400 hover:text-slate-200"}`}
+                  >
+                    {tab.name}
+                  </button>
+                ))}
+              </div>
 
-            <div className="space-y-1">
-              <span className="block text-[10px] text-slate-500 font-semibold uppercase">Example Curl Command</span>
-              <pre className="text-[11px] bg-slate-950 p-2.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all">
-                curl -H "Authorization: Bearer {created}" \<br />
-                &nbsp;&nbsp;{typeof window !== "undefined" ? window.location.origin : ""}/api/forms/YOUR_FORM_ID/submissions
-              </pre>
+              <div className="relative">
+                {apiTab === "curl" && (
+                  <pre className="text-[11px] bg-slate-950 p-3.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
+                    curl -H "Authorization: Bearer {created}" \<br />
+                    &nbsp;&nbsp;"{typeof window !== "undefined" ? window.location.origin : ""}/api/forms/{selectedFormId || "YOUR_FORM_ID"}/submissions"
+                  </pre>
+                )}
+
+                {apiTab === "js" && (
+                  <pre className="text-[11px] bg-slate-950 p-3.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
+                    {`fetch("${typeof window !== "undefined" ? window.location.origin : ""}/api/forms/${selectedFormId || "YOUR_FORM_ID"}/submissions", {
+  method: "GET",
+  headers: {
+    "Authorization": "Bearer ${created}"
+  }
+})
+  .then(res => res.json())
+  .then(data => console.log(data));`}
+                  </pre>
+                )}
+
+                {apiTab === "python" && (
+                  <pre className="text-[11px] bg-slate-950 p-3.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
+                    {`import requests
+
+url = "${typeof window !== "undefined" ? window.location.origin : ""}/api/forms/${selectedFormId || "YOUR_FORM_ID"}/submissions"
+headers = {
+    "Authorization": "Bearer ${created}"
+}
+
+response = requests.get(url, headers=headers)
+print(response.json())`}
+                  </pre>
+                )}
+
+                <button
+                  onClick={() => {
+                    const code = apiTab === "curl" 
+                      ? `curl -H "Authorization: Bearer ${created}" "${typeof window !== "undefined" ? window.location.origin : ""}/api/forms/${selectedFormId || "YOUR_FORM_ID"}/submissions"`
+                      : apiTab === "js"
+                      ? `fetch("${typeof window !== "undefined" ? window.location.origin : ""}/api/forms/${selectedFormId || "YOUR_FORM_ID"}/submissions", { method: "GET", headers: { "Authorization": "Bearer ${created}" } }).then(res => res.json()).then(console.log);`
+                      : `import requests\nurl = "${typeof window !== "undefined" ? window.location.origin : ""}/api/forms/${selectedFormId || "YOUR_FORM_ID"}/submissions"\nheaders = { "Authorization": "Bearer ${created}" }\nresponse = requests.get(url, headers=headers)\nprint(response.json())`;
+                    copyKey(code);
+                  }}
+                  className="absolute right-2.5 top-2.5 rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-[10px] text-slate-300 hover:bg-white/10"
+                >
+                  {keyCopied ? "✓ Copied" : "Copy Code"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
