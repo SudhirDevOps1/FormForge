@@ -69,6 +69,20 @@ function hasInvalidEmail(payload: ParsedSubmission): boolean {
   return false;
 }
 
+async function hasMxRecord(domain: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`, {
+      headers: { "accept": "application/dns-json" },
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!res.ok) return true; // Fail-safe: if API is down, assume valid
+    const data = await res.json() as { Answer?: any[] };
+    return Array.isArray(data.Answer) && data.Answer.length > 0;
+  } catch (e) {
+    return true; // Fail-safe
+  }
+}
+
 function findEmail(payload: ParsedSubmission): string | undefined {
   for (const key of ["email", "Email", "reply_to", "replyTo"]) {
     const value = payload[key];
@@ -236,13 +250,31 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
+  const email = findEmail(payload);
+  if (email) {
+    const domain = email.split("@")[1];
+    const validMx = await hasMxRecord(domain);
+    if (!validMx) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: "INVALID_EMAIL_DOMAIN",
+        message: `The domain @${domain} does not have valid mail server (MX) records. Please enter a working email address.`
+      }), {
+        status: 400,
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+  }
+
   const { score, reasons, serialized } = await calculateSpamScore(form, payload, request);
-  const status = score >= 80 ? "spam" : "accepted";
+  const isPendingVerification = form.emailVerificationEnabled && email;
+  const status = score >= 80 ? "spam" : isPendingVerification ? "pending" : "accepted";
+  
   const submission: NewSubmission = {
     id: randomId("sub"),
     formId: form.id,
     payload: serialized,
-    email: findEmail(payload),
+    email: email || undefined,
     ipHash: form.storeIpHash && ip ? await sha256(`${form.id}:${ip}`) : (ip ?? undefined),
     userAgent: request.headers.get("user-agent") ?? undefined,
     referer: request.headers.get("referer") ?? undefined,
@@ -278,13 +310,25 @@ export async function POST(request: Request, context: RouteContext) {
       } catch {
         await deliverNotifications(db, form, submission as typeof submissions.$inferSelect);
       }
+    } else if (status === "pending") {
+      const { sendVerificationEmail } = await import("@/lib/notifications");
+      const appUrl = new URL(request.url).origin;
+      try {
+        const ctx = getCloudflareContext().ctx;
+        if (ctx && typeof ctx.waitUntil === "function") {
+          ctx.waitUntil(sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl));
+        } else {
+          await sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl);
+        }
+      } catch (err) {
+        console.error("Failed to send verification email:", err);
+      }
     }
 
     if (form.redirectUrl && request.headers.get("accept")?.includes("text/html")) {
       const { isSafeRedirectUrl } = await import("@/lib/url-validation");
       if (isSafeRedirectUrl(form.redirectUrl)) {
         let finalRedirectUrl = form.redirectUrl;
-        // Dynamically replace variables like {email} or {name} in redirect URL
         for (const [key, val] of Object.entries(payload)) {
           if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
             finalRedirectUrl = finalRedirectUrl.replace(new RegExp(`\\{${key}\\}`, "gi"), encodeURIComponent(String(val)));
@@ -295,7 +339,14 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, message: form.successMessage, submissionId: submission.id, status }),
+      JSON.stringify({ 
+        ok: true, 
+        message: isPendingVerification 
+          ? "Please check your inbox to verify your email address and confirm this submission." 
+          : form.successMessage, 
+        submissionId: submission.id, 
+        status 
+      }),
       { status: 202, headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (error) {

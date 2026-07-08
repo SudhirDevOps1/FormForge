@@ -164,3 +164,32 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   await Promise.all(results.map((result) => recordNotification(db, form.id, submission.id, result)));
   return results;
 }
+
+export async function sendVerificationEmail(db: AppDb, form: Form, submission: Submission, appUrl: string): Promise<boolean> {
+  const env = getRuntimeEnv();
+  if (!submission.email || !env.RESEND_API_KEY || !env.RESEND_FROM) {
+    return false;
+  }
+
+  const verifyUrl = `${appUrl}/api/submissions/${submission.id}/verify`;
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.RESEND_FROM,
+        to: submission.email,
+        subject: `⚠️ Verify your submission to ${form.name}`,
+        text: `Hello,\n\nWe received a form submission using your email address for "${form.name}".\n\nPlease verify your email and confirm your submission by clicking the link below:\n\n${verifyUrl}\n\nIf you did not make this submission, you can safely ignore this email.`,
+      }),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error("Failed to send email verification:", error);
+    return false;
+  }
+}

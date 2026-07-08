@@ -40,6 +40,7 @@ const SCHEMA_STATEMENTS = [
     store_ip_hash integer NOT NULL DEFAULT 1,
     is_active integer NOT NULL DEFAULT 1,
     submissions_count integer NOT NULL DEFAULT 0,
+    email_verification_enabled integer NOT NULL DEFAULT 0,
     created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
   );`,
@@ -136,6 +137,7 @@ export async function ensureSchema(db: AppDb): Promise<void> {
         `ALTER TABLE forms ADD COLUMN autoresponder_body text;`,
         `ALTER TABLE forms ADD COLUMN spam_blocklist text;`,
         `ALTER TABLE api_keys ADD COLUMN expires_at text;`,
+        `ALTER TABLE forms ADD COLUMN email_verification_enabled integer NOT NULL DEFAULT 0;`,
         `ALTER TABLE forms ADD COLUMN retention_days integer DEFAULT 0;`
       ];
       for (const stmt of alterStatements) {

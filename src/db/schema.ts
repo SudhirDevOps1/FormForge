@@ -63,6 +63,7 @@ export const forms = sqliteTable(
     autoresponderBody: text("autoresponder_body"),
     spamBlocklist: text("spam_blocklist"),
     retentionDays: integer("retention_days").default(0),
+    emailVerificationEnabled: integer("email_verification_enabled", { mode: "boolean" }).notNull().default(false),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },

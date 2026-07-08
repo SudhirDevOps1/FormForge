@@ -23,6 +23,7 @@ type Form = {
   autoresponderBody: string | null;
   spamBlocklist: string | null;
   retentionDays: number;
+  emailVerificationEnabled: boolean;
   storeIpHash: boolean;
   createdAt: string;
 };
@@ -985,6 +986,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [customDays, setCustomDays] = useState((form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? form.retentionDays : 15);
   const [isCustom, setIsCustom] = useState((form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false);
   const [storeIpHash, setStoreIpHash] = useState(form.storeIpHash ?? true);
+  const [emailVerificationEnabled, setEmailVerificationEnabled] = useState(form.emailVerificationEnabled ?? false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -1005,6 +1007,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setSpamBlocklist(form.spamBlocklist ?? "");
     setRetentionDays(form.retentionDays ?? 0);
     setStoreIpHash(form.storeIpHash ?? true);
+    setEmailVerificationEnabled(form.emailVerificationEnabled ?? false);
     const custom = (form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false;
     setIsCustom(custom);
     if (custom) {
@@ -1035,6 +1038,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           autoresponderBody: autoresponderBody || null,
           spamBlocklist: spamBlocklist || null,
           retentionDays: isCustom ? Number(customDays) : Number(retentionDays),
+          emailVerificationEnabled,
           storeIpHash
         }),
       });
@@ -1105,6 +1109,13 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
               <p className="text-[10px] text-slate-500 mt-1">Specify custom number of days before submissions are auto-deleted.</p>
             </div>
           )}
+        </div>
+        <div className="border-t border-white/5 pt-4">
+          <label className="flex items-center gap-2 text-xs text-slate-300">
+            <input type="checkbox" checked={emailVerificationEnabled} onChange={() => setEmailVerificationEnabled(!emailVerificationEnabled)} className="h-4 w-4 rounded" />
+            Enable Submitter Email Verification (Double Opt-in)
+          </label>
+          <p className="text-[10px] text-slate-500 pl-6 mt-1">If enabled, submitters must verify their email address via a confirmation link sent by FormForge before notifications are triggered and the submission is accepted.</p>
         </div>
       </div>
 
