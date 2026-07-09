@@ -251,6 +251,41 @@ await fetch("https://YOUR-WORKER.workers.dev/api/submit/endpoint_xxx", {
 
 ---
 
+## 📊 Free Tier Quota & Safe Operations Guide ($0/mo)
+
+FormForge is architected to run completely **free of cost** on the Cloudflare Free Plan. Below is the detailed breakdown of daily capacity, data limits, and recommendations to ensure your application remains stable and safe indefinitely:
+
+### ⚙️ Cloudflare Free Tier Specifications
+
+| Service | Free Tier Limit | Daily Safe Budget | What it Represents |
+| --- | --- | --- | --- |
+| **Cloudflare Workers** | 100,000 requests / day | ~90,000 submissions + API hits | Daily form submissions, webhook hits, and dashboard API queries. |
+| **D1 DB Storage** | 500 MB / account | Keep Forever or Purge | Storage space for user logins, forms metadata, and submissions database. |
+| **D1 DB Reads** | 5,000,000 reads / day | ~4,500,000 queries | Reads occurring when viewing submission analytics and dashboards. |
+| **D1 DB Writes** | 100,000 writes / day | ~90,000 inserts | Database insertions occurring when a user submits a form. |
+
+### 📈 Monthly Data Capacity Calculation
+
+* **Submission Size:** A typical submission payload takes roughly **500 bytes to 1 KB** of storage space.
+* **Storage Capacity:** A 500 MB database can safely store **500,000 submissions** simultaneously!
+* **Auto-Purge Strategy:** By setting a **Data Retention Limit** (e.g. 30, 60, or 90 days) in your settings:
+  - FormForge automatically deletes expired submissions in the background during new incoming submissions.
+  - This keeps your database footprint tiny (< 50MB) and ensures you never hit the 500MB storage ceiling.
+
+### 📧 Free Email Sending Daily Budget
+
+Depending on your configured email integration, your daily outbound email capacity is:
+* **Global Resend API (Free):** Up to **100 emails/day** (3,000/month).
+* **Gmail SMTP (Free via App Password):** Up to **500 emails/day** (recommended for portfolio forms).
+* **Brevo SMTP (Free):** Up to **300 emails/day** (9,000/month).
+* **Mailjet SMTP (Free):** Up to **200 emails/day** (6,000/month).
+* **SMTP2GO SMTP (Free):** Up to **200 emails/day** (1,000/month).
+
+### 💬 Webhook Delivery
+* Webhooks (Slack, Discord, Stoat.chat, MS Teams, Mattermost) are **100% free and unlimited**. They are only restricted by your daily 100k Worker requests limit.
+
+---
+
 ## Production Checklist
 
 - ✅ The `database_id` in `wrangler.jsonc` is blank on purpose — Cloudflare creates the D1 database for you on first deploy.
