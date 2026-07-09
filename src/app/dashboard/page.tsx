@@ -170,7 +170,7 @@ function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
     <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-8">
       <a href="/" className="flex items-center gap-3" aria-label="FormForge Home">
         <img src="/logo.svg" alt="FormForge Logo" className="h-9 w-9 rounded-xl" />
-        <span className="font-bold tracking-tight">FormForge</span>
+        <span className="font-bold tracking-tight">FormForge <span className="ml-1.5 rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400">v1.1.0</span></span>
       </a>
       <div className="flex items-center gap-3">
         <span className="hidden text-sm text-slate-400 sm:inline">{user.email}</span>
