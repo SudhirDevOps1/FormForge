@@ -72,10 +72,10 @@ export default function HomePage() {
           </div>
 
           <h1 className="mt-8 max-w-4xl text-balance text-5xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
-            Open-source form backend forged for Cloudflare Workers + D1.
+            Open-source form backend developed by Sudhir Singh.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-            FormForge is a FormZero-inspired, privacy-first backend for contact forms, waitlists, surveys, lead capture, and newsletter signups. No PostgreSQL localhost URL, no paid database, no SaaS lock-in.
+            FormForge is a FormZero-inspired, privacy-first backend for static websites, developed by Sudhir Singh. Optimized for Cloudflare Workers + D1 SQLite storage with zero paid database limits.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
