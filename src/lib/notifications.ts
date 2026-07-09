@@ -64,11 +64,59 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   const payload = JSON.parse(submission.payload) as Record<string, unknown>;
 
   if (form.notifyEmail && form.emailTo) {
+    const tableRows = Object.entries(payload)
+      .map(([k, v]) => `
+        <tr>
+          <td style="padding: 12px 15px; border-bottom: 1px solid #1E293B; font-weight: 600; color: #FFFFFF; font-size: 14px; width: 30%;">${k}</td>
+          <td style="padding: 12px 15px; border-bottom: 1px solid #1E293B; color: #9CA3AF; font-size: 14px; word-break: break-all;">${String(v)}</td>
+        </tr>
+      `).join("");
+
+    const text = `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`;
+    const subject = `📩 New submission for ${form.name}`;
+
+    const html = `
+<div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #0B0F19; color: #F1F5F9; padding: 40px 20px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <div style="font-size: 24px; font-weight: 800; color: #0EA5E9; letter-spacing: -0.05em; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+      <span style="background: linear-gradient(135deg, #0EA5E9, #2563EB); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: sans-serif;">FormForge</span>
+    </div>
+  </div>
+  <div style="background-color: #111827; border: 1px solid #1F2937; border-radius: 12px; padding: 30px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+    <h2 style="font-size: 18px; font-weight: 700; color: #FFFFFF; margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid #1E293B; padding-bottom: 10px;">📩 New Submission Alert</h2>
+    <p style="font-size: 14px; color: #9CA3AF; margin-bottom: 20px;">
+      You received a new submission for your form <strong>"${form.name}"</strong>:
+    </p>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; text-align: left;">
+      <thead>
+        <tr style="background-color: #1E293B;">
+          <th style="padding: 10px 15px; color: #38BDF8; font-size: 12px; font-weight: 700; text-transform: uppercase; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">Field</th>
+          <th style="padding: 10px 15px; color: #38BDF8; font-size: 12px; font-weight: 700; text-transform: uppercase; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows}
+      </tbody>
+    </table>
+    
+    <div style="text-align: center; margin: 25px 0 10px 0;">
+      <a href="https://apnaform.sudhirdevops1.workers.dev/dashboard" style="background: linear-gradient(135deg, #38BDF8, #0284C7); color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 9999px; display: inline-block; box-shadow: 0 4px 12px 0 rgba(14, 165, 233, 0.25); transition: all 0.2s ease;">
+        View in Dashboard
+      </a>
+    </div>
+  </div>
+  <div style="text-align: center; font-size: 12px; color: #4B5563;">
+    <p style="margin: 0;">Submission ID: ${submission.id} &bull; Received: ${submission.createdAt}</p>
+    <p style="margin: 5px 0 0 0;">&copy; ${new Date().getFullYear()} FormForge. All rights reserved.</p>
+  </div>
+</div>
+    `;
+
     if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
       try {
         const { decryptText } = await import("./encryption");
         const decryptedPass = await decryptText(form.smtpPass);
-        const text = `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`;
         const res = await sendSmtpEmail(
           form.smtpHost,
           Number(form.smtpPort),
@@ -76,8 +124,9 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           decryptedPass,
           form.smtpFrom,
           form.emailTo,
-          `New ${form.name} submission`,
-          text
+          subject,
+          text,
+          html
         );
         results.push(
           res.success
@@ -98,8 +147,9 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           body: JSON.stringify({
             from: env.RESEND_FROM,
             to: form.emailTo,
-            subject: `New ${form.name} submission`,
-            text: `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`,
+            subject,
+            text,
+            html,
           }),
         });
 
