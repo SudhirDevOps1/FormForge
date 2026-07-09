@@ -38,6 +38,25 @@ async function sendSmtpEmail(
   }
 }
 
+function getSmtpConfig(form: Form, env: Record<string, string | undefined>) {
+  const enabled = form.smtpEnabled || (env.SMTP_ENABLED === "true" || env.SMTP_ENABLED === "1");
+  const host = form.smtpHost || env.SMTP_HOST;
+  const port = form.smtpPort ? Number(form.smtpPort) : (env.SMTP_PORT ? Number(env.SMTP_PORT) : 587);
+  const user = form.smtpUser || env.SMTP_USER;
+  const from = form.smtpFrom || env.SMTP_FROM;
+  
+  return {
+    enabled: !!(enabled && host && port && user && from),
+    host,
+    port,
+    user,
+    from,
+    hasDbPass: !!form.smtpPass,
+    dbPass: form.smtpPass,
+    envPass: env.SMTP_PASS,
+  };
+}
+
 type DeliveryResult = {
   channel: "email" | "webhook";
   status: "sent" | "skipped" | "failed";
@@ -113,16 +132,22 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
 </div>
     `;
 
-    if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
+    const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+    if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
       try {
-        const { decryptText } = await import("./encryption");
-        const decryptedPass = await decryptText(form.smtpPass);
+        let decryptedPass = "";
+        if (smtp.hasDbPass && smtp.dbPass) {
+          const { decryptText } = await import("./encryption");
+          decryptedPass = await decryptText(smtp.dbPass);
+        } else {
+          decryptedPass = smtp.envPass || "";
+        }
         const res = await sendSmtpEmail(
-          form.smtpHost,
-          Number(form.smtpPort),
-          form.smtpUser,
+          smtp.host!,
+          smtp.port,
+          smtp.user!,
           decryptedPass,
-          form.smtpFrom,
+          smtp.from!,
           form.emailTo,
           subject,
           text,
@@ -175,16 +200,22 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       bodyText = bodyText.replace(new RegExp(`{${k}}`, "g"), String(v));
     });
 
-    if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
+    const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+    if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
       try {
-        const { decryptText } = await import("./encryption");
-        const decryptedPass = await decryptText(form.smtpPass);
+        let decryptedPass = "";
+        if (smtp.hasDbPass && smtp.dbPass) {
+          const { decryptText } = await import("./encryption");
+          decryptedPass = await decryptText(smtp.dbPass);
+        } else {
+          decryptedPass = smtp.envPass || "";
+        }
         await sendSmtpEmail(
-          form.smtpHost,
-          Number(form.smtpPort),
-          form.smtpUser,
+          smtp.host!,
+          smtp.port,
+          smtp.user!,
           decryptedPass,
-          form.smtpFrom,
+          smtp.from!,
           submission.email,
           form.autoresponderSubject,
           bodyText
@@ -373,16 +404,22 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
 </div>
   `;
 
-  if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
+  const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+  if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
     try {
-      const { decryptText } = await import("./encryption");
-      const decryptedPass = await decryptText(form.smtpPass);
+      let decryptedPass = "";
+      if (smtp.hasDbPass && smtp.dbPass) {
+        const { decryptText } = await import("./encryption");
+        decryptedPass = await decryptText(smtp.dbPass);
+      } else {
+        decryptedPass = smtp.envPass || "";
+      }
       const res = await sendSmtpEmail(
-        form.smtpHost,
-        Number(form.smtpPort),
-        form.smtpUser,
+        smtp.host!,
+        smtp.port,
+        smtp.user!,
         decryptedPass,
-        form.smtpFrom,
+        smtp.from!,
         submission.email,
         subject,
         text,

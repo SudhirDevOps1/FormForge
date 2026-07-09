@@ -203,6 +203,12 @@ npm run deploy
 | `AUTH_SECRET` | ✅ Yes | Long random secret for HMAC session/API-key hashing. Generate with `openssl rand -hex 32`. |
 | `RESEND_API_KEY` | ❌ Optional | Enables email notifications only when configured. Leave blank to disable. |
 | `RESEND_FROM` | ❌ Optional | Sender address for email notifications, for example `FormForge <forms@example.com>`. |
+| `SMTP_ENABLED` | ❌ Optional | Set to `true` to enable global SMTP server notifications globally. |
+| `SMTP_HOST` | ❌ Optional | Global SMTP host name, e.g. `smtp.gmail.com` or `smtp.resend.com`. |
+| `SMTP_PORT` | ❌ Optional | Global SMTP port number (e.g. `587` or `465`). |
+| `SMTP_USER` | ❌ Optional | Global SMTP username. |
+| `SMTP_PASS` | ❌ Optional | Global SMTP password (recommended as wrangler secret for maximum privacy). |
+| `SMTP_FROM` | ❌ Optional | Global sender email address. |
 | `DB` | ✅ Yes | Cloudflare D1 binding name. Configure as a D1 binding, not as a string secret. |
 
 Do **not** set `DATABASE_URL`. FormForge uses Cloudflare D1 by default.
