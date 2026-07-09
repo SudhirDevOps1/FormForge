@@ -1573,6 +1573,10 @@ function SettingsTab({ user }: { user: User }) {
         <a href="/api/health" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">🏥 Health Check API</a>
         <a href="https://github.com/SudhirDevOps1" target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10 col-span-1 sm:col-span-2 text-center font-bold">👤 Developer Profile: Sudhir</a>
       </div>
+      <div className="mt-8 text-center text-xs text-slate-500 border-t border-white/5 pt-4">
+        <p>&copy; 2026 Sudhir Singh. All Rights Reserved.</p>
+        <p className="mt-1 text-[10px] text-slate-600">Self-hosted deployments must maintain original author credit and attribution links intact under the MIT License.</p>
+      </div>
     </section>
   );
 }
