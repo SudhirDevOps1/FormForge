@@ -50,7 +50,11 @@ export async function GET(request: Request, context: RouteContext) {
     return result.response;
   }
 
-  return jsonOk({ form: result.form, endpointPath: `/api/submit/${result.form.endpointId}` });
+  const sanitizedForm = {
+    ...result.form,
+    smtpPass: result.form.smtpPass ? "__SMTP_PASSWORD_SET__" : null
+  };
+  return jsonOk({ form: sanitizedForm, endpointPath: `/api/submit/${result.form.endpointId}` });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -79,6 +83,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
   }
 
+  let smtpPassVal = result.form.smtpPass;
+  const rawSmtpPass = readString(body.smtpPass);
+  if (rawSmtpPass === "") {
+    smtpPassVal = null;
+  } else if (rawSmtpPass && rawSmtpPass !== "__SMTP_PASSWORD_SET__") {
+    const { encryptText } = await import("@/lib/encryption");
+    smtpPassVal = await encryptText(rawSmtpPass);
+  }
+
   const update = {
     name: readString(body.name, result.form.name).slice(0, 120),
     slug: slugify(readString(body.slug, result.form.slug)),
@@ -105,7 +118,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     smtpHost: readString(body.smtpHost, result.form.smtpHost ?? "") || null,
     smtpPort: typeof body.smtpPort === "number" ? body.smtpPort : (body.smtpPort ? Number(body.smtpPort) : result.form.smtpPort),
     smtpUser: readString(body.smtpUser, result.form.smtpUser ?? "") || null,
-    smtpPass: readString(body.smtpPass, result.form.smtpPass ?? "") || null,
+    smtpPass: smtpPassVal,
     smtpFrom: readString(body.smtpFrom, result.form.smtpFrom ?? "") || null,
     updatedAt: new Date().toISOString(),
   };

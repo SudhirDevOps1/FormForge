@@ -29,11 +29,12 @@ This document outlines the architectural limits, security rules (like IP blockin
 
 ## 3. Integrations & Features
 
-### 📧 Email Alerts (Resend.com Dependency)
-* **Constraint:** Form submissions will **not** send email notifications unless you provide:
-  * `RESEND_API_KEY` (Secret variable in Cloudflare)
-  * `RESEND_FROM` (Verified sender email domain in Resend)
-* **Free Tier Limit:** Resend's free tier allows up to **3,000 emails per month** (100 emails per day).
+### 📧 Email Alerts (Resend.com or Custom SMTP)
+* **Constraint:** Form submissions will **not** send email notifications unless configured with either:
+  * **Global Resend:** Requires `RESEND_API_KEY` and `RESEND_FROM` set as environment variables.
+  * **Custom SMTP:** Configured per-form on the dashboard settings. Enables support for **10+ email providers** including Gmail, Yahoo, Outlook/Hotmail, Resend SMTP, Mailjet, Brevo, SMTP2GO, SendGrid, Amazon SES, Mailgun, and Postmark.
+* **🔒 AES-GCM Security Encryption:** SMTP passwords entered into the dashboard are securely encrypted in D1 using **AES-GCM (Web Crypto API)** and your `AUTH_SECRET` key, and masked in all client-side API requests.
+* **⚡ Non-Blocking Background Sending:** Emails and Webhooks are sent asynchronously via Next.js `waitUntil` background execution context so that submissions remain instant (0.01s) without waiting for SMTP handshakes.
 
 ### 🤖 Proof of Work (Spam Protection)
 * **Constraint:** When `require_proof_of_work` is enabled on a form, the client browser must solve a mathematical puzzle before submitting.

@@ -15,7 +15,6 @@ async function sendSmtpEmail(
   try {
     const transporter = nodemailer.createTransport({
       host,
-      host,
       port,
       secure: port === 465, // secure:true for 465, false for 587
       auth: {
@@ -65,12 +64,14 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   if (form.notifyEmail && form.emailTo) {
     if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
       try {
+        const { decryptText } = await import("./encryption");
+        const decryptedPass = await decryptText(form.smtpPass);
         const text = `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`;
         const res = await sendSmtpEmail(
           form.smtpHost,
           Number(form.smtpPort),
           form.smtpUser,
-          form.smtpPass,
+          decryptedPass,
           form.smtpFrom,
           form.emailTo,
           `New ${form.name} submission`,
@@ -124,11 +125,13 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
 
     if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
       try {
+        const { decryptText } = await import("./encryption");
+        const decryptedPass = await decryptText(form.smtpPass);
         await sendSmtpEmail(
           form.smtpHost,
           Number(form.smtpPort),
           form.smtpUser,
-          form.smtpPass,
+          decryptedPass,
           form.smtpFrom,
           submission.email,
           form.autoresponderSubject,
@@ -166,7 +169,9 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       } else {
         let bodyPayload = JSON.stringify({ form: { id: form.id, name: form.name }, submission });
 
-        if (form.webhookUrl.includes("discord.com/api/webhooks") || form.webhookUrl.includes("discordapp.com/api/webhooks")) {
+        const lowercaseUrl = form.webhookUrl.toLowerCase();
+
+        if (lowercaseUrl.includes("discord.com/api/webhooks") || lowercaseUrl.includes("discordapp.com/api/webhooks")) {
           const fields = Object.entries(payload).map(([k, v]) => ({
             name: k,
             value: String(v).slice(0, 1024) || "(empty)",
@@ -187,7 +192,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
               },
             ],
           });
-        } else if (form.webhookUrl.includes("hooks.slack.com")) {
+        } else if (lowercaseUrl.includes("hooks.slack.com")) {
           const fieldsBlocks = Object.entries(payload).map(([k, v]) => ({
             type: "mrkdwn",
             text: `*${k}:*\n${String(v).slice(0, 500) || "_(empty)_"}`,
@@ -217,6 +222,38 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
                 ],
               },
             ],
+          });
+        } else if (lowercaseUrl.includes("stoat.chat") || lowercaseUrl.includes("revolt.chat")) {
+          // Stoat/Revolt expects a "content" string for simple messages
+          const lines = Object.entries(payload).map(([k, v]) => `* **${k}**: ${String(v).slice(0, 500)}`);
+          bodyPayload = JSON.stringify({
+            content: `📩 **New Submission for ${form.name}**\n\n${lines.join("\n")}\n\n*Submitted at: ${submission.createdAt}*`
+          });
+        } else if (lowercaseUrl.includes("office.com") || lowercaseUrl.includes("webhook.office") || lowercaseUrl.includes("msteams")) {
+          // MS Teams Office 365 Connector card
+          const facts = Object.entries(payload).map(([k, v]) => ({
+            name: k,
+            value: String(v).slice(0, 500) || "(empty)"
+          }));
+          bodyPayload = JSON.stringify({
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "0076D7",
+            "summary": `New Submission for ${form.name}`,
+            "title": `📩 New Submission: ${form.name}`,
+            "sections": [
+              {
+                "activityTitle": `Form: ${form.name}`,
+                "activitySubtitle": `Sub ID: ${submission.id} | ${submission.createdAt}`,
+                "facts": facts.slice(0, 15)
+              }
+            ]
+          });
+        } else if (lowercaseUrl.includes("mattermost")) {
+          // Mattermost custom markdown message
+          const lines = Object.entries(payload).map(([k, v]) => `* **${k}**: ${String(v).slice(0, 500)}`);
+          bodyPayload = JSON.stringify({
+            text: `### 📩 New Submission: ${form.name}\n\n${lines.join("\n")}\n\n*Submitted at: ${submission.createdAt}*`
           });
         }
 
@@ -255,11 +292,13 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
 
   if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
     try {
+      const { decryptText } = await import("./encryption");
+      const decryptedPass = await decryptText(form.smtpPass);
       const res = await sendSmtpEmail(
         form.smtpHost,
         Number(form.smtpPort),
         form.smtpUser,
-        form.smtpPass,
+        decryptedPass,
         form.smtpFrom,
         submission.email,
         subject,

@@ -95,8 +95,10 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 - Submitter autoresponder email dispatch.
 - Origin allowlist for browser submissions.
 - Optional proof-of-work validation.
-- Optional Slack/Discord webhook auto-formatting notifications.
-- Optional Resend-compatible email alerts.
+- **Rich Webhooks Integration** — Auto-detects and formats notifications beautifully for **10+ webhook channels** (including Slack blocks, Discord embeds, Stoat.chat/Revolt, Microsoft Teams cards, Mattermost markdown, and generic webhook channels).
+- **Flexible Email Alerts** — Support global **Resend API** alerts, or use your own **Custom SMTP Server** (supporting 10+ email providers: Gmail, Yahoo, Outlook, Resend, Mailjet, Brevo, SMTP2GO, SendGrid, Amazon SES, Mailgun, Postmark, etc.).
+- **🔒 AES-GCM Encryption** — SMTP passwords are encrypted in D1 database using Web Crypto API and masked in API requests.
+- **⚡ Non-Blocking Execution** — Email alerts and Webhooks are delivered in the background of submissions using Next.js `waitUntil` background context.
 - Secure cookies, HMAC-hashed sessions/API keys, API Key expiration, and PBKDF2 password hashes.
 - **Self-healing schema** — tables are created/altered automatically on request (no manual migrations needed).
 - **Real dashboard** at `/dashboard`: register/login, manage forms, edit form names and URL slugs, hard delete forms, view interactive timeline charts, copy HTML snippets, export submissions, create/expire API keys, and configure spam rules.
@@ -124,9 +126,23 @@ Filter incoming payloads against a blacklist of forbidden keywords (e.g., `crypt
 Generate secure API keys to read forms and submissions programmatically.
 * **Safety:** Set expiration parameters (`30`, `90`, `365` days, or `Never`). The Cloudflare Worker validation layer rejects requests made using expired keys with `401 Unauthorized`.
 
-### 5. 💬 Slack & Discord Auto-Formatting Webhooks
-Delivers form notifications straight to your communications channels.
-* **Auto-format:** Simply input your Slack or Discord webhook URL. The backend automatically structures and styles the notification (as Slack blocks or Discord embedded cards) showing all submission details.
+### 5. 💬 10+ Auto-Formatting Webhooks
+Delivers form notifications straight to your communications channels in rich visual styles:
+* **Auto-format:** Paste your webhook URL. The backend automatically styles the payloads:
+  * **Slack:** Rich formatting using Slack Blocks.
+  * **Discord:** Beautiful color-bordered Discord Embed cards.
+  * **Stoat.chat / Revolt:** Clean Markdown message content blocks.
+  * **Microsoft Teams:** Office 365 Connector card format.
+  * **Mattermost:** Structured Markdown headers and bullet lists.
+  * **Generics (IFTTT, Zapier, Make, etc.):** Standard structured JSON payload is delivered.
+* **Resilience:** Skip failures automatically so email notifications and DB writes are never blocked by a failing webhook.
+
+### 6. 📧 Custom SMTP Server Integration (10+ Email Providers)
+Configure custom SMTP credentials per form directly from the settings panel.
+* **Gmail Auto-Config:** Entering a Gmail address auto-configures the host/port (`smtp.gmail.com:587`) and provides hints for setting up a 16-character Gmail App Password.
+* **Supported Providers:** Gmail, Resend SMTP, Yahoo, Outlook, Mailjet, Brevo, SMTP2GO, SendGrid, Amazon SES, Mailgun, and Postmark.
+* **🔒 AES-GCM Encrypted Passwords:** Passwords are fully encrypted in the D1 database and never sent to the client browser.
+* **🧪 Test Settings Endpoint:** Includes a "Send test email" button to verify connection settings before saving.
 
 ### 6. 📅 Automatic Data Retention Purging
 Automatically keep your Cloudflare D1 database storage usage clean and compliant by purging submissions older than a specific retention period.

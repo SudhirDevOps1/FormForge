@@ -301,6 +301,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     if (status === "accepted") {
       try {
+        const { getCloudflareContext } = await import("@opennextjs/cloudflare");
         const ctx = getCloudflareContext().ctx;
         if (ctx && typeof ctx.waitUntil === "function") {
           ctx.waitUntil(deliverNotifications(db, form, submission as typeof submissions.$inferSelect));
@@ -314,14 +315,15 @@ export async function POST(request: Request, context: RouteContext) {
       const { sendVerificationEmail } = await import("@/lib/notifications");
       const appUrl = new URL(request.url).origin;
       try {
+        const { getCloudflareContext } = await import("@opennextjs/cloudflare");
         const ctx = getCloudflareContext().ctx;
         if (ctx && typeof ctx.waitUntil === "function") {
           ctx.waitUntil(sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl));
         } else {
           await sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl);
         }
-      } catch (err) {
-        console.error("Failed to send verification email:", err);
+      } catch {
+        await sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl);
       }
     }
 

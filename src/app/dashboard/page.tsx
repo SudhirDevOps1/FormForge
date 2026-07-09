@@ -25,6 +25,12 @@ type Form = {
   retentionDays: number;
   emailVerificationEnabled: boolean;
   storeIpHash: boolean;
+  smtpEnabled: boolean;
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpUser: string | null;
+  smtpPass: string | null;
+  smtpFrom: string | null;
   createdAt: string;
 };
 type Submission = {
@@ -1224,9 +1230,9 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
                 </div>
                 <div>
                   <label htmlFor="smtp-password" className="mb-1 block text-xs text-slate-400">SMTP Password</label>
-                  <input id="smtp-password" type="password" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} className="ff-input text-sm" placeholder="Enter your SMTP password" />
+                  <input id="smtp-password" type="password" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} className="ff-input text-sm" placeholder={smtpUser.trim().toLowerCase().endsWith("@gmail.com") ? "Enter your 16-character Gmail App Password" : "Enter your SMTP password"} />
                   {smtpUser.trim().toLowerCase().endsWith("@gmail.com") && (
-                    <p className="text-[10px] text-slate-500 mt-1">For Gmail, use an App Password instead of your regular password. Go to Google Account → Security → 2-Step Verification → App passwords.</p>
+                    <p className="text-[10px] text-slate-500 mt-1">For Gmail, use a 16-character Gmail App Password instead of your regular password. Go to Google Account → Security → 2-Step Verification → App passwords.</p>
                   )}
                 </div>
                 {!smtpUser.trim().toLowerCase().endsWith("@gmail.com") && (
@@ -1244,6 +1250,30 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
                 <div>
                   <label htmlFor="smtp-from" className="mb-1 block text-xs text-slate-400">Sender Email (From)</label>
                   <input id="smtp-from" value={smtpFrom} onChange={(e) => setSmtpFrom(e.target.value)} className="ff-input text-sm" placeholder="your.email@example.com" />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button type="button" disabled={busy || !smtpUser || !smtpPass} onClick={async () => {
+                    setBusy(true);
+                    setMsg("");
+                    try {
+                      const res = await fetch(`/api/forms/${form.id}/test-smtp`, {
+                        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom })
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        setMsg("✓ Test email sent successfully! Please check your inbox.");
+                      } else {
+                        setMsg(`❌ Test failed: ${data.message || "Unknown error"}`);
+                      }
+                    } catch (err) {
+                      setMsg(`❌ Error sending test: ${err instanceof Error ? err.message : String(err)}`);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }} className="rounded-xl border border-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/5 transition disabled:opacity-50">
+                    Send test email
+                  </button>
                 </div>
               </div>
             )}

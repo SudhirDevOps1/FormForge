@@ -22,7 +22,11 @@ export async function GET(request: Request) {
   }
 
   const rows = await db.select().from(forms).where(eq(forms.userId, user.id)).orderBy(desc(forms.createdAt));
-  return jsonOk({ forms: rows });
+  const sanitizedRows = rows.map(r => ({
+    ...r,
+    smtpPass: r.smtpPass ? "__SMTP_PASSWORD_SET__" : null
+  }));
+  return jsonOk({ forms: sanitizedRows });
 }
 
 export async function POST(request: Request) {
