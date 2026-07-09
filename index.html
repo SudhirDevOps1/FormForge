@@ -2385,6 +2385,33 @@ npx wrangler secret put AUTH_SECRET
         </div>
         <div class="faq-item">
           <button class="faq-q" onclick="toggleFaq(this)">
+            <span>How secure is my sensitive data (SMTP passwords, Turnstile keys)?</span>
+            <span class="arrow">▾</span>
+          </button>
+          <div class="faq-a">
+            <p>FormForge uses bank-grade <strong>AES-GCM (256-bit) encryption</strong> via the native Web Crypto API to encrypt Turnstile Secret Keys and SMTP Passwords before writing to your D1 database. The key is securely derived from your environment secret <code>AUTH_SECRET</code>. When retrieved by the dashboard, these values are completely masked with placeholders (<code>__SMTP_PASSWORD_SET__</code>) to prevent browser-side leakage.</p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>Can I set SMTP configuration using environment variables?</span>
+            <span class="arrow">▾</span>
+          </button>
+          <div class="faq-a">
+            <p>Yes. If you prefer not storing credentials in D1, FormForge supports global environment variables / Wrangler secrets: <code>SMTP_ENABLED</code>, <code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_USER</code>, <code>SMTP_PASS</code>, and <code>SMTP_FROM</code>. If configured, the backend automatically uses these credentials as a fallback.</p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            <span>What happens if I lose my AUTH_SECRET key?</span>
+            <span class="arrow">▾</span>
+          </button>
+          <div class="faq-a">
+            <p>If you lose or change your <code>AUTH_SECRET</code>, existing encrypted values (SMTP passwords and Turnstile secrets) will become unreadable, and existing login sessions will expire. However, <strong>your database will not be corrupted</strong>. Simply set a new <code>AUTH_SECRET</code>, log in to the dashboard, and re-enter your SMTP/Turnstile secrets in the settings panel to re-encrypt them.</p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
             <span>Do I need to run database migrations?</span>
             <span class="arrow">▾</span>
           </button>
@@ -2398,7 +2425,7 @@ npx wrangler secret put AUTH_SECRET
     <!-- FOOTER -->
     <footer>
       <p style="margin-bottom: 10px;">© 2026 FormForge. Proudly maintained and deployed by <a href="https://github.com/SudhirDevOps1" target="_blank">Sudhir</a>.</p>
-      <p style="font-size: 14px;">Running on <strong style="color: var(--accent);">Cloudflare Workers</strong> &amp; <strong style="color: var(--purple);">D1</strong> · <a href="https://github.com/SudhirDevOps1/FormForge" target="_blank">GitHub</a> · MIT License</p>
+      <p style="font-size: 14px;">Running on <strong style="color: var(--accent);">Cloudflare Workers</strong> &amp; <strong style="color: var(--purple);">D1</strong> · <a href="https://github.com/SudhirDevOps1/FormForge" target="_blank">GitHub</a> · <a href="/privacypolicybanao.html" style="color: var(--accent); text-decoration: underline;">Privacy & Security Policy</a> · MIT License</p>
       <div class="tech-badges" style="justify-content: center; margin-top: 20px;">
         <span class="tech-badge">Next.js 16</span>
         <span class="tech-badge">React 19</span>
