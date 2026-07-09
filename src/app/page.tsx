@@ -40,7 +40,7 @@ export default function HomePage() {
           <a className="hover:text-white" href="#deploy">Deploy</a>
           <a className="hover:text-white" href="/docs.html">Docs</a>
           <a className="hover:text-white" href="/guide.html">Guide</a>
-          <a className="hover:text-white" href="/privacypolicybanao.html">Privacy</a>
+          <a className="hover:text-white" href="/privacypolicy.html">Privacy</a>
           <a className="hover:text-white" href="/dashboard">Dashboard</a>
           <a className="rounded-full border border-cyan-300/30 px-4 py-2 text-cyan-100 hover:bg-cyan-300/10" href="https://github.com/SudhirDevOps1/FormForge">GitHub ↗</a>
         </nav>
@@ -54,7 +54,7 @@ export default function HomePage() {
             <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="#deploy">Deploy</a>
             <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="/docs.html">Docs</a>
             <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="/guide.html">Guide</a>
-            <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="/privacypolicybanao.html">Privacy Policy</a>
+            <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="/privacypolicy.html">Privacy Policy</a>
             <a className="block rounded-xl px-4 py-3 text-sm hover:bg-white/10" href="/dashboard">Dashboard</a>
             <a className="block rounded-xl px-4 py-3 text-sm text-cyan-200 hover:bg-white/10" href="https://github.com/SudhirDevOps1/FormForge">GitHub ↗</a>
           </div>
@@ -208,7 +208,7 @@ export default function HomePage() {
 
       <footer className="relative border-t border-white/10 px-5 py-10 text-center text-sm text-slate-400 sm:px-8 space-y-3">
         <p>FormForge is open-source, self-hosted, and designed for Cloudflare&apos;s free tier. Read <a className="text-cyan-200 hover:text-white font-semibold" href="/docs.html">docs.html</a> for complete setup.</p>
-        <p className="text-xs text-slate-500">🔒 Secure AES-GCM Encrypted &bull; v1.1.0 &bull; <a className="text-cyan-300/80 hover:text-cyan-200 transition underline decoration-cyan-300/30" href="/privacypolicybanao.html">Privacy & Security Policy</a></p>
+        <p className="text-xs text-slate-500">🔒 Secure AES-GCM Encrypted &bull; v1.1.0 &bull; <a className="text-cyan-300/80 hover:text-cyan-200 transition underline decoration-cyan-300/30" href="/privacypolicy.html">Privacy & Security Policy</a></p>
       </footer>
     </main>
   );
