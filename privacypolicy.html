@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - FormForge</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0B0F19;
+      --panel: #111827;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #9CA3AF;
+      --heading: #FFFFFF;
+      --primary: #38BDF8;
+      --primary-hover: #0EA5E9;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+      margin-bottom: 40px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--heading);
+      font-weight: 800;
+      font-size: 1.3rem;
+    }
+
+    .logo img {
+      width: 36px;
+      height: 36px;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.9rem;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      padding: 8px 16px;
+      border-radius: 9999px;
+      background: rgba(56, 189, 248, 0.03);
+      transition: all 0.2s ease;
+    }
+
+    .back-btn:hover {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--heading);
+      border-color: var(--primary);
+      transform: translateX(-2px);
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--heading);
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #FFFFFF 0%, #9CA3AF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .meta {
+      font-size: 0.9rem;
+      color: #6B7280;
+      margin-bottom: 30px;
+    }
+
+    .panel {
+      background-color: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 35px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--heading);
+      margin-top: 30px;
+      margin-bottom: 12px;
+      border-left: 3px solid var(--primary);
+      padding-left: 12px;
+    }
+
+    h2:first-of-type {
+      margin-top: 0;
+    }
+
+    p {
+      margin-bottom: 16px;
+      font-size: 0.98rem;
+    }
+
+    ul {
+      margin-left: 20px;
+      margin-bottom: 16px;
+      list-style-type: square;
+    }
+
+    li {
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    strong {
+      color: var(--heading);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      font-size: 0.85rem;
+      color: #4B5563;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a href="/" class="logo">
+        <img src="/logo.svg" alt="FormForge Logo">
+        <span>FormForge</span>
+      </a>
+      <a href="/" class="back-btn">
+        ← Back to Home
+      </a>
+    </header>
+
+    <main class="panel">
+      <h1>Strict Privacy & Security Policy</h1>
+      <p class="meta">Last Updated: July 2026</p>
+
+      <h2>1. Honest Data Ownership (Zero Vendor Lock-in)</h2>
+      <p>FormForge is an open-source form backend designed to put you in complete control of your data. We do not operate a hosted SaaS, meaning <strong>100% of your submission data, database records, and logs are kept inside your own Cloudflare D1 account.</strong> We have zero access to your database, user profiles, or submission details.</p>
+
+      <h2>2. Military-Grade Cryptographic Encryption</h2>
+      <p>To secure SMTP servers and Turnstile bot protection secrets, FormForge implements automated data encryption:</p>
+      <ul>
+        <li><strong>AES-GCM (256-bit) Encryption:</strong> Your SMTP email passwords and Cloudflare Turnstile Secret keys are fully encrypted in the SQLite D1 database using the edge-native Web Crypto API.</li>
+        <li><strong>Secret-Key Authentication:</strong> Encryption keys are derived directly from your environment variable <code>AUTH_SECRET</code>.</li>
+        <li><strong>Masked Retrieval:</strong> To prevent credential leaks in API responses or dashboard screens, both passwords and Turnstile secret keys are completely stripped and replaced with placeholders (<code>__SMTP_PASSWORD_SET__</code> and <code>__TURNSTILE_SECRET_SET__</code>) before transit.</li>
+      </ul>
+
+      <h2>3. Privacy-First IP & Metadata Handling</h2>
+      <p>To defend against spambots while maintaining compliance with strict global privacy laws (such as GDPR and CCPA):</p>
+      <ul>
+        <li><strong>IP Hashing:</strong> We do not store raw IP addresses. If enabled in configuration, submission IP addresses are instantly hashed using SHA-256 with a unique form salt.</li>
+        <li><strong>Zero Third-Party Analytics:</strong> FormForge has no Google Analytics, no trackers, and no external tracking pixels. Your dashboard telemetry is entirely self-hosted.</li>
+      </ul>
+
+      <h2>4. Smart SSRF Webhook Protections</h2>
+      <p>FormForge handles outgoing notification alerts (Slack, Discord, MS Teams, Mattermost, etc.) directly from your worker. To block malicious requests targeting your internal networks, we strictly reject any webhook destination resolved to private, local, or loopback networks (e.g., localhost, 127.0.0.1, 10.0.0.0/8, 192.168.0.0/16).</p>
+
+      <h2>5. Outbox Task Isolation</h2>
+      <p>Email delivery and Webhook alerts are dispatched asynchronously in background thread queues using Cloudflare's non-blocking <code>waitUntil</code> tasks. This ensures your clients experience immediate submission speeds (typically &lt; 15ms) while ensuring failure of any external notification API never blocks your core sqlite data writes.</p>
+    </main>
+
+    <footer>
+      <p>&copy; 2026 FormForge. Proudly self-hosted and privacy-first.</p>
+    </footer>
+  </div>
+</body>
+</html>
