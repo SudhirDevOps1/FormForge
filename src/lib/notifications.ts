@@ -10,7 +10,8 @@ async function sendSmtpEmail(
   from: string,
   to: string,
   subject: string,
-  text: string
+  text: string,
+  html?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const transporter = nodemailer.createTransport({
@@ -29,6 +30,7 @@ async function sendSmtpEmail(
       to,
       subject,
       text,
+      html,
     });
     return { success: !!info.messageId };
   } catch (error) {
@@ -287,8 +289,39 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
   }
 
   const verifyUrl = `${appUrl}/api/submissions/${submission.id}/verify`;
-  const subject = `⚠️ Verify your submission to ${form.name}`;
+  const subject = `📩 Verify your submission to ${form.name}`;
+  
   const text = `Hello,\n\nWe received a form submission using your email address for "${form.name}".\n\nPlease verify your email and confirm your submission by clicking the link below:\n\n${verifyUrl}\n\nIf you did not make this submission, you can safely ignore this email.`;
+  
+  const html = `
+<div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #0B0F19; color: #F1F5F9; padding: 40px 20px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <div style="font-size: 24px; font-weight: 800; color: #0EA5E9; letter-spacing: -0.05em; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+      <span style="background: linear-gradient(135deg, #0EA5E9, #2563EB); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: sans-serif;">FormForge</span>
+    </div>
+  </div>
+  <div style="background-color: #111827; border: 1px solid #1F2937; border-radius: 12px; padding: 30px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+    <h2 style="font-size: 20px; font-weight: 700; color: #FFFFFF; margin-top: 0; margin-bottom: 16px; text-align: center;">Verify Your Form Submission</h2>
+    <p style="font-size: 15px; color: #9CA3AF; line-height: 1.6; margin-bottom: 24px; text-align: center;">
+      Hello,<br><br>
+      We received a new form submission using your email address for the form <strong>"${form.name}"</strong>. To confirm this was you and authorize the submission, please verify your email address.
+    </p>
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${verifyUrl}" style="background: linear-gradient(135deg, #38BDF8, #0284C7); color: #FFFFFF; text-decoration: none; font-size: 15px; font-weight: 600; padding: 14px 32px; border-radius: 9999px; display: inline-block; box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.3); transition: all 0.2s ease;">
+        Confirm Submission
+      </a>
+    </div>
+    <p style="font-size: 12px; color: #6B7280; text-align: center; margin-top: 24px; word-break: break-all;">
+      Or copy and paste this link in your browser:<br>
+      <a href="${verifyUrl}" style="color: #38BDF8; text-decoration: none;">${verifyUrl}</a>
+    </p>
+  </div>
+  <div style="text-align: center; font-size: 12px; color: #4B5563; line-height: 1.5;">
+    <p style="margin: 0;">If you did not make this submission, you can safely ignore this email.</p>
+    <p style="margin: 5px 0 0 0;">&copy; ${new Date().getFullYear()} FormForge. All rights reserved.</p>
+  </div>
+</div>
+  `;
 
   if (form.smtpEnabled && form.smtpHost && form.smtpPort && form.smtpUser && form.smtpPass && form.smtpFrom) {
     try {
@@ -302,7 +335,8 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
         form.smtpFrom,
         submission.email,
         subject,
-        text
+        text,
+        html
       );
       return res.success;
     } catch (error) {
@@ -327,6 +361,7 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
         to: submission.email,
         subject,
         text,
+        html,
       }),
     });
     return response.ok;
