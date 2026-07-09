@@ -52,7 +52,8 @@ export async function GET(request: Request, context: RouteContext) {
 
   const sanitizedForm = {
     ...result.form,
-    smtpPass: result.form.smtpPass ? "__SMTP_PASSWORD_SET__" : null
+    smtpPass: result.form.smtpPass ? "__SMTP_PASSWORD_SET__" : null,
+    turnstileSecretKey: result.form.turnstileSecretKey ? "__TURNSTILE_SECRET_SET__" : null
   };
   return jsonOk({ form: sanitizedForm, endpointPath: `/api/submit/${result.form.endpointId}` });
 }
@@ -92,6 +93,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     smtpPassVal = await encryptText(rawSmtpPass);
   }
 
+  let turnstileSecretVal = result.form.turnstileSecretKey;
+  const rawTurnstileSecret = readString(body.turnstileSecretKey);
+  if (rawTurnstileSecret === "") {
+    turnstileSecretVal = null;
+  } else if (rawTurnstileSecret && rawTurnstileSecret !== "__TURNSTILE_SECRET_SET__") {
+    const { encryptText } = await import("@/lib/encryption");
+    turnstileSecretVal = await encryptText(rawTurnstileSecret);
+  }
+
   const update = {
     name: readString(body.name, result.form.name).slice(0, 120),
     slug: slugify(readString(body.slug, result.form.slug)),
@@ -107,7 +117,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     webhookUrl: webhookUrlVal,
     isActive: typeof body.isActive === "boolean" ? body.isActive : result.form.isActive,
     turnstileEnabled: typeof body.turnstileEnabled === "boolean" ? body.turnstileEnabled : result.form.turnstileEnabled,
-    turnstileSecretKey: readString(body.turnstileSecretKey, result.form.turnstileSecretKey ?? "") || null,
+    turnstileSecretKey: turnstileSecretVal,
     autoresponderSubject: readString(body.autoresponderSubject, result.form.autoresponderSubject ?? "") || null,
     autoresponderBody: readString(body.autoresponderBody, result.form.autoresponderBody ?? "") || null,
     spamBlocklist: readString(body.spamBlocklist, result.form.spamBlocklist ?? "") || null,

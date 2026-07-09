@@ -171,11 +171,11 @@
       <p>FormForge is an open-source form backend designed to put you in complete control of your data. We do not operate a hosted SaaS, meaning <strong>100% of your submission data, database records, and logs are kept inside your own Cloudflare D1 account.</strong> We have zero access to your database, user profiles, or submission details.</p>
 
       <h2>2. Military-Grade Cryptographic Encryption</h2>
-      <p>To secure outgoing email notifications, FormForge supports custom SMTP configurations. To protect your credentials:</p>
+      <p>To secure SMTP servers and Turnstile bot protection secrets, FormForge implements automated data encryption:</p>
       <ul>
-        <li><strong>AES-GCM (256-bit) Encryption:</strong> Your SMTP password is encrypted in the SQLite D1 database using the edge-native Web Crypto API.</li>
+        <li><strong>AES-GCM (256-bit) Encryption:</strong> Your SMTP email passwords and Cloudflare Turnstile Secret keys are fully encrypted in the SQLite D1 database using the edge-native Web Crypto API.</li>
         <li><strong>Secret-Key Authentication:</strong> Encryption keys are derived directly from your environment variable <code>AUTH_SECRET</code>.</li>
-        <li><strong>Masked Retrieval:</strong> To prevent credential leaks in API responses or dashboard screens, passwords are completely stripped and replaced with a placeholder (<code>__SMTP_PASSWORD_SET__</code>) before transit.</li>
+        <li><strong>Masked Retrieval:</strong> To prevent credential leaks in API responses or dashboard screens, both passwords and Turnstile secret keys are completely stripped and replaced with placeholders (<code>__SMTP_PASSWORD_SET__</code> and <code>__TURNSTILE_SECRET_SET__</code>) before transit.</li>
       </ul>
 
       <h2>3. Privacy-First IP & Metadata Handling</h2>

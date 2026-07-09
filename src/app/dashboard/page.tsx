@@ -1178,7 +1178,8 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           {turnstileEnabled && (
             <div>
               <label htmlFor="settings-turnstile-secret" className="mb-1 block text-[10px] text-slate-400">Turnstile Secret Key</label>
-              <input id="settings-turnstile-secret" type="password" value={turnstileSecretKey} onChange={(e) => setTurnstileSecretKey(e.target.value)} className="ff-input text-sm" placeholder="0x4AAAAAA..." />
+              <input id="settings-turnstile-secret" type="password" value={turnstileSecretKey} onChange={(e) => setTurnstileSecretKey(e.target.value)} className="ff-input text-sm" placeholder={turnstileSecretKey === "__TURNSTILE_SECRET_SET__" ? "Turnstile Secret is configured and encrypted" : "0x4AAAAAA..."} />
+              <p className="text-[9px] text-slate-500 mt-1">🔒 Your Turnstile Secret is securely encrypted in D1 database using AES-GCM encryption.</p>
             </div>
           )}
         </div>

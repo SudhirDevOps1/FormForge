@@ -218,10 +218,12 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     try {
+      const { decryptText } = await import("@/lib/encryption");
+      const decryptedSecret = await decryptText(form.turnstileSecretKey);
       const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `secret=${encodeURIComponent(form.turnstileSecretKey)}&response=${encodeURIComponent(token)}&remoteip=${encodeURIComponent(ip)}`,
+        body: `secret=${encodeURIComponent(decryptedSecret)}&response=${encodeURIComponent(token)}&remoteip=${encodeURIComponent(ip)}`,
       });
       const verifyData = await verifyRes.json() as { success: boolean };
       if (!verifyData.success) {
