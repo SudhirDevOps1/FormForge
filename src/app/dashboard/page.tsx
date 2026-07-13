@@ -694,18 +694,45 @@ print(response.json())`;
         </div>
 
         {/* Code Snippet Tabs */}
-        <div className="mt-5 space-y-3">
-          <div className="flex flex-wrap gap-1.5 border-b border-white/5 pb-2">
-            {(["html", "js", "react", "python"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSnippetTab(tab)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase transition ${snippetTab === tab ? "bg-white/10 text-white border border-white/10" : "text-slate-400 hover:text-slate-200"}`}
-              >
-                {tab === "js" ? "JS Fetch" : tab}
-              </button>
-            ))}
+        <div className="mt-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-2">
+            <div className="flex flex-wrap gap-1.5">
+              {(["html", "js", "react", "python"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setSnippetTab(tab)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase transition ${snippetTab === tab ? "bg-white/10 text-white border border-white/10" : "text-slate-400 hover:text-slate-200"}`}
+                >
+                  {tab === "js" ? "JS Fetch" : tab}
+                </button>
+              ))}
+            </div>
+            {/* Color Customizer */}
+            {snippetTab === "html" && (
+              <div className="flex items-center gap-1.5 bg-black/25 p-1 rounded-xl border border-white/5">
+                <span className="text-[10px] uppercase font-bold text-slate-500 px-1.5">Color:</span>
+                {(["cyan", "indigo", "emerald", "amber", "rose"] as const).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      // We can dynamically replace accent colors in style variables. 
+                      // Using dashboard state to trigger re-renders
+                      (window as any)._formColor = c;
+                      setSnippetFields([...snippetFields]); // force state refresh
+                    }}
+                    className={`h-4 w-4 rounded-full border border-white/10 transition-transform hover:scale-125 ${
+                      c === "cyan" ? "bg-cyan-500" :
+                      c === "indigo" ? "bg-indigo-500" :
+                      c === "emerald" ? "bg-emerald-500" :
+                      c === "amber" ? "bg-amber-500" : "bg-rose-500"
+                    } ${((window as any)._formColor || "cyan") === c ? "ring-2 ring-white scale-110" : ""}`}
+                    title={c}
+                  />
+                ))}
+              </div>
+            )}
           </div>
+
           {snippetTab === "html" && (
             <div className="flex gap-1 bg-black/25 p-1 rounded-xl w-fit border border-white/5">
               {(["plain", "contact", "newsletter", "feedback"] as const).map((tpl) => (
@@ -720,20 +747,97 @@ print(response.json())`;
               ))}
             </div>
           )}
-          <div className="relative">
-            {snippetTab === "html" && <CodeHighlight code={htmlSnippet} lang="html" />}
-            {snippetTab === "js" && <CodeHighlight code={jsSnippet} lang="js" />}
-            {snippetTab === "react" && <CodeHighlight code={reactSnippet} lang="js" />}
-            {snippetTab === "python" && <CodeHighlight code={pythonSnippet} lang="python" />}
-            <button
-              onClick={() => {
-                const text = snippetTab === "html" ? htmlSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : pythonSnippet;
-                copy(text, "copy");
-              }}
-              className="absolute right-3 top-3 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10"
-            >
-              {copied === "copy" ? "✓ Copied" : "Copy"}
-            </button>
+
+          {/* Grid Layout: Code on Left, Live Preview on Right */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="relative">
+              {snippetTab === "html" && <CodeHighlight code={htmlSnippet} lang="html" />}
+              {snippetTab === "js" && <CodeHighlight code={jsSnippet} lang="js" />}
+              {snippetTab === "react" && <CodeHighlight code={reactSnippet} lang="js" />}
+              {snippetTab === "python" && <CodeHighlight code={pythonSnippet} lang="python" />}
+              <button
+                onClick={() => {
+                  const text = snippetTab === "html" ? htmlSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : pythonSnippet;
+                  copy(text, "copy");
+                }}
+                className="absolute right-3 top-3 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10"
+              >
+                {copied === "copy" ? "✓ Copied" : "Copy"}
+              </button>
+            </div>
+
+            {/* Live Interactive Preview Box */}
+            {snippetTab === "html" && (
+              <div className="flex flex-col rounded-2xl border border-white/10 overflow-hidden bg-slate-950/60 min-h-[300px]">
+                <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-white/5">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    👁️ Interactive Template Live Preview
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">sandbox (simulated action)</span>
+                </div>
+                <div className="flex-1 p-4 flex items-center justify-center bg-slate-900/40 relative">
+                  <iframe
+                    title="Form Template Preview"
+                    sandbox="allow-scripts"
+                    className="w-full h-full min-h-[280px] border-0 rounded-xl bg-transparent"
+                    srcDoc={`
+                      <!DOCTYPE html>
+                      <html>
+                        <head>
+                          <meta charset="utf-8">
+                          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                          <script src="https://cdn.tailwindcss.com"></script>
+                          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+                          <style>
+                            body { font-family: 'Inter', sans-serif; background: #0b1329; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; margin: 0; }
+                            /* Star ratings script helper */
+                            .ff-stars label { cursor: pointer; }
+                            .ff-stars label:hover, .ff-stars label:hover ~ label { color: #fbbf24 !important; }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="w-full">
+                            ${htmlSnippet
+                              .replace(`action="${endpoint}"`, 'action="javascript:alert(\'🚀 Success! Submission received (Live Sandbox Simulation).\')"')
+                              .replace(/from-cyan-500 to-blue-600/g, 
+                                ((window as any)._formColor || "cyan") === "indigo" ? "from-indigo-500 to-purple-600" :
+                                ((window as any)._formColor || "cyan") === "emerald" ? "from-emerald-500 to-teal-600" :
+                                ((window as any)._formColor || "cyan") === "amber" ? "from-amber-500 to-orange-600" :
+                                ((window as any)._formColor || "cyan") === "rose" ? "from-rose-500 to-red-600" : "from-cyan-500 to-blue-600"
+                              )
+                              .replace(/bg-cyan-500/g, 
+                                ((window as any)._formColor || "cyan") === "indigo" ? "bg-indigo-500" :
+                                ((window as any)._formColor || "cyan") === "emerald" ? "bg-emerald-500" :
+                                ((window as any)._formColor || "cyan") === "amber" ? "bg-amber-500" :
+                                ((window as any)._formColor || "cyan") === "rose" ? "bg-rose-500" : "bg-cyan-500"
+                              )
+                              .replace(/hover:bg-cyan-400/g, 
+                                ((window as any)._formColor || "cyan") === "indigo" ? "hover:bg-indigo-400" :
+                                ((window as any)._formColor || "cyan") === "emerald" ? "hover:bg-emerald-400" :
+                                ((window as any)._formColor || "cyan") === "amber" ? "hover:bg-amber-400" :
+                                ((window as any)._formColor || "cyan") === "rose" ? "hover:bg-rose-400" : "hover:bg-cyan-400"
+                              )
+                              .replace(/#38bdf8/g, 
+                                ((window as any)._formColor || "cyan") === "indigo" ? "#6366f1" :
+                                ((window as any)._formColor || "cyan") === "emerald" ? "#10b981" :
+                                ((window as any)._formColor || "cyan") === "amber" ? "#f59e0b" :
+                                ((window as any)._formColor || "cyan") === "rose" ? "#f43f5e" : "#38bdf8"
+                              )
+                              .replace(/#6366f1/g, 
+                                ((window as any)._formColor || "cyan") === "indigo" ? "#a855f7" :
+                                ((window as any)._formColor || "cyan") === "emerald" ? "#06b6d4" :
+                                ((window as any)._formColor || "cyan") === "amber" ? "#ea580c" :
+                                ((window as any)._formColor || "cyan") === "rose" ? "#d946ef" : "#6366f1"
+                              )
+                            }
+                          </div>
+                        </body>
+                      </html>
+                    `}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
