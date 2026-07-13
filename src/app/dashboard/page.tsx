@@ -444,6 +444,7 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
 
   const [snippetTab, setSnippetTab] = useState<"html" | "js" | "react" | "python">("html");
   const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "newsletter" | "feedback">("plain");
+  const [formColor, setFormColor] = useState<"cyan" | "indigo" | "emerald" | "amber" | "rose">("cyan");
   const [snippetFields, setSnippetFields] = useState<string[]>(["email", "message"]);
   const [newFieldName, setNewFieldName] = useState("");
 
@@ -462,6 +463,17 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
 
   const hasAttachment = snippetFields.some(f => ["attachment", "file", "image", "upload"].includes(f));
   const enctype = hasAttachment ? ' enctype="multipart/form-data"' : "";
+
+  // Color mapping definitions for Tailwind classes
+  const colorMap = {
+    cyan: { text: "text-cyan-500", border: "focus:border-cyan-500 focus:ring-cyan-500", bg: "bg-cyan-500", hover: "hover:bg-cyan-400", fromTo: "from-cyan-500 to-blue-600", hoverFromTo: "hover:from-cyan-400 hover:to-blue-500", fileBg: "file:bg-cyan-500/10 file:text-cyan-300 hover:file:bg-cyan-500/20", styleHex1: "#38bdf8", styleHex2: "#6366f1" },
+    indigo: { text: "text-indigo-500", border: "focus:border-indigo-500 focus:ring-indigo-500", bg: "bg-indigo-500", hover: "hover:bg-indigo-400", fromTo: "from-indigo-500 to-purple-600", hoverFromTo: "hover:from-indigo-400 hover:to-purple-500", fileBg: "file:bg-indigo-500/10 file:text-indigo-300 hover:file:bg-indigo-500/20", styleHex1: "#6366f1", styleHex2: "#a855f7" },
+    emerald: { text: "text-emerald-500", border: "focus:border-emerald-500 focus:ring-emerald-500", bg: "bg-emerald-500", hover: "hover:bg-emerald-400", fromTo: "from-emerald-500 to-teal-600", hoverFromTo: "hover:from-emerald-400 hover:to-teal-500", fileBg: "file:bg-emerald-500/10 file:text-emerald-300 hover:file:bg-emerald-500/20", styleHex1: "#10b981", styleHex2: "#06b6d4" },
+    amber: { text: "text-amber-500", border: "focus:border-amber-500 focus:ring-amber-500", bg: "bg-amber-500", hover: "hover:bg-amber-400", fromTo: "from-amber-500 to-orange-600", hoverFromTo: "hover:from-amber-400 hover:to-orange-500", fileBg: "file:bg-amber-500/10 file:text-amber-300 hover:file:bg-amber-500/20", styleHex1: "#f59e0b", styleHex2: "#ea580c" },
+    rose: { text: "text-rose-500", border: "focus:border-rose-500 focus:ring-rose-500", bg: "bg-rose-500", hover: "hover:bg-rose-400", fromTo: "from-rose-500 to-red-600", hoverFromTo: "hover:from-rose-400 hover:to-red-500", fileBg: "file:bg-rose-500/10 file:text-rose-300 hover:file:bg-rose-500/20", styleHex1: "#f43f5e", styleHex2: "#d946ef" },
+  };
+
+  const theme = colorMap[formColor];
 
   const htmlSnippet = formTemplate === "plain"
     ? `<form method="POST" action="${endpoint}"${enctype}>
@@ -485,23 +497,23 @@ ${snippetFields.map(f => {
   if (["message", "comments", "description"].includes(f)) {
     return `  <div>
     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
-    <textarea name="${f}" required placeholder="Type your ${f} here..." rows="4" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"></textarea>
+    <textarea name="${f}" required placeholder="Type your ${f} here..." rows="4" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition"></textarea>
   </div>`;
   }
   if (["attachment", "file", "image", "upload"].includes(f)) {
     return `  <div>
     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
-    <input name="${f}" type="file" required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/10 file:text-cyan-300 hover:file:bg-cyan-500/20 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition" />
+    <input name="${f}" type="file" required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white ${theme.fileBg} focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition" />
   </div>`;
   }
   return `  <div>
     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
-    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${f}" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition" />
+    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${f}" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition" />
   </div>`;
 }).join("\n")}
   <!-- Honeypot Bot Trap -->
   <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
-  <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-xl hover:from-cyan-400 hover:to-blue-500 transition-all">
+  <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r ${theme.fromTo} text-white font-semibold rounded-xl ${theme.hoverFromTo} transition-all">
     Send Message
   </button>
 </form>`
@@ -513,10 +525,10 @@ ${snippetFields.map(f => {
     <p class="text-sm text-slate-400">Get the latest updates and developer news right in your inbox.</p>
   </div>
   <div class="flex flex-col sm:flex-row gap-2">
-    <input name="email" type="email" required placeholder="Enter your email" class="flex-1 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition" />
+    <input name="email" type="email" required placeholder="Enter your email" class="flex-1 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition" />
     <!-- Honeypot Bot Trap -->
     <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
-    <button type="submit" class="py-3 px-6 bg-cyan-500 text-white font-semibold rounded-xl hover:bg-cyan-400 transition">
+    <button type="submit" class="py-3 px-6 ${theme.bg} text-white font-semibold rounded-xl ${theme.hover} transition">
       Subscribe
     </button>
   </div>
@@ -528,14 +540,14 @@ ${snippetFields.map(f => {
   .ff-feedback p { font-size: 0.875rem; color: #94a3b8; margin: 0 0 1.5rem; }
   .ff-feedback label { display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.375rem; }
   .ff-feedback input, .ff-feedback textarea, .ff-feedback select { width: 100%; padding: 0.625rem 0.875rem; background: rgba(2, 6, 23, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; color: #fff; font-size: 0.875rem; outline: none; transition: border-color 0.2s; margin-bottom: 1rem; box-sizing: border-box; }
-  .ff-feedback input:focus, .ff-feedback textarea:focus, .ff-feedback select:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15); }
+  .ff-feedback input:focus, .ff-feedback textarea:focus, .ff-feedback select:focus { border-color: ${theme.styleHex1}; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15); }
   .ff-feedback .ff-stars { display: flex; gap: 0.375rem; margin-bottom: 1rem; }
   .ff-feedback .ff-stars label { cursor: pointer; font-size: 1.5rem; color: #334155; transition: color 0.15s; text-transform: none; letter-spacing: normal; margin: 0; }
   .ff-feedback .ff-stars input { display: none; }
   .ff-feedback .ff-stars label:hover, .ff-feedback .ff-stars label:hover ~ label { color: #fbbf24; }
   .ff-feedback .ff-stars input:checked ~ label { color: #334155; }
   .ff-feedback .ff-stars :has(input:checked) label, .ff-feedback .ff-stars label:has(~ input:checked) { color: #fbbf24; }
-  .ff-feedback button[type="submit"] { width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #38bdf8, #6366f1); color: #fff; font-weight: 600; font-size: 0.875rem; border: none; border-radius: 0.75rem; cursor: pointer; transition: opacity 0.2s; }
+  .ff-feedback button[type="submit"] { width: 100%; padding: 0.75rem; background: linear-gradient(135deg, ${theme.styleHex1}, ${theme.styleHex2}); color: #fff; font-weight: 600; font-size: 0.875rem; border: none; border-radius: 0.75rem; cursor: pointer; transition: opacity 0.2s; }
   .ff-feedback button[type="submit"]:hover { opacity: 0.9; }
 </style>
 <form method="POST" action="${endpoint}" class="ff-feedback">
@@ -784,29 +796,22 @@ print(response.json())`;
               ))}
             </div>
             {/* Color Customizer */}
-            {snippetTab === "html" && (
-              <div className="flex items-center gap-1.5 bg-black/25 p-1 rounded-xl border border-white/5">
-                <span className="text-[10px] uppercase font-bold text-slate-500 px-1.5">Color:</span>
-                {(["cyan", "indigo", "emerald", "amber", "rose"] as const).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => {
-                      // We can dynamically replace accent colors in style variables. 
-                      // Using dashboard state to trigger re-renders
-                      (window as any)._formColor = c;
-                      setSnippetFields([...snippetFields]); // force state refresh
-                    }}
-                    className={`h-4 w-4 rounded-full border border-white/10 transition-transform hover:scale-125 ${
-                      c === "cyan" ? "bg-cyan-500" :
-                      c === "indigo" ? "bg-indigo-500" :
-                      c === "emerald" ? "bg-emerald-500" :
-                      c === "amber" ? "bg-amber-500" : "bg-rose-500"
-                    } ${((window as any)._formColor || "cyan") === c ? "ring-2 ring-white scale-110" : ""}`}
-                    title={c}
-                  />
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 bg-black/25 p-1 rounded-xl border border-white/5">
+              <span className="text-[10px] uppercase font-bold text-slate-500 px-1.5">Color:</span>
+              {(["cyan", "indigo", "emerald", "amber", "rose"] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setFormColor(c)}
+                  className={`h-4 w-4 rounded-full border border-white/10 transition-transform hover:scale-125 ${
+                    c === "cyan" ? "bg-cyan-500" :
+                    c === "indigo" ? "bg-indigo-500" :
+                    c === "emerald" ? "bg-emerald-500" :
+                    c === "amber" ? "bg-amber-500" : "bg-rose-500"
+                  } ${formColor === c ? "ring-2 ring-white scale-110" : ""}`}
+                  title={c}
+                />
+              ))}
+            </div>
           </div>
 
           {snippetTab === "html" && (
@@ -816,7 +821,7 @@ print(response.json())`;
                   key={tpl}
                   type="button"
                   onClick={() => setFormTemplate(tpl)}
-                  className={`rounded-lg px-3 py-1 text-xs font-semibold flex items-center gap-1.5 transition ${formTemplate === tpl ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-slate-200"}`}
+                  className={`rounded-lg px-3 py-1 text-xs font-semibold flex items-center gap-1.5 transition ${formTemplate === tpl ? `bg-${formColor === "rose" ? "rose" : formColor === "emerald" ? "emerald" : formColor === "amber" ? "amber" : formColor === "indigo" ? "indigo" : "cyan"}-500 text-slate-950 font-bold` : "text-slate-400 hover:text-slate-200"}`}
                 >
                   {tpl === "plain" && (
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -889,34 +894,34 @@ print(response.json())`;
                             ${htmlSnippet
                               .replace(`action="${endpoint}"`, 'action="javascript:alert(\'🚀 Success! Submission received (Live Sandbox Simulation).\')"')
                               .replace(/from-cyan-500 to-blue-600/g, 
-                                ((window as any)._formColor || "cyan") === "indigo" ? "from-indigo-500 to-purple-600" :
-                                ((window as any)._formColor || "cyan") === "emerald" ? "from-emerald-500 to-teal-600" :
-                                ((window as any)._formColor || "cyan") === "amber" ? "from-amber-500 to-orange-600" :
-                                ((window as any)._formColor || "cyan") === "rose" ? "from-rose-500 to-red-600" : "from-cyan-500 to-blue-600"
+                                formColor === "indigo" ? "from-indigo-500 to-purple-600" :
+                                formColor === "emerald" ? "from-emerald-500 to-teal-600" :
+                                formColor === "amber" ? "from-amber-500 to-orange-600" :
+                                formColor === "rose" ? "from-rose-500 to-red-600" : "from-cyan-500 to-blue-600"
                               )
                               .replace(/bg-cyan-500/g, 
-                                ((window as any)._formColor || "cyan") === "indigo" ? "bg-indigo-500" :
-                                ((window as any)._formColor || "cyan") === "emerald" ? "bg-emerald-500" :
-                                ((window as any)._formColor || "cyan") === "amber" ? "bg-amber-500" :
-                                ((window as any)._formColor || "cyan") === "rose" ? "bg-rose-500" : "bg-cyan-500"
+                                formColor === "indigo" ? "bg-indigo-500" :
+                                formColor === "emerald" ? "bg-emerald-500" :
+                                formColor === "amber" ? "bg-amber-500" :
+                                formColor === "rose" ? "bg-rose-500" : "bg-cyan-500"
                               )
                               .replace(/hover:bg-cyan-400/g, 
-                                ((window as any)._formColor || "cyan") === "indigo" ? "hover:bg-indigo-400" :
-                                ((window as any)._formColor || "cyan") === "emerald" ? "hover:bg-emerald-400" :
-                                ((window as any)._formColor || "cyan") === "amber" ? "hover:bg-amber-400" :
-                                ((window as any)._formColor || "cyan") === "rose" ? "hover:bg-rose-400" : "hover:bg-cyan-400"
+                                formColor === "indigo" ? "hover:bg-indigo-400" :
+                                formColor === "emerald" ? "hover:bg-emerald-400" :
+                                formColor === "amber" ? "hover:bg-amber-400" :
+                                formColor === "rose" ? "hover:bg-rose-400" : "hover:bg-cyan-400"
                               )
                               .replace(/#38bdf8/g, 
-                                ((window as any)._formColor || "cyan") === "indigo" ? "#6366f1" :
-                                ((window as any)._formColor || "cyan") === "emerald" ? "#10b981" :
-                                ((window as any)._formColor || "cyan") === "amber" ? "#f59e0b" :
-                                ((window as any)._formColor || "cyan") === "rose" ? "#f43f5e" : "#38bdf8"
+                                formColor === "indigo" ? "#6366f1" :
+                                formColor === "emerald" ? "#10b981" :
+                                formColor === "amber" ? "#f59e0b" :
+                                formColor === "rose" ? "#f43f5e" : "#38bdf8"
                               )
                               .replace(/#6366f1/g, 
-                                ((window as any)._formColor || "cyan") === "indigo" ? "#a855f7" :
-                                ((window as any)._formColor || "cyan") === "emerald" ? "#06b6d4" :
-                                ((window as any)._formColor || "cyan") === "amber" ? "#ea580c" :
-                                ((window as any)._formColor || "cyan") === "rose" ? "#d946ef" : "#6366f1"
+                                formColor === "indigo" ? "#a855f7" :
+                                formColor === "emerald" ? "#06b6d4" :
+                                formColor === "amber" ? "#ea580c" :
+                                formColor === "rose" ? "#d946ef" : "#6366f1"
                               )
                             }
                           </div>
