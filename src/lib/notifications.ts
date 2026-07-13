@@ -503,32 +503,60 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
   const text = `Hello,\n\nWe received a form submission using your email address for "${form.name}".\n\nPlease verify your email and confirm your submission by clicking the link below:\n\n${verifyUrl}\n\nIf you did not make this submission, you can safely ignore this email.`;
   
   const html = `
-<div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #0B0F19; color: #F1F5F9; padding: 40px 20px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
-  <div style="text-align: center; margin-bottom: 30px;">
-    <div style="font-size: 24px; font-weight: 800; color: #0EA5E9; letter-spacing: -0.05em; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
-      <span style="background: linear-gradient(135deg, #0EA5E9, #2563EB); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: sans-serif;">FormForge</span>
-    </div>
-  </div>
-  <div style="background-color: #111827; border: 1px solid #1F2937; border-radius: 12px; padding: 30px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-    <h2 style="font-size: 20px; font-weight: 700; color: #FFFFFF; margin-top: 0; margin-bottom: 16px; text-align: center;">Verify Your Form Submission</h2>
-    <p style="font-size: 15px; color: #9CA3AF; line-height: 1.6; margin-bottom: 24px; text-align: center;">
-      Hello,<br><br>
-      We received a new form submission using your email address for the form <strong>"${form.name}"</strong>. To confirm this was you and authorize the submission, please verify your email address.
-    </p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${verifyUrl}" style="background: linear-gradient(135deg, #38BDF8, #0284C7); color: #FFFFFF; text-decoration: none; font-size: 15px; font-weight: 600; padding: 14px 32px; border-radius: 9999px; display: inline-block; box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.3); transition: all 0.2s ease;">
-        Confirm Submission
-      </a>
-    </div>
-    <p style="font-size: 12px; color: #6B7280; text-align: center; margin-top: 24px; word-break: break-all;">
-      Or copy and paste this link in your browser:<br>
-      <a href="${verifyUrl}" style="color: #38BDF8; text-decoration: none;">${verifyUrl}</a>
-    </p>
-  </div>
-  <div style="text-align: center; font-size: 12px; color: #4B5563; line-height: 1.5;">
-    <p style="margin: 0;">If you did not make this submission, you can safely ignore this email.</p>
-    <p style="margin: 5px 0 0 0;">&copy; ${new Date().getFullYear()} FormForge. All rights reserved.</p>
-  </div>
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #030712; padding: 40px 10px; text-align: center;">
+  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <!-- Header/Logo -->
+    <tr>
+      <td style="padding: 32px 24px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.04);">
+        <table align="center" border="0" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="vertical-align: middle;">
+              <img src="https://sudhirdevops1.github.io/FormForge/public/logo.svg" alt="FormForge" width="40" height="40" style="display: block; border-radius: 10px;" onerror="this.src='https://raw.githubusercontent.com/SudhirDevOps1/FormForge/main/public/logo.svg'"/>
+            </td>
+            <td style="padding-left: 12px; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.03em; vertical-align: middle;">
+              FormForge
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <!-- Content Body -->
+    <tr>
+      <td style="padding: 32px 24px 24px; text-align: left;">
+        <h2 style="font-size: 20px; font-weight: 700; color: #ffffff; margin: 0 0 16px; text-align: center;">Confirm Your Submission</h2>
+        <p style="font-size: 15px; line-height: 1.6; color: #94a3b8; margin: 0 0 24px; text-align: center;">
+          Hello,<br><br>
+          We received a form submission using your email address for the form <strong>"${form.name}"</strong>.<br>
+          To complete your request, please confirm your email address by clicking the button below.
+        </p>
+        <!-- CTA Button -->
+        <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 28px auto;">
+          <tr>
+            <td align="center" bgcolor="#06b6d4" style="border-radius: 9999px;">
+              <a href="${verifyUrl}" target="_blank" style="display: inline-block; padding: 14px 36px; font-size: 15px; font-weight: 600; color: #030712; text-decoration: none; border-radius: 9999px; background: linear-gradient(135deg, #22d3ee, #06b6d4);">
+                Confirm Submission
+              </a>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size: 12px; line-height: 1.5; color: #64748b; text-align: center; margin: 24px 0 0; word-break: break-all;">
+          Or copy and paste this URL into your browser:<br>
+          <a href="${verifyUrl}" target="_blank" style="color: #06b6d4; text-decoration: none;">${verifyUrl}</a>
+        </p>
+      </td>
+    </tr>
+    <!-- Footer -->
+    <tr>
+      <td style="padding: 24px; background-color: #0b0f19; text-align: center; border-top: 1px solid rgba(255,255,255,0.04);">
+        <p style="font-size: 12px; color: #475569; margin: 0 0 8px; line-height: 1.5;">
+          If you did not make this submission, you can safely ignore this email.
+        </p>
+        <p style="font-size: 11px; color: #334155; margin: 0; line-height: 1.5;">
+          © ${new Date().getFullYear()} FormForge · Developed by <a href="https://github.com/SudhirDevOps1" target="_blank" style="color: #475569; text-decoration: underline;">Sudhir Singh</a>
+        </p>
+      </td>
+    </tr>
+  </table>
 </div>
   `;
 
