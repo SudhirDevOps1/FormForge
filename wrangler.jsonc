@@ -23,10 +23,11 @@
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "FILES_BUCKET",
-      "bucket_name": "formforge-uploads"
-    }
-  ]
+  // Optional: Uncomment to enable Cloudflare R2 file uploads
+  // "r2_buckets": [
+  //   {
+  //     "binding": "FILES_BUCKET",
+  //     "bucket_name": "formforge-uploads"
+  //   }
+  // ]
 }
