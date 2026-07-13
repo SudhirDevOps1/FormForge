@@ -460,22 +460,38 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
     setSnippetFields(snippetFields.filter(f => f !== field));
   };
 
+  const hasAttachment = snippetFields.some(f => ["attachment", "file", "image", "upload"].includes(f));
+  const enctype = hasAttachment ? ' enctype="multipart/form-data"' : "";
+
   const htmlSnippet = formTemplate === "plain"
-    ? `<form method="POST" action="${endpoint}">
-${snippetFields.map(f => f === "message" || f === "comments" || f === "description" ? `  <textarea name="${f}" required placeholder="Your ${f}"></textarea>` : `  <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Your ${f}" />`).join("\n")}
+    ? `<form method="POST" action="${endpoint}"${enctype}>
+${snippetFields.map(f => {
+  if (["message", "comments", "description"].includes(f)) {
+    return `  <textarea name="${f}" required placeholder="Your ${f}"></textarea>`;
+  }
+  if (["attachment", "file", "image", "upload"].includes(f)) {
+    return `  <input name="${f}" type="file" required />`;
+  }
+  return `  <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Your ${f}" />`;
+}).join("\n")}
   <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
   <button type="submit">Send</button>
 </form>`
     : formTemplate === "contact"
     ? `<!-- FormForge Contact Form (Tailwind CSS) -->
-<form method="POST" action="${endpoint}" class="max-w-md mx-auto p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 shadow-xl text-left">
+<form method="POST" action="${endpoint}"${enctype} class="max-w-md mx-auto p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 shadow-xl text-left">
 ${snippetFields.map(f => {
-  const isTextarea = f === "message" || f === "comments" || f === "description";
   const label = f.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  if (isTextarea) {
+  if (["message", "comments", "description"].includes(f)) {
     return `  <div>
     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
     <textarea name="${f}" required placeholder="Type your ${f} here..." rows="4" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"></textarea>
+  </div>`;
+  }
+  if (["attachment", "file", "image", "upload"].includes(f)) {
+    return `  <div>
+    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
+    <input name="${f}" type="file" required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/10 file:text-cyan-300 hover:file:bg-cyan-500/20 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition" />
   </div>`;
   }
   return `  <div>
@@ -571,8 +587,11 @@ export default function ContactForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
 ${snippetFields.map(f => {
-  if (f === "message" || f === "comments" || f === "description") {
+  if (["message", "comments", "description"].includes(f)) {
     return `      <textarea name="${f}" required placeholder="${f}" className="border p-2 rounded w-full bg-slate-900 text-white" />`;
+  }
+  if (["attachment", "file", "image", "upload"].includes(f)) {
+    return `      <input type="file" name="${f}" required className="border p-2 rounded w-full bg-slate-900 text-white" />`;
   }
   return `      <input type="${f === "email" ? "email" : "text"}" name="${f}" required placeholder="${f}" className="border p-2 rounded w-full bg-slate-900 text-white" />`;
 }).join("\n")}
