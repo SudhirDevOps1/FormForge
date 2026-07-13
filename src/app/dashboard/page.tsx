@@ -663,36 +663,89 @@ print(response.json())`;
         </div>
         
         {/* Dynamic Fields Embed Generator Selector */}
-        <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-4 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            <span>Form Fields Generator (Add/Remove Fields)</span>
-          </p>
-          <div className="flex flex-wrap gap-2 items-center">
-            {snippetFields.map(f => (
-              <span key={f} className="inline-flex items-center gap-1 rounded-lg bg-slate-950 border border-white/10 px-2 py-0.5 text-xs text-slate-200">
-                <span className="font-mono">{f}</span>
-                <button
-                  type="button"
-                  onClick={() => removeSnippetField(f)}
-                  className="text-slate-500 hover:text-rose-400 font-bold ml-1 text-sm leading-none min-h-[20px] min-w-[20px] flex items-center justify-center"
-                  title={`Remove ${f}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
+        <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <span>Form Fields Generator (Customize HTML / React fields)</span>
+            </p>
+            <span className="text-[10px] text-slate-500 font-mono">Active fields dynamically update templates & previews</span>
           </div>
+
+          {/* Quick-add presets */}
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">⚡ Quick-Add Presets:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { name: "name", label: "👤 Name" },
+                { name: "email", label: "📧 Email" },
+                { name: "phone", label: "📞 Phone" },
+                { name: "message", label: "💬 Message" },
+                { name: "subject", label: "📌 Subject" },
+                { name: "company", label: "🏢 Company" },
+                { name: "website", label: "🌐 Website" },
+                { name: "attachment", label: "📎 Attachment/File" },
+                { name: "rating", label: "⭐ Rating" },
+                { name: "country", label: "🌍 Country" },
+                { name: "terms", label: "☑️ Terms Checkbox" },
+              ].map((preset) => {
+                const isActive = snippetFields.includes(preset.name);
+                return (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    disabled={isActive}
+                    onClick={() => {
+                      if (!snippetFields.includes(preset.name)) {
+                        setSnippetFields([...snippetFields, preset.name]);
+                      }
+                    }}
+                    className={`rounded-lg px-2.5 py-1 text-xs transition border ${
+                      isActive
+                        ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed"
+                        : "bg-slate-950 hover:bg-slate-900 border-white/10 text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">📋 Active Fields:</span>
+            <div className="flex flex-wrap gap-2 items-center min-h-[36px] p-2 bg-black/20 rounded-xl border border-white/5">
+              {snippetFields.length === 0 ? (
+                <span className="text-xs text-slate-500 italic pl-1">No fields. Click presets or add custom fields below.</span>
+              ) : (
+                snippetFields.map(f => (
+                  <span key={f} className="inline-flex items-center gap-1 rounded-lg bg-slate-950 border border-white/10 pl-2.5 pr-1 py-0.5 text-xs text-slate-200">
+                    <span className="font-mono">{f}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeSnippetField(f)}
+                      className="text-slate-500 hover:text-rose-400 font-bold ml-1 text-sm leading-none h-5 w-5 flex items-center justify-center rounded-md hover:bg-white/5 transition"
+                      title={`Remove ${f}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+
           <form onSubmit={addSnippetField} className="flex gap-2 max-w-sm">
             <input
               required
-              placeholder="Add custom field (e.g. phone, name)"
+              placeholder="Or add custom (e.g. age, address)"
               value={newFieldName}
               onChange={(e) => setNewFieldName(e.target.value)}
               className="ff-input text-xs py-1.5 px-3 rounded-lg"
             />
-            <button type="submit" className="rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-1.5 text-xs transition">
-              + Add Field
+            <button type="submit" className="rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-1.5 text-xs transition shrink-0">
+              + Add Custom
             </button>
           </form>
         </div>
