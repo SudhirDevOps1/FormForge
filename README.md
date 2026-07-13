@@ -1,19 +1,21 @@
-<h1 align="center">FormForge</h1>
+<h1 align="center">FormForge v1.2.0</h1>
 
 <div align="center">
   A forever-free, open-source, privacy-first form backend for static sites you can self-host on Cloudflare Workers + D1.
   <br />
-  <br />
+  <strong>Developed by <a href="https://github.com/SudhirDevOps1">Sudhir Singh</a></strong>
+  <br /><br />
   🔓 <em>No paid database required.</em> 📀 <em>Own your data.</em> ⚡️ <em>Deploy fast.</em>
-  <br />
-  <br />
+  <br /><br />
+  <img src="https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge" alt="Version 1.2.0" />
   <img src="https://img.shields.io/badge/Status-Fully%20Verified%20%26%20Working-success?style=for-the-badge&logo=statuspage&logoColor=white&color=059669" alt="Status: Fully Verified & Working" />
   <img src="https://img.shields.io/badge/Platform-Cloudflare%20Workers-orange?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Platform: Cloudflare Workers" />
+  <img src="https://img.shields.io/badge/Security%20Score-95%2F100-brightgreen?style=for-the-badge" alt="Security Score: 95/100" />
 </div>
 
 <br />
 
-> 🚀 **Verified Status:** FormForge is fully audited, tested, and ready for production. All core capabilities—including Double Opt-in verification, Cloudflare Turnstile, custom blocklists, multi-format exports (CSV, JSON, TXT, PDF), local session cookies, and DNS MX checks—are verified as 100% functional on the Cloudflare Edge.
+> 🚀 **Verified Status:** FormForge v1.2.0 is fully audited, tested, and production-ready. Features include 4 direct email APIs (Resend, Brevo, SendGrid, Mailgun), 10+ SMTP relays, R2/S3 file uploads (Backblaze, Wasabi, Storj, AWS, MinIO), Turnstile CAPTCHA, PoW spam protection, OpenAPI docs, and owner-only registration mode.
 
 <div align="center">
   <img src="public/logo.svg" width="128" height="128" alt="FormForge logo" />
@@ -36,6 +38,8 @@
 | [🛠️ Production Troubleshooting](./TROUBLESHOOTING.md) | Setup instructions, deployment loops, and error resolutions. |
 | [🔒 System Limitations](./limitation.md) | Architectural constraints, IP rate limiting, and free-tier limits. |
 | [🔧 Troubleshooting Notes](./troubleshooting1.md) | Additional debugging documentation and configuration details. |
+| [📋 Feature Status & Security Audit](./fixed.md) | Full feature checklist, security score, and next-version roadmap. |
+| [🔐 Privacy Policy](./privacypolicy.html) | Data handling, encryption, and privacy commitments. |
 
 </div>
 
@@ -89,19 +93,24 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 - Create unlimited forms and private endpoints.
 - D1-backed users, sessions, forms, fields, submissions, API keys, notifications, rate limits, and audit logs.
 - **Multi-Format Exports** — Export submissions in CSV, JSON, and clean human-readable TXT Report layouts.
-- **Smart DNS MX Lookup Validation** — Checks email domain mail servers via DNS over HTTPS to automatically reject invalid email domains (e.g. user@gmailcom or fake@notexist.xyz).
+- **Smart DNS MX Lookup Validation** — Checks email domain mail servers via DNS over HTTPS to automatically reject invalid email domains.
 - **Honeypot spam trap** & configurable custom spam word blocklists.
 - Optional Cloudflare Turnstile verification integration.
 - Submitter autoresponder email dispatch.
 - Origin allowlist for browser submissions.
 - Optional proof-of-work validation.
-- **Rich Webhooks Integration** — Auto-detects and formats notifications beautifully for **10+ webhook channels** (including Slack blocks, Discord embeds, Stoat.chat/Revolt, Microsoft Teams cards, Mattermost markdown, and generic webhook channels).
-- **Flexible Email Alerts** — Support global **Resend API** alerts, or use your own **Custom SMTP Server** (supporting 10+ email providers: Gmail, Yahoo, Outlook, Resend, Mailjet, Brevo, SMTP2GO, SendGrid, Amazon SES, Mailgun, Postmark, etc.).
-- **🔒 AES-GCM Encryption** — SMTP passwords are encrypted in D1 database using Web Crypto API and masked in API requests.
-- **⚡ Non-Blocking Execution** — Email alerts and Webhooks are delivered in the background of submissions using Next.js `waitUntil` background context.
+- **Rich Webhooks Integration** — Auto-detects and formats notifications for **10+ webhook channels** (Slack, Discord, MS Teams, Mattermost, etc.).
+- **4 Direct Email APIs** — Resend, Brevo (Sendinblue), SendGrid, and Mailgun with zero SMTP configuration.
+- **10+ SMTP Relay Support** — Gmail, Yahoo, Outlook, MailerLite, Mailchimp, Mailjet, Mailtrap, SMTP2GO, Loops, Notifuse, Postmark.
+- **📁 File Uploads** — Upload files to Cloudflare R2 or any S3-compatible provider (Backblaze B2, Wasabi, Storj, AWS S3, MinIO, IDrive e2, Tencent COS, Garage, RustFS).
+- **🔐 Owner-Only Mode** — Set `ALLOW_REGISTRATION=false` to block all new signups.
+- **📄 OpenAPI v3 Docs** — Full API specification at `/api/openapi.json`.
+- **🎨 4 Copy-Paste Form Templates** — Plain HTML, Contact Form, Newsletter Signup, and Glassmorphism Feedback Form with star ratings.
+- **🔒 AES-GCM Encryption** — SMTP passwords are encrypted in D1 database using Web Crypto API.
+- **⚡ Non-Blocking Execution** — Email alerts and Webhooks delivered in background using `waitUntil`.
 - Secure cookies, HMAC-hashed sessions/API keys, API Key expiration, and PBKDF2 password hashes.
 - **Self-healing schema** — tables are created/altered automatically on request (no manual migrations needed).
-- **Real dashboard** at `/dashboard`: register/login, manage forms, edit form names and URL slugs, hard delete forms, view interactive timeline charts, copy HTML snippets, export submissions, create/expire API keys, and configure spam rules.
+- **Real dashboard** at `/dashboard`: register/login, manage forms, analytics, styled code snippets, exports, API keys.
 - Responsive product UI, branded favicon/logo, and detailed `/docs`.
 
 ---
@@ -198,20 +207,46 @@ npm run deploy
 
 ## Environment Variables
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `AUTH_SECRET` | ✅ Yes | Long random secret for HMAC session/API-key hashing. Generate with `openssl rand -hex 32`. |
-| `RESEND_API_KEY` | ❌ Optional | Enables email notifications only when configured. Leave blank to disable. |
-| `RESEND_FROM` | ❌ Optional | Sender address for email notifications, for example `FormForge <forms@example.com>`. |
-| `SMTP_ENABLED` | ❌ Optional | Set to `true` to enable global SMTP server notifications globally. |
-| `SMTP_HOST` | ❌ Optional | Global SMTP host name, e.g. `smtp.gmail.com` or `smtp.resend.com`. |
-| `SMTP_PORT` | ❌ Optional | Global SMTP port number (e.g. `587` or `465`). |
-| `SMTP_USER` | ❌ Optional | Global SMTP username. |
-| `SMTP_PASS` | ❌ Optional | Global SMTP password (recommended as wrangler secret for maximum privacy). |
-| `SMTP_FROM` | ❌ Optional | Global sender email address. |
-| `DB` | ✅ Yes | Cloudflare D1 binding name. Configure as a D1 binding, not as a string secret. |
+### Required
+| Variable | Description |
+| --- | --- |
+| `AUTH_SECRET` | Long random secret for HMAC session/API-key hashing. Generate with `openssl rand -hex 32`. |
+| `DB` | Cloudflare D1 binding name. Configure as a D1 binding, not as a string secret. |
 
-Do **not** set `DATABASE_URL`. FormForge uses Cloudflare D1 by default.
+### Email Providers (Direct API — Pick One)
+| Variable | Provider | Free Tier |
+| --- | --- | --- |
+| `RESEND_API_KEY` + `RESEND_FROM` | Resend | 100 emails/day |
+| `BREVO_API_KEY` + `BREVO_FROM` | Brevo (Sendinblue) | 300 emails/day |
+| `SENDGRID_API_KEY` + `SENDGRID_FROM` | SendGrid | 100 emails/day |
+| `MAILGUN_API_KEY` + `MAILGUN_DOMAIN` + `MAILGUN_FROM` | Mailgun | 5,000/month |
+
+### SMTP Relay (Universal — For MailerLite, Mailchimp, Mailjet, Mailtrap, Loops, Notifuse, etc.)
+| Variable | Description |
+| --- | --- |
+| `SMTP_ENABLED` | Set to `true` to enable global SMTP. |
+| `SMTP_HOST` | SMTP host (e.g. `smtp.gmail.com`). |
+| `SMTP_PORT` | SMTP port (e.g. `587`). |
+| `SMTP_USER` | SMTP username. |
+| `SMTP_PASS` | SMTP password (use wrangler secret). |
+| `SMTP_FROM` | Sender email address. |
+
+### File Storage (S3-Compatible — Backblaze B2, Wasabi, Storj, AWS S3, MinIO, etc.)
+| Variable | Description |
+| --- | --- |
+| `S3_ENDPOINT` | S3-compatible endpoint URL (e.g. `https://s3.us-west-002.backblazeb2.com`). |
+| `S3_ACCESS_KEY_ID` | S3 access key (use wrangler secret). |
+| `S3_SECRET_ACCESS_KEY` | S3 secret key (use wrangler secret). |
+| `S3_BUCKET_NAME` | Bucket name for file uploads. |
+| `S3_REGION` | Region (default: `us-east-1`). |
+
+### Security & Registration
+| Variable | Description |
+| --- | --- |
+| `ALLOW_REGISTRATION` | Set to `false` to disable new user registration (owner-only mode). |
+
+> **Note:** Cloudflare R2 can also be used by binding an R2 bucket as `FILES_BUCKET` in `wrangler.jsonc`.
+> Do **not** set `DATABASE_URL`. FormForge uses Cloudflare D1 by default.
 
 ---
 
@@ -322,4 +357,16 @@ Confirm the binding name is exactly `DB` in `wrangler.jsonc` and in the Cloudfla
 
 ## License
 
-MIT
+MIT — © 2024-2026 [Sudhir Singh](https://github.com/SudhirDevOps1). All rights reserved.
+
+---
+
+<div align="center">
+  <strong>FormForge</strong> — Privacy-first serverless form backend<br />
+  Developed with ❤️ by <a href="https://github.com/SudhirDevOps1">Sudhir Singh</a><br /><br />
+  <a href="https://github.com/SudhirDevOps1/FormForge">⭐ Star on GitHub</a> · <a href="https://sudhirdevops1.github.io/FormForge/">📖 Documentation</a> · <a href="https://github.com/SudhirDevOps1/FormForge/issues">🐛 Report Bug</a>
+</div>
+
+> **© 2024-2026 Sudhir Singh. All rights reserved.**  
+> You are free to self-host, modify, and redistribute FormForge under the MIT license.  
+> If you host or redistribute this application, please credit **Sudhir Singh** and link to the original repository: [github.com/SudhirDevOps1/FormForge](https://github.com/SudhirDevOps1/FormForge).

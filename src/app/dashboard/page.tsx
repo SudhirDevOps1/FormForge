@@ -443,7 +443,7 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   }, [loadSubs]);
 
   const [snippetTab, setSnippetTab] = useState<"html" | "js" | "react" | "python">("html");
-  const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "newsletter">("plain");
+  const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "newsletter" | "feedback">("plain");
   const [snippetFields, setSnippetFields] = useState<string[]>(["email", "message"]);
   const [newFieldName, setNewFieldName] = useState("");
 
@@ -489,7 +489,8 @@ ${snippetFields.map(f => {
     Send Message
   </button>
 </form>`
-    : `<!-- FormForge Newsletter Signup (Tailwind CSS) -->
+    : formTemplate === "newsletter"
+    ? `<!-- FormForge Newsletter Signup (Tailwind CSS) -->
 <form method="POST" action="${endpoint}" class="max-w-lg mx-auto p-8 bg-slate-900 border border-slate-800 rounded-3xl text-center space-y-6 shadow-2xl text-left">
   <div class="space-y-2">
     <h3 class="text-xl font-bold text-white">Subscribe to our newsletter</h3>
@@ -503,6 +504,44 @@ ${snippetFields.map(f => {
       Subscribe
     </button>
   </div>
+</form>`
+    : `<!-- FormForge Customer Feedback Form (Glassmorphism CSS) -->
+<style>
+  .ff-feedback { max-width: 480px; margin: 2rem auto; padding: 2rem; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); border-radius: 1.5rem; font-family: 'Inter', system-ui, sans-serif; color: #f1f5f9; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .ff-feedback h3 { font-size: 1.25rem; font-weight: 700; margin: 0 0 0.25rem; }
+  .ff-feedback p { font-size: 0.875rem; color: #94a3b8; margin: 0 0 1.5rem; }
+  .ff-feedback label { display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.375rem; }
+  .ff-feedback input, .ff-feedback textarea, .ff-feedback select { width: 100%; padding: 0.625rem 0.875rem; background: rgba(2, 6, 23, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; color: #fff; font-size: 0.875rem; outline: none; transition: border-color 0.2s; margin-bottom: 1rem; box-sizing: border-box; }
+  .ff-feedback input:focus, .ff-feedback textarea:focus, .ff-feedback select:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15); }
+  .ff-feedback .ff-stars { display: flex; gap: 0.375rem; margin-bottom: 1rem; }
+  .ff-feedback .ff-stars label { cursor: pointer; font-size: 1.5rem; color: #334155; transition: color 0.15s; text-transform: none; letter-spacing: normal; margin: 0; }
+  .ff-feedback .ff-stars input { display: none; }
+  .ff-feedback .ff-stars label:hover, .ff-feedback .ff-stars label:hover ~ label { color: #fbbf24; }
+  .ff-feedback .ff-stars input:checked ~ label { color: #334155; }
+  .ff-feedback .ff-stars :has(input:checked) label, .ff-feedback .ff-stars label:has(~ input:checked) { color: #fbbf24; }
+  .ff-feedback button[type="submit"] { width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #38bdf8, #6366f1); color: #fff; font-weight: 600; font-size: 0.875rem; border: none; border-radius: 0.75rem; cursor: pointer; transition: opacity 0.2s; }
+  .ff-feedback button[type="submit"]:hover { opacity: 0.9; }
+</style>
+<form method="POST" action="${endpoint}" class="ff-feedback">
+  <h3>Share Your Feedback</h3>
+  <p>We value your opinion. Help us improve!</p>
+  <label>Your Name</label>
+  <input name="name" type="text" required placeholder="Enter your name" />
+  <label>Email</label>
+  <input name="email" type="email" required placeholder="you@example.com" />
+  <label>Rating</label>
+  <div class="ff-stars" style="direction: rtl; justify-content: flex-end;">
+    <label>⭐<input type="radio" name="rating" value="5" /></label>
+    <label>⭐<input type="radio" name="rating" value="4" /></label>
+    <label>⭐<input type="radio" name="rating" value="3" /></label>
+    <label>⭐<input type="radio" name="rating" value="2" /></label>
+    <label>⭐<input type="radio" name="rating" value="1" /></label>
+  </div>
+  <label>Your Feedback</label>
+  <textarea name="message" rows="4" required placeholder="Tell us what you think..."></textarea>
+  <!-- Honeypot Bot Trap -->
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
+  <button type="submit">Submit Feedback</button>
 </form>`;
 
   const jsSnippet = `fetch("${endpoint}", {
@@ -669,14 +708,14 @@ print(response.json())`;
           </div>
           {snippetTab === "html" && (
             <div className="flex gap-1 bg-black/25 p-1 rounded-xl w-fit border border-white/5">
-              {(["plain", "contact", "newsletter"] as const).map((tpl) => (
+              {(["plain", "contact", "newsletter", "feedback"] as const).map((tpl) => (
                 <button
                   key={tpl}
                   type="button"
                   onClick={() => setFormTemplate(tpl)}
                   className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${formTemplate === tpl ? "bg-cyan-500 text-white" : "text-slate-400 hover:text-slate-200"}`}
                 >
-                  {tpl === "plain" ? "📄 Plain HTML" : tpl === "contact" ? "👤 Contact Form" : "📧 Newsletter"}
+                  {tpl === "plain" ? "📄 Plain HTML" : tpl === "contact" ? "👤 Contact Form" : tpl === "newsletter" ? "📧 Newsletter" : "⭐ Feedback"}
                 </button>
               ))}
             </div>

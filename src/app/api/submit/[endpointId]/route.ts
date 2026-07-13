@@ -23,7 +23,7 @@ async function getForm(endpointId: string): Promise<Form | null> {
   return rows[0] ?? null;
 }
 
-async function parsePayload(request: Request): Promise<ParsedSubmission> {
+async function parsePayload(request: Request, submissionId: string): Promise<ParsedSubmission> {
   const contentType = request.headers.get("content-type") ?? "";
 
   if (contentType.includes("application/json")) {
@@ -45,7 +45,30 @@ async function parsePayload(request: Request): Promise<ParsedSubmission> {
 
   for (const [key, value] of formData.entries()) {
     if (value instanceof File) {
-      payload[key] = { name: value.name, size: value.size, type: value.type };
+      const fileMeta = {
+        name: value.name,
+        size: value.size,
+        type: value.type,
+        url: undefined as string | undefined,
+      };
+
+      if (value.size > 0) {
+        try {
+          const { uploadFile, getStorageConfig } = await import("@/lib/storage");
+          const storageConfig = getStorageConfig();
+          if (storageConfig.type !== "none") {
+            const fileBuffer = await value.arrayBuffer();
+            const storageKey = `uploads/${submissionId}/${value.name}`;
+            const uploaded = await uploadFile(storageKey, fileBuffer, value.type);
+            if (uploaded) {
+              fileMeta.url = `/api/submissions/${submissionId}/files/${encodeURIComponent(value.name)}`;
+            }
+          }
+        } catch (err) {
+          console.error(`File upload failed for ${value.name}:`, err);
+        }
+      }
+      payload[key] = fileMeta;
     } else if (payload[key] !== undefined) {
       payload[key] = Array.isArray(payload[key]) ? [...payload[key], value] : [payload[key], value];
     } else {
@@ -193,9 +216,10 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
+  const submissionId = randomId("sub");
   let payload: ParsedSubmission;
   try {
-    payload = await parsePayload(request);
+    payload = await parsePayload(request, submissionId);
   } catch (error) {
     return new Response(JSON.stringify({ ok: false, code: "BAD_REQUEST", message: "Invalid payload formatting." }), {
       status: 400,
@@ -273,7 +297,7 @@ export async function POST(request: Request, context: RouteContext) {
   const status = score >= 80 ? "spam" : isPendingVerification ? "pending" : "accepted";
   
   const submission: NewSubmission = {
-    id: randomId("sub"),
+    id: submissionId,
     formId: form.id,
     payload: serialized,
     email: email || undefined,

@@ -103,3 +103,26 @@ The following custom features have been added to the production codebase:
 ### ✏️ Editable Form Slugs & Hard Deletion
 * **Dashboard Control:** Form endpoints can be dynamically renamed with custom URL slugs. Forms can be hard-deleted directly to immediately wipe database records.
 
+---
+
+## v1.2.0 New Limitations
+
+### 📁 File Upload Size Limits
+* **Cloudflare Workers:** Maximum request body size is **100 MB** (Free plan). Files larger than this will be rejected.
+* **R2/S3 Storage:** Limited by the provider's free tier (e.g. R2: 10 GB, Backblaze B2: 10 GB, Storj: 25 GB).
+
+### 📧 Email Provider Fallback Chain
+* **Priority Order:** Per-form SMTP → Resend API → Brevo API → SendGrid API → Mailgun API → Global SMTP env vars.
+* **Limitation:** Only the first available provider in the chain is used. There is no retry across providers if one fails.
+
+### 🔐 Owner-Only Mode
+* **Constraint:** When `ALLOW_REGISTRATION=false`, the registration API is fully blocked. There is no invitation or invite-code system yet.
+* **Next Version:** TOTP-based 2FA and invite codes are planned for v2.0.
+
+### 📄 OpenAPI Docs
+* **Limitation:** The OpenAPI spec at `/api/openapi.json` is statically defined. It does not auto-discover custom form fields or dynamic endpoints.
+
+---
+
+> **FormForge** — Developed by [Sudhir Singh](https://github.com/SudhirDevOps1)  
+> © 2024-2026 Sudhir Singh. All rights reserved.

@@ -12,7 +12,8 @@
     "binding": "ASSETS"
   },
   "vars": {
-    "APP_NAME": "FormForge"
+    "APP_NAME": "FormForge",
+    "ALLOW_REGISTRATION": "true"
   },
   "d1_databases": [
     {
@@ -20,6 +21,12 @@
       "database_name": "formforge-db",
       "database_id": "",
       "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FILES_BUCKET",
+      "bucket_name": "formforge-uploads"
     }
   ]
 }

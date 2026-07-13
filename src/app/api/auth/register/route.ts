@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { databaseUnavailableResponse, getDb, isDbReady } from "@/db";
+import { databaseUnavailableResponse, getDb, isDbReady, getRuntimeEnv } from "@/db";
 import { ensureSchema } from "@/db/ensure";
 import { users } from "@/db/schema";
 import { AUTH_SECRET_HELP, createSession, isAuthConfigured } from "@/lib/auth";
@@ -18,6 +18,11 @@ export async function POST(request: Request) {
 
   if (!isAuthConfigured()) {
     return jsonError("AUTH_SECRET_MISSING", AUTH_SECRET_HELP, 503);
+  }
+
+  const env = getRuntimeEnv();
+  if (env && (env.ALLOW_REGISTRATION === "false" || env.ALLOW_REGISTRATION === "0")) {
+    return jsonError("REGISTRATION_DISABLED", "Registration is disabled on this instance.", 403);
   }
 
   // Get client IP for rate limiting

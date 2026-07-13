@@ -259,3 +259,29 @@ When cloning this repository to a new machine or account, follow this checklist:
      ```
 3. **Database Schema Sync**:
    * When deploying for the first time, FormForge auto-creates its schema on the first API request. Simply visit `https://your-worker.workers.dev/dashboard` to register your admin user and initialize the database.
+
+---
+
+## v1.2.0 New Features Troubleshooting
+
+### Registration blocked / "Registration is disabled on this instance"
+* **Cause:** `ALLOW_REGISTRATION` is set to `false` in Wrangler vars.
+* **Fix:** Set `ALLOW_REGISTRATION=true` in Cloudflare dashboard → Workers → Settings → Environment Variables, or update `wrangler.jsonc` and redeploy.
+
+### File uploads not working
+* **Cause:** Neither R2 bucket nor S3 env vars are configured.
+* **Fix (R2):** Uncomment the `r2_buckets` section in `wrangler.jsonc` and create the bucket: `npx wrangler r2 bucket create formforge-uploads`.
+* **Fix (S3):** Set `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME` in Cloudflare secrets.
+
+### Emails not sending (Brevo/SendGrid/Mailgun)
+* **Cause:** API key or sender address not configured.
+* **Fix:** Set the relevant env vars (e.g. `BREVO_API_KEY` + `BREVO_FROM`) via `npx wrangler secret put BREVO_API_KEY`.
+
+### OpenAPI spec endpoint returns 404
+* **Cause:** Worker not deployed after adding the route.
+* **Fix:** Redeploy with `npm run deploy`.
+
+---
+
+> **FormForge** — Developed by [Sudhir Singh](https://github.com/SudhirDevOps1)  
+> © 2024-2026 Sudhir Singh. All rights reserved.

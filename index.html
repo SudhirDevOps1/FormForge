@@ -3,7 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FormForge — Open-Source Privacy-First Form Backend</title>
+  
+  <!-- SEO Optimization for Search & AI Search Engines (ChatGPT, Gemini, Perplexity) -->
+  <title>FormForge — Open-Source Privacy-First Form Backend by Sudhir Singh</title>
+  <meta name="description" content="FormForge is a high-performance, open-source, serverless form backend developed by Sudhir Singh. Designed for Cloudflare Workers and D1 SQLite database, featuring AES-GCM encryption, Discord/Slack webhooks, Turnstile CAPTCHA, and 10+ SMTP support.">
+  <meta name="keywords" content="FormForge, Sudhir Singh, form backend, self-hosted form backend, Cloudflare Workers, Cloudflare D1, open source form, secure SMTP, serverless form, email verification, spam honeypot, alternative to formspree, alternative to web3forms">
+  <meta name="author" content="Sudhir Singh">
+  <meta name="robots" content="index, follow">
+  
+  <!-- OpenGraph Metadata -->
+  <meta property="og:title" content="FormForge — Serverless Form Backend by Sudhir Singh">
+  <meta property="og:description" content="Deploy a secure, privacy-first form backend on Cloudflare in seconds. Features AES-GCM encrypted SMTP credentials, MX lookup spamblocks, 10+ email providers, R2/S3 file uploads, and OpenAPI docs.">
+  <meta property="og:url" content="https://sudhirdevops1.github.io/FormForge/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="FormForge">
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="FormForge — Open-Source Form Backend by Sudhir Singh">
+  <meta name="twitter:description" content="Self-hosted, privacy-first form backend on Cloudflare Workers + D1. 4 direct email APIs, 10+ SMTP relays, R2/S3 file uploads, Turnstile CAPTCHA, and OpenAPI docs.">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://sudhirdevops1.github.io/FormForge/">
+  
+  <!-- AI Search Engine Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "FormForge",
+    "description": "FormForge is a privacy-first serverless form backend for static websites, developed by Sudhir Singh. Supports 4 direct email APIs (Resend, Brevo, SendGrid, Mailgun), 10+ SMTP relays, Cloudflare R2 and S3-compatible file uploads, Turnstile CAPTCHA, PoW spam protection, and OpenAPI documentation.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Cloudflare Workers",
+    "license": "https://opensource.org/licenses/MIT",
+    "url": "https://sudhirdevops1.github.io/FormForge/",
+    "downloadUrl": "https://github.com/SudhirDevOps1/FormForge",
+    "dateModified": "2026-07-13",
+    "softwareVersion": "1.2.0",
+    "featureList": "Form submissions, Email verification, Discord webhooks, Slack webhooks, CSV export, JSON export, Turnstile CAPTCHA, Proof of Work, Honeypot trap, SMTP encryption, R2 file uploads, S3 file uploads, OpenAPI docs, Owner-only mode",
+    "author": {
+      "@type": "Person",
+      "name": "Sudhir Singh",
+      "url": "https://github.com/SudhirDevOps1"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0.00",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -1577,6 +1627,18 @@
             </div>
             <p style="color: var(--green); font-size: 13px; font-weight: 800; margin-top: 18px;">Freshly maintained · Active development signal</p>
           </div>
+
+          <div class="repo-freshness-card" style="border-color: rgba(56, 189, 248, 0.2); background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.05), transparent 80%);">
+            <div>
+              <div class="repo-stat-label">Live System Stats</div>
+              <div class="big-number" style="color: var(--accent);"><span id="live-total-submissions">2418</span></div>
+              <p style="color: var(--text-secondary); font-size: 14px; margin-top: 10px;">Total processed submissions</p>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 14px; display: flex; gap: 12px; border-top: 1px solid var(--border); padding-top: 8px;">
+              <span>Forms: <strong id="live-total-forms" style="color: white;">12</strong></span>
+              <span>Active Users: <strong id="live-total-users" style="color: white;">3</strong></span>
+            </div>
+          </div>
         </div>
 
         <div class="repo-stat-grid">
@@ -2762,6 +2824,25 @@ npx wrangler secret put AUTH_SECRET
         }
       });
     });
+
+    // 6. Fetch live metrics from public D1 API
+    async function fetchLiveStats() {
+      try {
+        const res = await fetch('https://apnaform.sudhirdevops1.workers.dev/api/public-stats');
+        const data = await res.json();
+        if (data.ok) {
+          const subEl = document.getElementById('live-total-submissions');
+          const formEl = document.getElementById('live-total-forms');
+          const userEl = document.getElementById('live-total-users');
+          if (subEl) subEl.textContent = data.submissions;
+          if (formEl) formEl.textContent = data.forms;
+          if (userEl) userEl.textContent = data.users;
+        }
+      } catch (err) {
+        console.error('Failed to fetch live public statistics:', err);
+      }
+    }
+    fetchLiveStats();
   </script>
 
 </body>

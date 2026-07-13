@@ -186,6 +186,80 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       } catch (error) {
         results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
       }
+    } else if (env.BREVO_API_KEY && env.BREVO_FROM) {
+      try {
+        const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: {
+            "api-key": env.BREVO_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sender: { email: env.BREVO_FROM, name: "FormForge Alert" },
+            to: [{ email: form.emailTo }],
+            subject,
+            textContent: text,
+            htmlContent: html,
+          }),
+        });
+        results.push(
+          response.ok
+            ? { channel: "email", status: "sent" }
+            : { channel: "email", status: "failed", error: await response.text() }
+        );
+      } catch (error) {
+        results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
+      }
+    } else if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
+      try {
+        const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: form.emailTo }] }],
+            from: { email: env.SENDGRID_FROM, name: "FormForge Alert" },
+            subject,
+            content: [
+              { type: "text/plain", value: text },
+              { type: "text/html", value: html }
+            ],
+          }),
+        });
+        results.push(
+          response.status === 202
+            ? { channel: "email", status: "sent" }
+            : { channel: "email", status: "failed", error: await response.text() }
+        );
+      } catch (error) {
+        results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
+      }
+    } else if (env.MAILGUN_API_KEY && env.MAILGUN_DOMAIN && env.MAILGUN_FROM) {
+      try {
+        const formData = new FormData();
+        formData.append("from", env.MAILGUN_FROM);
+        formData.append("to", form.emailTo ?? "");
+        formData.append("subject", subject);
+        formData.append("text", text);
+        formData.append("html", html);
+
+        const response = await fetch(`https://api.mailgun.net/v3/${env.MAILGUN_DOMAIN}/messages`, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${btoa(`api:${env.MAILGUN_API_KEY}`)}`,
+          },
+          body: formData,
+        });
+        results.push(
+          response.ok
+            ? { channel: "email", status: "sent" }
+            : { channel: "email", status: "failed", error: await response.text() }
+        );
+      } catch (error) {
+        results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
+      }
     } else {
       results.push({ channel: "email", status: "skipped" });
     }
@@ -240,6 +314,60 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
         });
       } catch (error) {
         console.error("Autoresponder email delivery failed:", error);
+      }
+    } else if (env.BREVO_API_KEY && env.BREVO_FROM) {
+      try {
+        await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: {
+            "api-key": env.BREVO_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sender: { email: env.BREVO_FROM, name: "FormForge" },
+            to: [{ email: submission.email }],
+            subject: form.autoresponderSubject,
+            textContent: bodyText,
+          }),
+        });
+      } catch (error) {
+        console.error("Autoresponder Brevo email delivery failed:", error);
+      }
+    } else if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
+      try {
+        await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: submission.email }] }],
+            from: { email: env.SENDGRID_FROM, name: "FormForge" },
+            subject: form.autoresponderSubject,
+            content: [{ type: "text/plain", value: bodyText }],
+          }),
+        });
+      } catch (error) {
+        console.error("Autoresponder SendGrid email delivery failed:", error);
+      }
+    } else if (env.MAILGUN_API_KEY && env.MAILGUN_DOMAIN && env.MAILGUN_FROM) {
+      try {
+        const formData = new FormData();
+        formData.append("from", env.MAILGUN_FROM);
+        formData.append("to", submission.email);
+        formData.append("subject", form.autoresponderSubject);
+        formData.append("text", bodyText);
+
+        await fetch(`https://api.mailgun.net/v3/${env.MAILGUN_DOMAIN}/messages`, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${btoa(`api:${env.MAILGUN_API_KEY}`)}`,
+          },
+          body: formData,
+        });
+      } catch (error) {
+        console.error("Autoresponder Mailgun email delivery failed:", error);
       }
     }
   }
@@ -432,28 +560,99 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
     }
   }
 
-  if (!env.RESEND_API_KEY || !env.RESEND_FROM) {
-    return false;
+  if (env.RESEND_API_KEY && env.RESEND_FROM) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM,
+          to: submission.email,
+          subject,
+          text,
+          html,
+        }),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error("Failed to send Resend email verification:", error);
+      return false;
+    }
   }
 
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: env.RESEND_FROM,
-        to: submission.email,
-        subject,
-        text,
-        html,
-      }),
-    });
-    return response.ok;
-  } catch (error) {
-    console.error("Failed to send email verification:", error);
-    return false;
+  if (env.BREVO_API_KEY && env.BREVO_FROM) {
+    try {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { email: env.BREVO_FROM, name: "FormForge" },
+          to: [{ email: submission.email }],
+          subject,
+          textContent: text,
+          htmlContent: html,
+        }),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error("Failed to send Brevo email verification:", error);
+      return false;
+    }
   }
+
+  if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
+    try {
+      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: submission.email }] }],
+          from: { email: env.SENDGRID_FROM, name: "FormForge" },
+          subject,
+          content: [
+            { type: "text/plain", value: text },
+            { type: "text/html", value: html }
+          ],
+        }),
+      });
+      return response.status === 202;
+    } catch (error) {
+      console.error("Failed to send SendGrid email verification:", error);
+      return false;
+    }
+  }
+
+  if (env.MAILGUN_API_KEY && env.MAILGUN_DOMAIN && env.MAILGUN_FROM) {
+    try {
+      const formData = new FormData();
+      formData.append("from", env.MAILGUN_FROM);
+      formData.append("to", submission.email);
+      formData.append("subject", subject);
+      formData.append("text", text);
+      formData.append("html", html);
+
+      const response = await fetch(`https://api.mailgun.net/v3/${env.MAILGUN_DOMAIN}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(`api:${env.MAILGUN_API_KEY}`)}`,
+        },
+        body: formData,
+      });
+      return response.ok;
+    } catch (error) {
+      console.error("Failed to send Mailgun email verification:", error);
+      return false;
+    }
+  }
+
+  return false;
 }
