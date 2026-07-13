@@ -170,7 +170,7 @@ function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
     <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-8">
       <a href="/" className="flex items-center gap-3" aria-label="FormForge Home">
         <img src="/logo.svg" alt="FormForge Logo" className="h-9 w-9 rounded-xl" />
-        <span className="font-bold tracking-tight">FormForge <span className="ml-1.5 rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400">v1.1.0</span></span>
+        <span className="font-bold tracking-tight">FormForge <span className="ml-1.5 rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400">v1.2.0</span></span>
       </a>
       <div className="flex items-center gap-3">
         <span className="hidden text-sm text-slate-400 sm:inline">{user.email}</span>
@@ -632,8 +632,9 @@ print(response.json())`;
           <button onClick={deleteForm} className="rounded-xl border border-rose-400/30 text-rose-200 px-4 py-3 text-xs hover:bg-rose-400/10">Delete</button>
           <div className="relative group">
             <button className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10 flex items-center gap-1.5 text-slate-300">
-              <span>⬇ Export</span>
-              <span className="text-[10px] opacity-60">▼</span>
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Export</span>
+              <svg className="w-2.5 h-2.5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div className="absolute right-0 mt-1 hidden group-hover:block bg-slate-950 border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 min-w-[130px]">
               <a href={`/api/forms/${form.id}/export?format=csv`} className="block px-4 py-2.5 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition">CSV Format</a>
@@ -663,7 +664,10 @@ print(response.json())`;
         
         {/* Dynamic Fields Embed Generator Selector */}
         <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-4 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">🛠️ Form Fields Generator (Add/Remove Fields)</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <span>Form Fields Generator (Add/Remove Fields)</span>
+          </p>
           <div className="flex flex-wrap gap-2 items-center">
             {snippetFields.map(f => (
               <span key={f} className="inline-flex items-center gap-1 rounded-lg bg-slate-950 border border-white/10 px-2 py-0.5 text-xs text-slate-200">
@@ -740,9 +744,21 @@ print(response.json())`;
                   key={tpl}
                   type="button"
                   onClick={() => setFormTemplate(tpl)}
-                  className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${formTemplate === tpl ? "bg-cyan-500 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                  className={`rounded-lg px-3 py-1 text-xs font-semibold flex items-center gap-1.5 transition ${formTemplate === tpl ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-slate-200"}`}
                 >
-                  {tpl === "plain" ? "📄 Plain HTML" : tpl === "contact" ? "👤 Contact Form" : tpl === "newsletter" ? "📧 Newsletter" : "⭐ Feedback"}
+                  {tpl === "plain" && (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  )}
+                  {tpl === "contact" && (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  )}
+                  {tpl === "newsletter" && (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                  )}
+                  {tpl === "feedback" && (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  )}
+                  <span>{tpl === "plain" ? "Plain HTML" : tpl === "contact" ? "Contact Form" : tpl === "newsletter" ? "Newsletter" : "Feedback"}</span>
                 </button>
               ))}
             </div>
@@ -771,7 +787,8 @@ print(response.json())`;
               <div className="flex flex-col rounded-2xl border border-white/10 overflow-hidden bg-slate-950/60 min-h-[300px]">
                 <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-white/5">
                   <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    👁️ Interactive Template Live Preview
+                    <svg className="w-3.5 h-3.5 text-cyan-400 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+                    <span>Interactive Template Live Preview</span>
                   </span>
                   <span className="text-[10px] text-slate-500 font-mono">sandbox (simulated action)</span>
                 </div>
