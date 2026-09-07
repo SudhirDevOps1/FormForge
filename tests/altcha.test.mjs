@@ -185,3 +185,11 @@ test("ALTCHA - rejects replayed solutions when tracking store is provided", asyn
   // First verification
   assert.ok(payload.signature);
 });
+
+test("ALTCHA - submit route safely handles missing ALTCHA as spam without 400 rejection", () => {
+  const submitRoute = readFileSync(join(REPO_ROOT, "src", "app", "api", "submit", "[endpointId]", "route.ts"), "utf-8");
+  assert.ok(!submitRoute.includes('code: "ALTCHA_REQUIRED"'), "must not throw 400 ALTCHA_REQUIRED to avoid breaking client forms");
+  assert.ok(submitRoute.includes('altcha_token_missing'), "must record altcha_token_missing as spam reason");
+  assert.ok(submitRoute.includes('altcha_verified'), "must record altcha_verified on successful verification");
+});
+

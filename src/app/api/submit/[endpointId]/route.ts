@@ -233,7 +233,7 @@ function findEmail(payload: ParsedSubmission): string | undefined {
   return undefined;
 }
 
-async function calculateSpamScore(form: Form, payload: ParsedSubmission, request: Request) {
+async function calculateSpamScore(form: Form, payload: ParsedSubmission, request: Request, altchaResult?: { verified: boolean; error?: string }) {
   const reasons: string[] = [];
   let score = 0;
 
@@ -270,6 +270,16 @@ async function calculateSpamScore(form: Form, payload: ParsedSubmission, request
     if (!hash.startsWith("000")) {
       score += 80;
       reasons.push("proof_of_work_failed");
+    }
+  }
+
+  // ALTCHA Proof-of-Work: safely classifies missing or failed challenge as spam instead of breaking the client app with HTTP 400
+  if (form.altchaEnabled) {
+    if (altchaResult?.verified) {
+      reasons.push("altcha_verified");
+    } else {
+      score += 80;
+      reasons.push(altchaResult?.error || "altcha_token_missing");
     }
   }
 
@@ -419,61 +429,34 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   // ALTCHA Proof-of-Work Verification (100% Free, Zero-Config, Self-Hosted)
+  let altchaResult: { verified: boolean; error?: string } | undefined = undefined;
   if (form.altchaEnabled) {
     const altchaRaw = (payload["altcha"] as string) ||
                       (payload["altcha-response"] as string) ||
                       request.headers.get("x-altcha-response") ||
                       request.headers.get("x-altcha");
 
-    if (!altchaRaw) {
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          code: "ALTCHA_REQUIRED",
-          message: "ALTCHA Proof-of-Work anti-spam verification token is missing.",
-        }),
-        {
-          status: 400,
-          headers: { ...cors, "Content-Type": "application/json" },
+    if (altchaRaw) {
+      try {
+        const { verifyAltchaSolution } = await import("@/lib/altcha");
+        const { getAuthSecret } = await import("@/lib/auth");
+        const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
+        const verification = await verifyAltchaSolution({
+          rawPayload: altchaRaw,
+          hmacKey,
+          db,
+        });
+
+        if (verification.ok) {
+          altchaResult = { verified: true };
+        } else {
+          altchaResult = { verified: false, error: verification.error || "altcha_failed" };
         }
-      );
-    }
-
-    try {
-      const { verifyAltchaSolution } = await import("@/lib/altcha");
-      const { getAuthSecret } = await import("@/lib/auth");
-      const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
-      const verification = await verifyAltchaSolution({
-        rawPayload: altchaRaw,
-        hmacKey,
-        db,
-      });
-
-      if (!verification.ok) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            code: "ALTCHA_FAILED",
-            message: verification.error || "ALTCHA spam verification failed.",
-          }),
-          {
-            status: 400,
-            headers: { ...cors, "Content-Type": "application/json" },
-          }
-        );
+      } catch (err) {
+        altchaResult = { verified: false, error: "altcha_verification_error" };
       }
-    } catch (err) {
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          code: "ALTCHA_ERROR",
-          message: "Error verifying ALTCHA token.",
-        }),
-        {
-          status: 500,
-          headers: { ...cors, "Content-Type": "application/json" },
-        }
-      );
+    } else {
+      altchaResult = { verified: false, error: "altcha_token_missing" };
     }
   }
 
@@ -505,7 +488,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
-  const { score, reasons, serialized } = await calculateSpamScore(form, payload, request);
+  const { score, reasons, serialized } = await calculateSpamScore(form, payload, request, altchaResult);
   const isPendingVerification = (form.emailVerificationEnabled || form.otpEnabled) && email;
   const status = score >= 80 ? "spam" : isPendingVerification ? "pending" : "accepted";
   
