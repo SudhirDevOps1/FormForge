@@ -285,6 +285,80 @@ export async function OPTIONS(request: Request, context: RouteContext) {
   return new Response(null, { headers: corsHeaders(allowedOrigin) });
 }
 
+export async function GET(request: Request, context: RouteContext) {
+  const db = getDb();
+  if (!isDbReady(db)) {
+    return databaseUnavailableResponse();
+  }
+
+  const { endpointId } = await context.params;
+  await ensureSchema(db);
+  const formRows = await db.select().from(forms).where(eq(forms.endpointId, endpointId)).limit(1);
+  const form = formRows[0];
+  const origin = request.headers.get("origin");
+  const allowedOrigin = form ? resolveAllowedOrigin(form.allowedOrigins, origin) : origin;
+  const cors = corsHeaders(allowedOrigin);
+
+  if (!form || !form.isActive) {
+    return new Response(JSON.stringify({ ok: false, code: "FORM_NOT_FOUND", message: "This FormForge endpoint is not active." }), {
+      status: 404,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  if (origin && !allowedOrigin) {
+    return new Response(JSON.stringify({ ok: false, code: "ORIGIN_BLOCKED", message: "Origin is not allowed." }), {
+      status: 403,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  // Rate limiting for challenge requests
+  const { checkRateLimit, getClientIp } = await import("@/lib/rate-limit");
+  const ip = getClientIp(request);
+  const limitRes = await checkRateLimit(db, `chal:${form.id}:${ip}`, 60, 60);
+  if (!limitRes.allowed) {
+    return new Response(JSON.stringify({ ok: false, error: "Too many requests. Please wait a moment." }), {
+      status: 429,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  // If ALTCHA is not enabled on this form, return informative status
+  if (!form.altchaEnabled) {
+    return new Response(JSON.stringify({
+      ok: true,
+      formId: form.id,
+      name: form.name,
+      altchaEnabled: false,
+      message: "ALTCHA Proof-of-Work is not required for this endpoint."
+    }), {
+      status: 200,
+      headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" },
+    });
+  }
+
+  // Generate live ALTCHA challenge directly for this single endpoint
+  const { createAltchaChallenge } = await import("@/lib/altcha");
+  const { getAuthSecret } = await import("@/lib/auth");
+  const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
+
+  const challenge = await createAltchaChallenge({
+    hmacKey,
+    maxNumber: 20000,
+    expiresSeconds: 900,
+  });
+
+  return new Response(JSON.stringify(challenge), {
+    status: 200,
+    headers: {
+      ...cors,
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
+}
+
 export async function POST(request: Request, context: RouteContext) {
   const db = getDb();
   if (!isDbReady(db)) {

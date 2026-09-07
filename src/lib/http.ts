@@ -93,9 +93,9 @@ export function resolveAllowedOrigin(allowedOrigins: string, requestOrigin: stri
 
 export function corsHeaders(allowedOrigin: string | null): HeadersInit {
   return {
-    "Access-Control-Allow-Origin": allowedOrigin ?? "null",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-FormForge-Pow, X-FormForge-Token",
+    "Access-Control-Allow-Origin": allowedOrigin ?? "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-FormForge-Pow, X-FormForge-Token, x-altcha-response, x-altcha",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
