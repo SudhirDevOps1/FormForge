@@ -12,7 +12,7 @@ export default defineConfig([
   // eslintrc-style, so it is consumed in ESLint 9 flat mode via the
   // official compatibility layer.
   ...compat.extends("next/core-web-vitals"),
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", ".open-next/**", "out/**", "build/**", "next-env.d.ts"]),
   {
     rules: {
       // Calling async data-fetching functions inside useEffect is the standard React pattern.
