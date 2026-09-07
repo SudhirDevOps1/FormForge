@@ -7,18 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Release automation reads this file: [`release.yml`](../.github/workflows/release.yml)
 extracts the section matching each `v*` tag to build the GitHub Release notes.
 
-## [Unreleased]
+## [2.0.0] - 2026-09-07
 
 ### Added
-- Enterprise security & CI/CD suite: hardened GitHub Actions workflows
-  (`ci.yml`, `security-scan.yml`, `release.yml`), standalone security test
-  runner (`tests/run-all-security-tests.mjs`, 48 real-crypto assertions),
-  central `src/lib/security.ts` hardening library, Husky + lint-staged +
-  commitlint pre-commit integrity, and the `docs/` security suite
-  (`SECURITY.md`, `THREAT-MODEL.md`, `RUNBOOK.md`, `RELEASES.md`).
-- SSRF validator hardening in `src/lib/url-validation.ts`: loopback `127/8`,
-  `0.0.0.0/8`, IPv6 normalization, `.localhost`/`.internal` suffixes, GCP
-  metadata hostname, non-`http(s)` rejection, hex/octal-obfuscated IPv4.
+- **Multi-Database Universal Engine** — Seamless support for Neon Serverless Postgres (`@neondatabase/serverless` & `drizzle-orm/neon-http`), Cloudflare D1, Turso (libSQL), and local file SQLite. Automatic zero-downtime startup schema execution (`autoMigrate`) supporting both SQLite and PostgreSQL dialects.
+- **In-Browser DuckDB Live SQL Query Studio** — Zero-cost client-side analytical SQL engine with 1-click execution over local datasets, DuckDB CLI query generator, and MotherDuck integration.
+- **Zero-Dependency Floating Embed Widget (`/widget.js`)** — Ultra-lightweight (<3KB) embed script for WordPress, Webflow, Shopify, Framer, Wix, Astro, and static HTML websites.
+- **Real-Time Integration & Webhook Tester (`/api/forms/[formId]/test-webhook`)** — 1-click delivery test and latency benchmark for Webhooks (with HMAC-SHA256 signatures), Google Apps Script (GAS), Telegram Bot, and ntfy.sh.
+- **Zero-Card Free Tier Notifications** — Google Apps Script (GAS) Gmail relay (500–1,500 free emails/day + Google Sheets auto-logging), Telegram Bot instant mobile push alerts, and ntfy.sh topics.
+- **6-Digit Cryptographic OTP Email Verification** — Instant 6-digit one-time passcode verification for form submitters.
+- **Backblaze B2 S3 Storage** — 10GB permanent free cloud storage for file attachments.
+- **Universal Subdomain Deployment** — Host-only cookies and universal CORS enabling cardless deployments on `*.vercel.app`, `*.netlify.app`, `*.pages.dev`, and `*.workers.dev`.
 
 ## [1.2.0] - 2026-07-14
 

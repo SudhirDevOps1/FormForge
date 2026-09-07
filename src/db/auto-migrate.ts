@@ -1,14 +1,24 @@
 import { sql } from "drizzle-orm";
-import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
 let migrationExecuted = false;
 
-export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Promise<void> {
+async function executeQuery(db: any, query: any): Promise<void> {
+  if (typeof db.run === "function") {
+    await db.run(query);
+  } else if (typeof db.execute === "function") {
+    await db.execute(query);
+  }
+}
+
+export async function autoMigrate(db: any): Promise<void> {
   if (migrationExecuted) return;
 
   try {
-    // 1. Core tables
-    await db.run(sql`
+    const isPg = typeof db.execute === "function" && typeof db.run !== "function";
+    const autoIncrementType = isPg ? "SERIAL" : "INTEGER PRIMARY KEY AUTOINCREMENT";
+
+    // 1. Users table
+    await executeQuery(db, sql`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY NOT NULL,
         email TEXT NOT NULL,
@@ -20,9 +30,10 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
       );
     `);
 
-    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);`);
+    await executeQuery(db, sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);`);
 
-    await db.run(sql`
+    // 2. Forms table
+    await executeQuery(db, sql`
       CREATE TABLE IF NOT EXISTS forms (
         id TEXT PRIMARY KEY NOT NULL,
         user_id TEXT NOT NULL,
@@ -65,28 +76,46 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
       );
     `);
 
-    await db.run(sql`CREATE INDEX IF NOT EXISTS forms_user_id_idx ON forms (user_id);`);
-    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS forms_endpoint_id_idx ON forms (endpoint_id);`);
-    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS forms_user_slug_idx ON forms (user_id, slug);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS forms_user_id_idx ON forms (user_id);`);
+    await executeQuery(db, sql`CREATE UNIQUE INDEX IF NOT EXISTS forms_endpoint_id_idx ON forms (endpoint_id);`);
+    await executeQuery(db, sql`CREATE UNIQUE INDEX IF NOT EXISTS forms_user_slug_idx ON forms (user_id, slug);`);
 
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS form_fields (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        form_id TEXT NOT NULL,
-        field_key TEXT NOT NULL,
-        label TEXT NOT NULL,
-        type TEXT DEFAULT 'text' NOT NULL,
-        required INTEGER DEFAULT 0 NOT NULL,
-        position INTEGER DEFAULT 0 NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
-      );
-    `);
+    // 3. Form Fields table
+    if (isPg) {
+      await executeQuery(db, sql`
+        CREATE TABLE IF NOT EXISTS form_fields (
+          id SERIAL PRIMARY KEY NOT NULL,
+          form_id TEXT NOT NULL,
+          field_key TEXT NOT NULL,
+          label TEXT NOT NULL,
+          type TEXT DEFAULT 'text' NOT NULL,
+          required INTEGER DEFAULT 0 NOT NULL,
+          position INTEGER DEFAULT 0 NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+        );
+      `);
+    } else {
+      await executeQuery(db, sql`
+        CREATE TABLE IF NOT EXISTS form_fields (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          form_id TEXT NOT NULL,
+          field_key TEXT NOT NULL,
+          label TEXT NOT NULL,
+          type TEXT DEFAULT 'text' NOT NULL,
+          required INTEGER DEFAULT 0 NOT NULL,
+          position INTEGER DEFAULT 0 NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+        );
+      `);
+    }
 
-    await db.run(sql`CREATE INDEX IF NOT EXISTS form_fields_form_id_idx ON form_fields (form_id);`);
-    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS form_fields_form_key_idx ON form_fields (form_id, field_key);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS form_fields_form_id_idx ON form_fields (form_id);`);
+    await executeQuery(db, sql`CREATE UNIQUE INDEX IF NOT EXISTS form_fields_form_key_idx ON form_fields (form_id, field_key);`);
 
-    await db.run(sql`
+    // 4. Submissions table
+    await executeQuery(db, sql`
       CREATE TABLE IF NOT EXISTS submissions (
         id TEXT PRIMARY KEY NOT NULL,
         form_id TEXT NOT NULL,
@@ -103,10 +132,11 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
       );
     `);
 
-    await db.run(sql`CREATE INDEX IF NOT EXISTS submissions_form_id_idx ON submissions (form_id);`);
-    await db.run(sql`CREATE INDEX IF NOT EXISTS submissions_created_at_idx ON submissions (created_at);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS submissions_form_id_idx ON submissions (form_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS submissions_created_at_idx ON submissions (created_at);`);
 
-    await db.run(sql`
+    // 5. Sessions table
+    await executeQuery(db, sql`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY NOT NULL,
         user_id TEXT NOT NULL,
@@ -118,10 +148,11 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
       );
     `);
 
-    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS sessions_token_hash_idx ON sessions (token_hash);`);
-    await db.run(sql`CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);`);
+    await executeQuery(db, sql`CREATE UNIQUE INDEX IF NOT EXISTS sessions_token_hash_idx ON sessions (token_hash);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);`);
 
-    await db.run(sql`
+    // 6. API Keys table
+    await executeQuery(db, sql`
       CREATE TABLE IF NOT EXISTS api_keys (
         id TEXT PRIMARY KEY NOT NULL,
         user_id TEXT NOT NULL,
@@ -137,43 +168,77 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
       );
     `);
 
-    await db.run(sql`CREATE INDEX IF NOT EXISTS api_keys_user_id_idx ON api_keys (user_id);`);
-    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS api_keys_hash_idx ON api_keys (key_hash);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS api_keys_user_id_idx ON api_keys (user_id);`);
+    await executeQuery(db, sql`CREATE UNIQUE INDEX IF NOT EXISTS api_keys_hash_idx ON api_keys (key_hash);`);
 
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        form_id TEXT NOT NULL,
-        submission_id TEXT NOT NULL,
-        channel TEXT NOT NULL,
-        status TEXT DEFAULT 'queued' NOT NULL,
-        error TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE,
-        FOREIGN KEY (submission_id) REFERENCES submissions(id) ON UPDATE NO ACTION ON DELETE CASCADE
-      );
-    `);
+    // 7. Notifications table
+    if (isPg) {
+      await executeQuery(db, sql`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id SERIAL PRIMARY KEY NOT NULL,
+          form_id TEXT NOT NULL,
+          submission_id TEXT NOT NULL,
+          channel TEXT NOT NULL,
+          status TEXT DEFAULT 'queued' NOT NULL,
+          error TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+          FOREIGN KEY (submission_id) REFERENCES submissions(id) ON UPDATE NO ACTION ON DELETE CASCADE
+        );
+      `);
+    } else {
+      await executeQuery(db, sql`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          form_id TEXT NOT NULL,
+          submission_id TEXT NOT NULL,
+          channel TEXT NOT NULL,
+          status TEXT DEFAULT 'queued' NOT NULL,
+          error TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+          FOREIGN KEY (submission_id) REFERENCES submissions(id) ON UPDATE NO ACTION ON DELETE CASCADE
+        );
+      `);
+    }
 
-    await db.run(sql`CREATE INDEX IF NOT EXISTS notifications_form_id_idx ON notifications (form_id);`);
-    await db.run(sql`CREATE INDEX IF NOT EXISTS notifications_submission_id_idx ON notifications (submission_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS notifications_form_id_idx ON notifications (form_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS notifications_submission_id_idx ON notifications (submission_id);`);
 
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS audit_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        user_id TEXT,
-        form_id TEXT,
-        action TEXT NOT NULL,
-        metadata TEXT DEFAULT '{}' NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE SET NULL,
-        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE SET NULL
-      );
-    `);
+    // 8. Audit logs table
+    if (isPg) {
+      await executeQuery(db, sql`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id SERIAL PRIMARY KEY NOT NULL,
+          user_id TEXT,
+          form_id TEXT,
+          action TEXT NOT NULL,
+          metadata TEXT DEFAULT '{}' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE SET NULL,
+          FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE SET NULL
+        );
+      `);
+    } else {
+      await executeQuery(db, sql`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          user_id TEXT,
+          form_id TEXT,
+          action TEXT NOT NULL,
+          metadata TEXT DEFAULT '{}' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE SET NULL,
+          FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE SET NULL
+        );
+      `);
+    }
 
-    await db.run(sql`CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON audit_logs (user_id);`);
-    await db.run(sql`CREATE INDEX IF NOT EXISTS audit_logs_form_id_idx ON audit_logs (form_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON audit_logs (user_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS audit_logs_form_id_idx ON audit_logs (form_id);`);
 
-    await db.run(sql`
+    // 9. Rate limits table
+    await executeQuery(db, sql`
       CREATE TABLE IF NOT EXISTS rate_limits (
         key TEXT PRIMARY KEY NOT NULL,
         count INTEGER DEFAULT 0 NOT NULL,
@@ -182,7 +247,8 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
       );
     `);
 
-    await db.run(sql`
+    // 10. OTP codes table
+    await executeQuery(db, sql`
       CREATE TABLE IF NOT EXISTS otp_codes (
         id TEXT PRIMARY KEY NOT NULL,
         form_id TEXT NOT NULL,
@@ -196,10 +262,10 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
       );
     `);
 
-    await db.run(sql`CREATE INDEX IF NOT EXISTS otp_codes_form_id_idx ON otp_codes (form_id);`);
-    await db.run(sql`CREATE INDEX IF NOT EXISTS otp_codes_email_idx ON otp_codes (email);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS otp_codes_form_id_idx ON otp_codes (form_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS otp_codes_email_idx ON otp_codes (email);`);
 
-    // Safe column additions for existing databases
+    // Safe column additions for existing databases (SQLite & Postgres compatible)
     const columnsToAdd = [
       "ALTER TABLE forms ADD COLUMN gas_url TEXT;",
       "ALTER TABLE forms ADD COLUMN telegram_bot_token TEXT;",
@@ -223,7 +289,7 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
 
     for (const ddl of columnsToAdd) {
       try {
-        await db.run(sql.raw(ddl));
+        await executeQuery(db, sql.raw(ddl));
       } catch {
         // Column already exists, safe to ignore
       }
@@ -231,6 +297,6 @@ export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Pr
 
     migrationExecuted = true;
   } catch (err) {
-    console.warn("Auto-migrate warning (safe to ignore if tables already exist):", err);
+    console.warn("Auto-migrate note (safe to ignore if tables exist):", err);
   }
 }

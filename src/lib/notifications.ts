@@ -468,9 +468,26 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           });
         }
 
+        const timestamp = Math.floor(Date.now() / 1000);
+        let signature = "";
+        try {
+          const { hmacSha256 } = await import("./crypto");
+          signature = await hmacSha256(`${timestamp}.${bodyPayload}`, env.AUTH_SECRET || form.id);
+        } catch {
+          // ignore signature calculation error
+        }
+
+        const webhookHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+          "User-Agent": "FormForge/1.0",
+        };
+        if (signature) {
+          webhookHeaders["X-FormForge-Signature"] = `t=${timestamp},v1=${signature}`;
+        }
+
         const response = await fetch(form.webhookUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "User-Agent": "FormForge/1.0" },
+          headers: webhookHeaders,
           body: bodyPayload,
         });
 

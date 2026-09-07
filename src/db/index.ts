@@ -3,6 +3,8 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { drizzle as drizzleD1, type DrizzleD1Database } from "drizzle-orm/d1";
 import { drizzle as drizzleLibSql, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client/web";
+import { neon } from "@neondatabase/serverless";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 import { autoMigrate } from "./auto-migrate";
 
@@ -45,6 +47,9 @@ export type CloudflareEnv = {
   LIBSQL_URL?: string;
   LIBSQL_AUTH_TOKEN?: string;
   DATABASE_URL?: string;
+  // Neon Serverless Postgres
+  NEON_DATABASE_URL?: string;
+  POSTGRES_URL?: string;
   // S3 / Backblaze B2 Storage
   S3_ENDPOINT?: string;
   S3_ACCESS_KEY_ID?: string;
@@ -104,6 +109,8 @@ export function getRuntimeEnv(): CloudflareEnv {
     TURSO_DATABASE_URL: cfEnv?.TURSO_DATABASE_URL ?? process.env.TURSO_DATABASE_URL ?? cfEnv?.LIBSQL_URL ?? process.env.LIBSQL_URL,
     TURSO_AUTH_TOKEN: cfEnv?.TURSO_AUTH_TOKEN ?? process.env.TURSO_AUTH_TOKEN ?? cfEnv?.LIBSQL_AUTH_TOKEN ?? process.env.LIBSQL_AUTH_TOKEN,
     DATABASE_URL: cfEnv?.DATABASE_URL ?? process.env.DATABASE_URL,
+    // Neon Serverless Postgres
+    NEON_DATABASE_URL: cfEnv?.NEON_DATABASE_URL ?? process.env.NEON_DATABASE_URL ?? cfEnv?.POSTGRES_URL ?? process.env.POSTGRES_URL,
     // S3 / Backblaze B2 Storage
     S3_ENDPOINT: cfEnv?.S3_ENDPOINT ?? process.env.S3_ENDPOINT ?? cfEnv?.B2_ENDPOINT ?? process.env.B2_ENDPOINT,
     S3_ACCESS_KEY_ID: cfEnv?.S3_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID ?? cfEnv?.B2_APPLICATION_KEY_ID ?? process.env.B2_APPLICATION_KEY_ID,
@@ -158,7 +165,26 @@ export function getDb(): AppDb | null {
     }
   }
 
-  // 3. Fallback for local development or file/memory SQLite
+  // 3. Check for Neon Serverless Postgres (works on Vercel, Netlify, Cloudflare, Node)
+  const neonUrl = env.NEON_DATABASE_URL || (env.DATABASE_URL?.startsWith("postgres://") || env.DATABASE_URL?.startsWith("postgresql://") ? env.DATABASE_URL : undefined);
+  if (neonUrl) {
+    if (cachedDb && cachedSource === neonUrl) {
+      return cachedDb;
+    }
+    try {
+      const sqlClient = neon(neonUrl);
+      const db = drizzleNeon(sqlClient, { schema });
+      cachedDb = db as unknown as AppDb;
+      cachedSource = neonUrl;
+      // Trigger auto-migration asynchronously
+      void autoMigrate(db as any);
+      return cachedDb;
+    } catch (error) {
+      console.error("Failed to initialize Neon Postgres client:", error);
+    }
+  }
+
+  // 4. Fallback for local development or file/memory SQLite
   if (env.DATABASE_URL?.startsWith("file:") || process.env.NODE_ENV !== "production") {
     const fallbackUrl = env.DATABASE_URL?.startsWith("file:") ? env.DATABASE_URL : "file:formforge.db";
     if (cachedDb && cachedSource === fallbackUrl) {
@@ -185,7 +211,7 @@ export function databaseUnavailableResponse() {
       ok: false,
       code: "DB_NOT_CONFIGURED",
       message:
-        "Database is not configured. For Cloudflare, bind a D1 database. For Vercel, Netlify, or self-hosted, set TURSO_DATABASE_URL (and optional TURSO_AUTH_TOKEN) in environment variables.",
+        "Database is not configured. For Cloudflare, bind a D1 database. For Vercel, Netlify, or self-hosted, set TURSO_DATABASE_URL (and optional TURSO_AUTH_TOKEN) or NEON_DATABASE_URL in environment variables.",
     },
     { status: 503 },
   );

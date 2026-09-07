@@ -1,21 +1,23 @@
-<h1 align="center">FormForge v1.2.0</h1>
+<h1 align="center">FormForge v2.0 Universal</h1>
 
 <div align="center">
-  A forever-free, open-source, privacy-first form backend for static sites you can self-host on Cloudflare Workers + D1.
+  A forever-free, open-source, universal form backend & analytics engine for static sites.
+  <br />
+  <strong>Deploys on Vercel, Netlify, Cloudflare Pages/Workers, and Docker with 100% Zero-Card Free Tier support.</strong>
   <br />
   <strong>Developed by <a href="https://github.com/SudhirDevOps1">Sudhir Singh</a></strong>
   <br /><br />
-  🔓 <em>No paid database required.</em> 📀 <em>Own your data.</em> ⚡️ <em>Deploy fast.</em>
+  🔓 <em>No paid database required.</em> 📀 <em>Own your data.</em> ⚡️ <em>Zero-card forever free.</em>
   <br /><br />
-  <img src="https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge" alt="Version 1.2.0" />
-  <img src="https://img.shields.io/badge/Status-Fully%20Verified%20%26%20Working-success?style=for-the-badge&logo=statuspage&logoColor=white&color=059669" alt="Status: Fully Verified & Working" />
-  <img src="https://img.shields.io/badge/Platform-Cloudflare%20Workers-orange?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Platform: Cloudflare Workers" />
-  <img src="https://img.shields.io/badge/Security%20Score-95%2F100-brightgreen?style=for-the-badge" alt="Security Score: 95/100" />
+  <img src="https://img.shields.io/badge/Version-2.0.0%20Universal-blue?style=for-the-badge" alt="Version 2.0.0" />
+  <img src="https://img.shields.io/badge/Platforms-Vercel%20%7C%20Netlify%20%7C%20Cloudflare-success?style=for-the-badge&logo=vercel&color=059669" alt="Platforms: Vercel | Netlify | Cloudflare" />
+  <img src="https://img.shields.io/badge/Databases-Neon%20%7C%20D1%20%7C%20Turso%20%7C%20SQLite-blueviolet?style=for-the-badge" alt="Databases: Neon | D1 | Turso | SQLite" />
+  <img src="https://img.shields.io/badge/Security%20Tests-53%2F53%20Passed-brightgreen?style=for-the-badge" alt="Security Tests: 53/53 Passed" />
 </div>
 
 <br />
 
-> 🚀 **Verified Status:** FormForge v1.2.0 is fully audited, tested, and production-ready. Features include 4 direct email APIs (Resend, Brevo, SendGrid, Mailgun), 10+ SMTP relays, R2/S3 file uploads (Backblaze, Wasabi, Storj, AWS, MinIO), Turnstile CAPTCHA, PoW spam protection, OpenAPI docs, and owner-only registration mode.
+> 🚀 **v2.0 Universal Status:** Fully tested across Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), Cloudflare Pages (`*.pages.dev`), Cloudflare Workers (`*.workers.dev`), and local dev. Features include Multi-Database auto-migration (Neon Serverless Postgres, Cloudflare D1, Turso libSQL, SQLite), In-Browser DuckDB Live SQL Query Studio, Zero-Dependency Floating Embed Widget (`/widget.js`), Real-Time Integration & Webhook Tester with HMAC-SHA256 signatures, Free Notification Relays (Google Apps Script Gmail+Sheets, Telegram Bot, ntfy.sh), 6-digit OTP verification, Turnstile CAPTCHA, and Backblaze B2 S3 storage.
 
 <div align="center">
   <img src="public/logo.svg" width="128" height="128" alt="FormForge logo" />
@@ -24,7 +26,7 @@
 <br />
 
 <div align="center">
-  Perfect for <em>contact forms</em>, <em>waitlists</em>, <em>surveys</em>, <em>newsletter signups</em>, <em>lead forms</em>, and more.
+  Perfect for <em>contact forms</em>, <em>feedback popups</em>, <em>waitlists</em>, <em>surveys</em>, <em>newsletter signups</em>, and <em>lead generation</em>.
 </div>
 
 <br />
@@ -35,6 +37,7 @@
 
 | 📂 File / Guide | 📝 Description |
 | :--- | :--- |
+| [🌟 Zero-Card Free Tier Mastery Guide](./docs/FREE_TIER_MASTERY_GUIDE.md) | Run 100% cardless on Vercel, Netlify, Cloudflare, Neon, Turso, GAS, B2. |
 | [🛠️ Production Troubleshooting](./TROUBLESHOOTING.md) | Setup instructions, deployment loops, and error resolutions. |
 | [🔒 System Limitations](./limitation.md) | Architectural constraints, IP rate limiting, and free-tier limits. |
 | [🔧 Troubleshooting Notes](./troubleshooting1.md) | Additional debugging documentation and configuration details. |
@@ -87,32 +90,20 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 
 ---
 
-## Features
+## 🌟 Key Features
 
-- Submit plain **HTML forms** with an `action` URL.
-- Submit **JSON payloads** from `fetch`, XHR, React, Astro, Vue, Svelte, or any frontend.
-- Create unlimited forms and private endpoints.
-- D1-backed users, sessions, forms, fields, submissions, API keys, notifications, rate limits, and audit logs.
-- **Multi-Format Exports** — Export submissions in CSV, JSON, and clean human-readable TXT Report layouts.
-- **Smart DNS MX Lookup Validation** — Checks email domain mail servers via DNS over HTTPS to automatically reject invalid email domains.
-- **Honeypot spam trap** & configurable custom spam word blocklists.
-- Optional Cloudflare Turnstile verification integration.
-- Submitter autoresponder email dispatch.
-- Origin allowlist for browser submissions.
-- Optional proof-of-work validation.
-- **Rich Webhooks Integration** — Auto-detects and formats notifications for **10+ webhook channels** (Slack, Discord, MS Teams, Mattermost, etc.).
-- **4 Direct Email APIs** — Resend, Brevo (Sendinblue), SendGrid, and Mailgun with zero SMTP configuration.
-- **10+ SMTP Relay Support** — Gmail, Yahoo, Outlook, MailerLite, Mailchimp, Mailjet, Mailtrap, SMTP2GO, Loops, Notifuse, Postmark.
-- **📁 File Uploads** — Upload files to Cloudflare R2 or any S3-compatible provider (Backblaze B2, Wasabi, Storj, AWS S3, MinIO, IDrive e2, Tencent COS, Garage, RustFS).
-- **🔐 Owner-Only Mode** — Set `ALLOW_REGISTRATION=false` to block all new signups.
-- **📄 OpenAPI v3 Docs** — Full API specification at `/api/openapi.json`.
-- **🎨 4 Copy-Paste Form Templates** — Plain HTML, Contact Form, Newsletter Signup, and Glassmorphism Feedback Form with star ratings.
-- **🔒 AES-GCM Encryption** — SMTP passwords are encrypted in D1 database using Web Crypto API.
-- **⚡ Non-Blocking Execution** — Email alerts and Webhooks delivered in background using `waitUntil`.
-- Secure cookies, HMAC-hashed sessions/API keys, API Key expiration, and PBKDF2 password hashes.
-- **Self-healing schema** — tables are created/altered automatically on request (no manual migrations needed).
-- **Real dashboard** at `/dashboard`: register/login, manage forms, analytics, styled code snippets, exports, API keys.
-- Responsive product UI, branded favicon/logo, and detailed `/docs`.
+- **🌐 Multi-Platform Deployment** — Deploy on Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), Cloudflare Pages (`*.pages.dev`), Cloudflare Workers (`*.workers.dev`), or self-hosted Docker.
+- **🗄️ Universal Multi-Database Engine** — Native support for Cloudflare D1, Neon Serverless Postgres, Turso (libSQL), and local file SQLite with automatic zero-downtime startup migration (`autoMigrate`).
+- **🦆 In-Browser DuckDB Live SQL Query Studio** — Interactive SQL analytical engine running inside the browser with zero server compute and zero database costs. Includes 1-click execution, DuckDB CLI commands, and MotherDuck queries.
+- **💬 Zero-Dependency Floating Embed Widget (`/widget.js`)** — Ultra-lightweight (<3KB) vanilla JS popup feedback & contact modal. Embed on any Webflow, WordPress, Shopify, Framer, Wix, or static site with a single `<script>` tag.
+- **⚡ Live Integration & Webhook Tester** — Test outgoing webhooks (with HMAC-SHA256 signatures), Google Apps Script relays, Telegram Bot alerts, and ntfy.sh mobile push in real time directly from the dashboard.
+- **📨 100% Free Notification Relays** — Google Apps Script (500–1,500 free emails/day via Gmail + auto Google Sheets row logging), Telegram Bot push notifications, and ntfy.sh instant mobile alerts without third-party subscriptions.
+- **🔐 6-Digit Cryptographic OTP Verification** — Zero-cost submitter email verification via secure 6-digit one-time passcodes.
+- **📁 Universal S3 / Backblaze B2 File Uploads** — 10GB free permanent storage with Backblaze B2 or Cloudflare R2 compatibility.
+- **🛡️ Enterprise Spam & Abuse Defenses** — Cloudflare Turnstile CAPTCHA, Honeypot bot traps, custom keyword blocklists, DNS MX validation, and timing-safe authentication.
+- **Multi-Format Data Exports** — Export submissions in CSV, JSON, and clean human-readable TXT reports.
+- **Multi-Framework Code Generator** — Instant copy-paste snippets for Plain HTML, Floating Widget, React, Vanilla JS Fetch, Python Requests, and cURL.
+- **Real Dashboard** at `/dashboard` — Manage forms, inspect submissions, view analytics, and generate API keys.
 
 ---
 

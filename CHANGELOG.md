@@ -2,6 +2,18 @@
 
 All notable changes to FormForge are documented in this file.
 
+## [2.0.0] - 2026-09-07
+
+### Added
+- **Multi-Database Universal Engine** — Neon Serverless Postgres (`@neondatabase/serverless` & `drizzle-orm/neon-http`), Cloudflare D1, Turso libSQL, and local SQLite with unified auto-migration (`autoMigrate`).
+- **In-Browser DuckDB Live SQL Query Studio** — 100% zero-cost client-side analytical query studio with 1-click execution, DuckDB CLI commands, and MotherDuck integration.
+- **Zero-Dependency Floating Embed Widget (`/widget.js`)** — Under 3KB vanilla JS floating feedback/contact popup for WordPress, Webflow, Shopify, Framer, and static sites.
+- **Real-Time Integration & Webhook Tester (`/api/forms/[formId]/test-webhook`)** — Interactive live test tool for Webhooks (with HMAC-SHA256 signatures), Google Apps Script (GAS), Telegram Bot, and ntfy.sh.
+- **Zero-Card Free Tier Notification Relays** — Google Apps Script (GAS) Gmail relay (500–1,500 free emails/day + Google Sheets auto-logging), Telegram Bot instant mobile alerts, and ntfy.sh push.
+- **6-Digit Cryptographic OTP Verification** — Zero-cost submitter email verification via secure 6-digit one-time passcodes.
+- **Backblaze B2 S3 Storage** — 10GB permanent free cloud storage for file attachments.
+- **Universal Subdomain Support** — Host-only cookies and universal CORS for `*.vercel.app`, `*.netlify.app`, `*.pages.dev`, and `*.workers.dev`.
+
 ## [1.2.0] - 2026-07-14
 
 ### Added

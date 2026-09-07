@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     "@libsql/client",
     "@libsql/isomorphic-ws",
     "@libsql\\isomorphic-ws",
+    "@neondatabase/serverless",
   ],
   async headers() {
     return [

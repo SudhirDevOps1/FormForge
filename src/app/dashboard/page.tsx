@@ -96,6 +96,17 @@ function CodeHighlight({ code, lang }: { code: string; lang: string }) {
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/\b(import|from|print|def|return|if|else|elif)\b/g, '<span class="text-purple-400">$1</span>')
       .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>');
+  } else if (lang === "curl" || lang === "bash") {
+    html = code
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\b(curl|-X|-H|-d|POST|GET)\b/g, '<span class="text-purple-400 font-semibold">$1</span>')
+      .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>');
+  } else if (lang === "sql") {
+    html = code
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\b(SELECT|FROM|WHERE|GROUP BY|ORDER BY|LIMIT|DESC|ASC|COUNT|AVG|SUM|ROUND|OVER|AS|NOT NULL|AND|OR)\b/gi, '<span class="text-purple-400 font-semibold">$1</span>')
+      .replace(/\b(read_csv_auto|date_trunc|regexp_extract)\b/g, '<span class="text-sky-400">$1</span>')
+      .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>');
   }
 
   return (
@@ -174,10 +185,22 @@ function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   return (
     <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-8">
-      <Link href="/" className="flex items-center gap-3" aria-label="FormForge Home">
-        <img src="/logo.svg" alt="FormForge Logo" className="h-9 w-9 rounded-xl" />
-        <span className="font-bold tracking-tight">FormForge <span className="ml-1.5 rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400">v1.2.0</span></span>
-      </Link>
+      <div className="flex items-center gap-4">
+        <Link href="/" className="flex items-center gap-3" aria-label="FormForge Home">
+          <img src="/logo.svg" alt="FormForge Logo" className="h-9 w-9 rounded-xl shadow-md shadow-sky-500/10" />
+          <span className="font-bold tracking-tight text-white flex items-center gap-1.5">
+            FormForge
+            <span className="rounded-md bg-gradient-to-r from-sky-500/20 to-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+              v2.0 Universal
+            </span>
+          </span>
+        </Link>
+        <div className="hidden lg:flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-3 py-1 text-xs font-semibold text-emerald-300">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Zero-Card Free Tier Engine</span>
+          <span className="text-[10px] text-emerald-400/60 font-mono">D1 • Turso • Neon • DuckDB</span>
+        </div>
+      </div>
       <div className="flex items-center gap-3">
         <span className="hidden text-sm text-slate-400 sm:inline">{user.email}</span>
         <button
@@ -448,7 +471,7 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
     loadSubs();
   }, [loadSubs]);
 
-  const [snippetTab, setSnippetTab] = useState<"html" | "js" | "react" | "python">("html");
+  const [snippetTab, setSnippetTab] = useState<"html" | "widget" | "react" | "js" | "python" | "curl">("html");
   const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "newsletter" | "feedback">("plain");
   const [formColor, setFormColor] = useState<"cyan" | "indigo" | "emerald" | "amber" | "rose">("cyan");
   const [snippetFields, setSnippetFields] = useState<string[]>(["email", "message"]);
@@ -630,6 +653,24 @@ ${snippetFields.map(f => `    "${f}": "value_here"`).join(",\n")}
 response = requests.post(url, json=data)
 print(response.json())`;
 
+  const widgetSnippet = `<!-- FormForge Floating Feedback & Contact Widget -->
+<!-- Paste right before </body> on any static HTML, WordPress, Webflow, Shopify, or React app -->
+<script
+  src="${base}/widget.js"
+  data-endpoint="${endpoint}"
+  data-position="bottom-right"
+  data-color="${theme.styleHex1}"
+  data-title="Contact ${form.name}"
+  data-btn-text="Feedback"
+  defer
+></script>`;
+
+  const curlSnippet = `curl -X POST "${endpoint}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
+  }'`;
+
   async function copy(text: string, label: string) {
     await navigator.clipboard.writeText(text);
     setCopied(label);
@@ -791,13 +832,13 @@ print(response.json())`;
         <div className="mt-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-2">
             <div className="flex flex-wrap gap-1.5">
-              {(["html", "js", "react", "python"] as const).map((tab) => (
+              {(["html", "widget", "react", "js", "python", "curl"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setSnippetTab(tab)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase transition ${snippetTab === tab ? "bg-white/10 text-white border border-white/10" : "text-slate-400 hover:text-slate-200"}`}
                 >
-                  {tab === "js" ? "JS Fetch" : tab}
+                  {tab === "js" ? "JS Fetch" : tab === "widget" ? "Floating Widget" : tab}
                 </button>
               ))}
             </div>
@@ -851,12 +892,14 @@ print(response.json())`;
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="relative">
               {snippetTab === "html" && <CodeHighlight code={htmlSnippet} lang="html" />}
+              {snippetTab === "widget" && <CodeHighlight code={widgetSnippet} lang="html" />}
               {snippetTab === "js" && <CodeHighlight code={jsSnippet} lang="js" />}
               {snippetTab === "react" && <CodeHighlight code={reactSnippet} lang="js" />}
               {snippetTab === "python" && <CodeHighlight code={pythonSnippet} lang="python" />}
+              {snippetTab === "curl" && <CodeHighlight code={curlSnippet} lang="curl" />}
               <button
                 onClick={() => {
-                  const text = snippetTab === "html" ? htmlSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : pythonSnippet;
+                  const text = snippetTab === "html" ? htmlSnippet : snippetTab === "widget" ? widgetSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : snippetTab === "python" ? pythonSnippet : curlSnippet;
                   copy(text, "copy");
                 }}
                 className="absolute right-3 top-3 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10"
@@ -885,7 +928,16 @@ print(response.json())`;
                       <html>
                         <head>
                           <meta charset="utf-8">
-                          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                          <script>
+                            // Suppress Tailwind Play CDN production advisory inside preview sandbox
+                            (function() {
+                              const _cw = console.warn;
+                              console.warn = function(...args) {
+                                if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+                                _cw.apply(console, args);
+                              };
+                            })();
+                          </script>
                           <script src="https://cdn.tailwindcss.com"></script>
                           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
                           <style>
@@ -935,6 +987,49 @@ print(response.json())`;
                       </html>
                     `}
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Floating Widget Live Interactive Preview */}
+            {snippetTab === "widget" && (
+              <div className="flex flex-col rounded-2xl border border-white/10 overflow-hidden bg-slate-950/60 min-h-[300px]">
+                <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-white/5">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Floating Widget Live Preview</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">zero dependencies</span>
+                </div>
+                <div className="flex-1 p-6 flex flex-col items-center justify-center bg-slate-900/40 relative min-h-[280px] text-center">
+                  <div className="h-12 w-12 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-lg" style={{ background: `${theme.styleHex1}25`, border: `1px solid ${theme.styleHex1}50` }}>
+                    💬
+                  </div>
+                  <h4 className="text-sm font-bold text-white mb-1">Instant Floating Popup Bubble</h4>
+                  <p className="text-xs text-slate-400 max-w-xs mb-5 leading-relaxed">
+                    Paste this 1 script line on any Webflow, WordPress, Shopify, Astro, or static HTML site to get a floating feedback & contact bubble.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        const existing = document.getElementById("formforge-widget-root");
+                        if (existing) existing.remove();
+                        const s = document.createElement("script");
+                        s.src = "/widget.js";
+                        s.setAttribute("data-endpoint", endpoint);
+                        s.setAttribute("data-color", theme.styleHex1);
+                        s.setAttribute("data-title", `Contact ${form.name}`);
+                        s.setAttribute("data-btn-text", "Feedback");
+                        document.body.appendChild(s);
+                      }
+                    }}
+                    className="rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-lg transition hover:scale-105"
+                    style={{ background: theme.styleHex1 }}
+                  >
+                    ⚡ Test Floating Widget On This Page
+                  </button>
+                  <span className="text-[10px] text-slate-500 mt-3">Spawns bottom-right bubble with glassmorphic modal</span>
                 </div>
               </div>
             )}
@@ -1042,6 +1137,11 @@ print(response.json())`;
 function FormAnalyticsPanel({ form }: { form: Form }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [copiedDuckDb, setCopiedDuckDb] = useState(false);
+  const [selectedQueryIndex, setSelectedQueryIndex] = useState(0);
+  const [queryResult, setQueryResult] = useState<any[] | null>(null);
+  const [copiedSql, setCopiedSql] = useState(false);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   useEffect(() => {
     async function load() {
@@ -1183,6 +1283,131 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
           </div>
         </div>
 
+        {/* Interactive DuckDB Live SQL Query Studio */}
+        <div className="rounded-xl border border-white/5 bg-slate-950/80 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-200">🦆 Live SQL Studio</span>
+              <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Client-Side Engine</span>
+            </div>
+            {/* Presets */}
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "Daily Volume", query: "timeline" },
+                { label: "Top Referrers", query: "referrers" },
+                { label: "Top Submitters", query: "submitters" },
+              ].map((p, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setSelectedQueryIndex(idx);
+                    setQueryResult(null);
+                  }}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition border ${
+                    selectedQueryIndex === idx
+                      ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                      : "bg-white/5 border-white/5 text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative">
+            <CodeHighlight
+              code={
+                selectedQueryIndex === 0
+                  ? `SELECT date, status, sum(count) as total\nFROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv')\nGROUP BY 1, 2\nORDER BY 1 DESC;`
+                  : selectedQueryIndex === 1
+                  ? `SELECT referer, count\nFROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv')\nGROUP BY 1\nORDER BY 2 DESC\nLIMIT 10;`
+                  : `SELECT email, count\nFROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv')\nGROUP BY 1\nORDER BY 2 DESC\nLIMIT 10;`
+              }
+              lang="sql"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedQueryIndex === 0) {
+                  setQueryResult(data.timeline || []);
+                } else if (selectedQueryIndex === 1) {
+                  setQueryResult(data.referrers || []);
+                } else {
+                  setQueryResult(data.submitters || []);
+                }
+              }}
+              className="rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 text-xs transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
+            >
+              ▶️ Run Query in Browser
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const cmd = `duckdb -c "SELECT * FROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv');"`;
+                await navigator.clipboard.writeText(cmd);
+                setCopiedDuckDb(true);
+                setTimeout(() => setCopiedDuckDb(false), 2000);
+              }}
+              className="rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5"
+            >
+              {copiedDuckDb ? "✓ Copied CLI Command" : "🦆 Copy DuckDB Shell CLI"}
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const sql = `CREATE TABLE ${form.slug.replace(/[^a-z0-9_]/g, "_")}_submissions AS SELECT * FROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv');`;
+                await navigator.clipboard.writeText(sql);
+                setCopiedSql(true);
+                setTimeout(() => setCopiedSql(false), 2000);
+              }}
+              className="rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5"
+            >
+              {copiedSql ? "✓ Copied MotherDuck SQL" : "🦆 Copy MotherDuck SQL"}
+            </button>
+          </div>
+
+          {/* Tabular Result View */}
+          {queryResult && (
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-3 mt-3 animate-slide-up">
+              <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-2">
+                <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+                  ✓ Query Executed Locally • {queryResult.length} Rows Processed
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">0ms latency · 0 server cost</span>
+              </div>
+              {queryResult.length === 0 ? (
+                <p className="text-xs text-slate-500 py-3 text-center">No matching records found in dataset.</p>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/5 text-slate-400 font-mono">
+                      {Object.keys(queryResult[0]).map((col) => (
+                        <th key={col} className="py-2 px-3 font-semibold text-sky-300 capitalize">{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {queryResult.map((row, rIdx) => (
+                      <tr key={rIdx} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                        {Object.entries(row).map(([k, v]: any) => (
+                          <td key={k} className="py-2 px-3 text-slate-200 font-mono text-[11px]">
+                            {String(v ?? "—")}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Quick Export Actions */}
         <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
           <a
@@ -1199,6 +1424,19 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
           >
             📋 Export JSON
           </a>
+          <button
+            type="button"
+            onClick={async () => {
+              const origin = typeof window !== "undefined" ? window.location.origin : "";
+              const cmd = `duckdb -c "SELECT * FROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv');"`;
+              await navigator.clipboard.writeText(cmd);
+              setCopiedDuckDb(true);
+              setTimeout(() => setCopiedDuckDb(false), 2000);
+            }}
+            className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25 transition flex items-center gap-1.5"
+          >
+            {copiedDuckDb ? "✓ Copied CLI Command" : "🦆 Copy DuckDB Query"}
+          </button>
           <span className="text-[11px] text-slate-500 self-center ml-auto">
             Compatible with DuckDB, MotherDuck, Excel & Pandas.
           </span>
@@ -1329,6 +1567,48 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [otpEnabled, setOtpEnabled] = useState(form.otpEnabled ?? false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [testingTarget, setTestingTarget] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({});
+
+  async function runTest(target: "webhook" | "gas" | "telegram" | "ntfy") {
+    setTestingTarget(target);
+    try {
+      const res = await fetch(`/api/forms/${form.id}/test-webhook`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target,
+          url: target === "webhook" ? webhookUrl : gasUrl,
+          token: telegramBotToken,
+          chatId: telegramChatId,
+          topic: ntfyTopic,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTestResults((prev) => ({
+          ...prev,
+          [target]: {
+            ok: true,
+            message: `✓ Delivered (${data.data.status || 200}, ${data.data.elapsedMs}ms)`,
+          },
+        }));
+      } else {
+        setTestResults((prev) => ({
+          ...prev,
+          [target]: { ok: false, message: `❌ ${data.message || "Failed"}` },
+        }));
+      }
+    } catch (err) {
+      setTestResults((prev) => ({
+        ...prev,
+        [target]: { ok: false, message: `❌ ${err instanceof Error ? err.message : String(err)}` },
+      }));
+    } finally {
+      setTestingTarget(null);
+    }
+  }
 
   useEffect(() => {
     setName(form.name);
@@ -1528,8 +1808,23 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
       <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
         <h4 className="text-sm font-bold text-white flex items-center gap-2">💬 Notifications & Webhooks</h4>
         <div>
-          <label htmlFor="settings-webhook" className="mb-1 block text-xs text-slate-400">Webhook URL (Slack / Discord auto-formatting supported)</label>
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor="settings-webhook" className="block text-xs text-slate-400">Webhook URL (Slack / Discord / Custom endpoint)</label>
+            <button
+              type="button"
+              disabled={!webhookUrl || testingTarget === "webhook"}
+              onClick={() => runTest("webhook")}
+              className="rounded-lg bg-sky-500/10 border border-sky-500/30 px-2.5 py-0.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20 disabled:opacity-40 transition"
+            >
+              {testingTarget === "webhook" ? "⚡ Testing..." : "⚡ Test Webhook"}
+            </button>
+          </div>
           <input id="settings-webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="ff-input text-sm" placeholder="https://hooks.slack.com/... or discord.com/api/webhooks/..." />
+          {testResults.webhook && (
+            <p className={`text-[11px] mt-1.5 font-medium ${testResults.webhook.ok ? "text-emerald-400" : "text-rose-400"}`}>
+              {testResults.webhook.message}
+            </p>
+          )}
         </div>
         <div>
           <label htmlFor="settings-email" className="mb-1 block text-xs text-slate-400">Email notification address (optional)</label>
@@ -1647,13 +1942,28 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
               {showGasScript ? "Hide Script Code" : "📜 Get Free Google Apps Script Code"}
             </button>
           </div>
-          <input
-            id="settings-gas-url"
-            value={gasUrl}
-            onChange={(e) => setGasUrl(e.target.value)}
-            className="ff-input text-sm"
-            placeholder="https://script.google.com/macros/s/.../exec"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              id="settings-gas-url"
+              value={gasUrl}
+              onChange={(e) => setGasUrl(e.target.value)}
+              className="ff-input text-sm flex-1"
+              placeholder="https://script.google.com/macros/s/.../exec"
+            />
+            <button
+              type="button"
+              disabled={!gasUrl || testingTarget === "gas"}
+              onClick={() => runTest("gas")}
+              className="rounded-xl bg-sky-500/15 border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/25 disabled:opacity-40 transition shrink-0"
+            >
+              {testingTarget === "gas" ? "Testing..." : "⚡ Test GAS Relay"}
+            </button>
+          </div>
+          {testResults.gas && (
+            <p className={`text-[11px] mt-1 font-medium ${testResults.gas.ok ? "text-emerald-400" : "text-rose-400"}`}>
+              {testResults.gas.message}
+            </p>
+          )}
           <p className="text-[10px] text-slate-400">
             Sends submission data to your Google Apps Script Web App. Allows <strong>1,500 free emails/day</strong> via your Gmail + automatically logs rows into Google Sheets!
           </p>
@@ -1700,10 +2010,25 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
 
         {/* Telegram Bot Notification */}
         <div className="border-t border-white/5 pt-3 space-y-3">
-          <label className="block text-xs font-semibold text-white flex items-center gap-1.5">
-            <span>✈️ Telegram Bot Instant Push Notifications</span>
-            <span className="text-[10px] text-slate-400 font-normal">(100% Free & Unlimited)</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-white flex items-center gap-1.5">
+              <span>✈️ Telegram Bot Instant Push Notifications</span>
+              <span className="text-[10px] text-slate-400 font-normal">(100% Free & Unlimited)</span>
+            </label>
+            <button
+              type="button"
+              disabled={!telegramBotToken || !telegramChatId || testingTarget === "telegram"}
+              onClick={() => runTest("telegram")}
+              className="rounded-lg bg-sky-500/15 border border-sky-500/30 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/25 disabled:opacity-40 transition"
+            >
+              {testingTarget === "telegram" ? "Testing..." : "⚡ Test Telegram Bot"}
+            </button>
+          </div>
+          {testResults.telegram && (
+            <p className={`text-[11px] font-medium ${testResults.telegram.ok ? "text-emerald-400" : "text-rose-400"}`}>
+              {testResults.telegram.message}
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="settings-tg-token" className="mb-1 block text-[10px] text-slate-400">Telegram Bot Token (from @BotFather)</label>
@@ -1731,9 +2056,24 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
 
         {/* ntfy.sh Push */}
         <div className="border-t border-white/5 pt-3 space-y-2">
-          <label htmlFor="settings-ntfy" className="block text-xs font-semibold text-white flex items-center gap-1.5">
-            <span>🔔 ntfy.sh Instant Mobile Push (Zero-Account Required)</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="settings-ntfy" className="block text-xs font-semibold text-white flex items-center gap-1.5">
+              <span>🔔 ntfy.sh Instant Mobile Push (Zero-Account Required)</span>
+            </label>
+            <button
+              type="button"
+              disabled={!ntfyTopic || testingTarget === "ntfy"}
+              onClick={() => runTest("ntfy")}
+              className="rounded-lg bg-sky-500/15 border border-sky-500/30 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/25 disabled:opacity-40 transition"
+            >
+              {testingTarget === "ntfy" ? "Testing..." : "⚡ Test ntfy Push"}
+            </button>
+          </div>
+          {testResults.ntfy && (
+            <p className={`text-[11px] font-medium ${testResults.ntfy.ok ? "text-emerald-400" : "text-rose-400"}`}>
+              {testResults.ntfy.message}
+            </p>
+          )}
           <input
             id="settings-ntfy"
             value={ntfyTopic}

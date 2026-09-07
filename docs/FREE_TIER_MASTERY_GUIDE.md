@@ -12,6 +12,7 @@ FormForge can run **100% free forever without requiring a credit card** across m
 | **Netlify** | Web & API Hosting | 300 credits/mo (commercial use allowed) | ❌ No |
 | **Cloudflare Workers** | Edge Hosting | 100k requests/day, edge routing | ❌ No |
 | **Turso (libSQL)** | Primary Database | **100 databases, 5GB storage**, unlimited active | ❌ No |
+| **Neon Postgres** | Serverless Postgres | **0.5GB storage, serverless autoscaling** | ❌ No |
 | **Cloudflare D1** | SQLite Database | 500MB storage, 5M reads/day | ❌ No |
 | **Google Apps Script** | Email Relay & Sheets | **500 - 1,500 emails/day** via Gmail | ❌ No |
 | **Telegram Bot API** | Realtime Push Alerts | Unlimited push messages to phone/desktop | ❌ No |
@@ -56,6 +57,14 @@ FormForge can run **100% free forever without requiring a credit card** across m
    ]
    ```
 2. Deploy via `npm run deploy` (or connect to Cloudflare dashboard).
+
+### Option D: Vercel / Netlify / Cloudflare + Neon Serverless Postgres
+1. Create a free database at [Neon.tech](https://neon.tech) (no card required, 0.5GB free forever).
+2. Copy your connection string from the Neon dashboard.
+3. Configure environment variables in your deployment platform:
+   - `NEON_DATABASE_URL`: `postgresql://user:pass@ep-cool-snowflake.region.aws.neon.tech/neondb?sslmode=require`
+   - `AUTH_SECRET`: your 64-char hex secret
+4. Deploy! Schema auto-creates on startup using Postgres DDL.
 
 ---
 
@@ -189,6 +198,7 @@ Never commit these in GitHub. In Vercel / Netlify / Cloudflare, mark them as **S
 |---|---|---|
 | `AUTH_SECRET` | 64-char key for session & API key HMAC encryption | `openssl rand -hex 32` |
 | `TURSO_AUTH_TOKEN` | Turso database JWT authentication token | `turso db tokens create formforge-db` |
+| `NEON_DATABASE_URL` | Neon Serverless Postgres connection string | [neon.tech](https://neon.tech) Console |
 | `RESEND_API_KEY` | Resend email API key | [resend.com/api-keys](https://resend.com) |
 | `BREVO_API_KEY` | Brevo email API key | [brevo.com](https://brevo.com) |
 | `SENDGRID_API_KEY` | SendGrid API key | [sendgrid.com](https://sendgrid.com) |
