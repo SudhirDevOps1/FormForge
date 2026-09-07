@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { TurnstileAltcha } from "@/components/TurnstileAltcha";
 
 type User = { id: string; email: string; name: string; role: string };
 type Form = {
@@ -242,13 +243,26 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [altchaPayload, setAltchaPayload] = useState("");
+  const [altchaVerified, setAltchaVerified] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!altchaVerified) {
+      setError("Please complete human verification below before continuing.");
+      return;
+    }
+
     setBusy(true);
     try {
-      const res = await fetch(`/api/auth/${mode}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, name, password }) });
+      const res = await fetch(`/api/auth/${mode}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name, password, altcha: altchaPayload }),
+      });
       const data = await res.json();
       if (!data.ok) { setError(data.message ?? "Something went wrong."); return; }
       onAuthed();
@@ -281,6 +295,19 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
           <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white" aria-live="polite">{showPw ? "Hide" : "Show"}</button>
         </div>
 
+        {/* Turnstile-Styled ALTCHA Proof-of-Work Verification with Solve Timing */}
+        <div className="mt-4">
+          <TurnstileAltcha
+            key={mode}
+            challengeUrl="/api/altcha/challenge?maxnumber=20000"
+            onVerified={(payload) => {
+              setAltchaPayload(payload);
+              setAltchaVerified(true);
+              setError("");
+            }}
+          />
+        </div>
+
         {error && (
           <div className="mt-3 rounded-xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
             {error.includes("AUTH_SECRET") ? (
@@ -303,10 +330,10 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
           </div>
         )}
 
-        <button disabled={busy} className="mt-5 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-60">
+        <button disabled={busy || !altchaVerified} className="mt-5 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed">
           {busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}
         </button>
-        <button type="button" onClick={() => { setMode(mode === "register" ? "login" : "register"); setError(""); }} className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white">
+        <button type="button" onClick={() => { setMode(mode === "register" ? "login" : "register"); setError(""); setAltchaVerified(false); setAltchaPayload(""); }} className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white">
           {mode === "register" ? "Already have an account? Sign in →" : "New here? Create an account →"}
         </button>
       </form>
@@ -558,7 +585,7 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   const theme = colorMap[formColor];
 
   const altchaSnippet = form.altchaEnabled
-    ? `\n  <!-- ALTCHA Free Anti-Spam Widget (100% Free & Self-Hosted) -->\n  <script type="module" src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" async defer></script>\n  <altcha-widget challengeurl="${base}/api/altcha/challenge"></altcha-widget>`
+    ? `\n  <!-- Turnstile-Styled ALTCHA Proof-of-Work Anti-Spam Widget -->\n  <style>\n    altcha-widget { --altcha-max-width: 100%; --altcha-border-radius: 12px; --altcha-color-base: #0f172a; --altcha-color-border: #334155; --altcha-color-text: #f8fafc; }\n  </style>\n  <script type="module" src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" async defer></script>\n  <altcha-widget challengeurl="${base}/api/altcha/challenge"></altcha-widget>\n  <div id="altcha-timer" style="font-family: monospace; font-size: 11px; color: #34d399; margin-top: 4px; display: none;"></div>\n  <script>\n    document.addEventListener("DOMContentLoaded", () => {\n      const w = document.querySelector("altcha-widget");\n      const t = document.getElementById("altcha-timer");\n      let s = 0;\n      if (w && t) {\n        w.addEventListener("statechange", (e) => {\n          if (e.detail.state === "verifying") s = performance.now();\n          if (e.detail.state === "verified") {\n            const ms = Math.round(performance.now() - s);\n            t.textContent = "⚡ Solved in " + ms + "ms (Proof-of-Work)";\n            t.style.display = "block";\n          }\n        });\n      }\n    });\n  </script>`
     : "";
 
   const htmlSnippet = formTemplate === "plain"

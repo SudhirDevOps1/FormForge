@@ -42,6 +42,17 @@ export async function POST(request: Request) {
     return jsonError("INVALID_CREDENTIALS", "Invalid request parameters.", 400);
   }
 
+  const altchaPayload = readString(body.altcha);
+  if (altchaPayload) {
+    const { verifyAltchaSolution } = await import("@/lib/altcha");
+    const { getAuthSecret } = await import("@/lib/auth");
+    const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
+    const altchaRes = await verifyAltchaSolution({ rawPayload: altchaPayload, hmacKey });
+    if (!altchaRes.ok) {
+      return jsonError("ALTCHA_FAILED", altchaRes.error || "Captcha verification failed. Please try again.", 400);
+    }
+  }
+
   try {
     const row = await db.select().from(users).where(eq(users.email, email)).limit(1);
     const user = row[0];

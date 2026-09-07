@@ -52,6 +52,17 @@ export async function POST(request: Request) {
     return jsonError("WEAK_PASSWORD", "Password must not exceed 128 characters.");
   }
 
+  const altchaPayload = readString(body.altcha);
+  if (altchaPayload) {
+    const { verifyAltchaSolution } = await import("@/lib/altcha");
+    const { getAuthSecret } = await import("@/lib/auth");
+    const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
+    const altchaRes = await verifyAltchaSolution({ rawPayload: altchaPayload, hmacKey });
+    if (!altchaRes.ok) {
+      return jsonError("ALTCHA_FAILED", altchaRes.error || "Captcha verification failed. Please try again.", 400);
+    }
+  }
+
   try {
     // Check if registration is allowed (only first user, or if explicit override)
     const existingUsers = await db.select({ id: users.id }).from(users).limit(1);
