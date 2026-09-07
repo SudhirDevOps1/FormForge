@@ -20,11 +20,9 @@ export async function POST(request: Request) {
     return jsonError("AUTH_SECRET_MISSING", AUTH_SECRET_HELP, 503);
   }
 
-  // Get client IP for rate limiting
-  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "127.0.0.1";
-  
-  // Import checkRateLimit dynamically
-  const { checkRateLimit, rateLimitResponse } = await import("@/lib/rate-limit");
+  // Import rate limiting helpers dynamically
+  const { checkRateLimit, rateLimitResponse, getClientIp } = await import("@/lib/rate-limit");
+  const ip = getClientIp(request);
   const limitRes = await checkRateLimit(db, `login:${ip}`, 5, 900); // 5 attempts per 15 min
   if (!limitRes.allowed) {
     return rateLimitResponse(limitRes.resetAt);
@@ -38,6 +36,12 @@ export async function POST(request: Request) {
     return jsonError("INVALID_CREDENTIALS", "Email and password are required.", 401);
   }
 
+  // Account-level brute force protection against distributed attacks
+  const emailLimitRes = await checkRateLimit(db, `login:acc:${email}`, 5, 900);
+  if (!emailLimitRes.allowed) {
+    return rateLimitResponse(emailLimitRes.resetAt);
+  }
+
   if (password.length > 128) {
     return jsonError("INVALID_CREDENTIALS", "Invalid request parameters.", 400);
   }
@@ -47,7 +51,7 @@ export async function POST(request: Request) {
     const { verifyAltchaSolution } = await import("@/lib/altcha");
     const { getAuthSecret } = await import("@/lib/auth");
     const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
-    const altchaRes = await verifyAltchaSolution({ rawPayload: altchaPayload, hmacKey });
+    const altchaRes = await verifyAltchaSolution({ rawPayload: altchaPayload, hmacKey, db });
     if (!altchaRes.ok) {
       return jsonError("ALTCHA_FAILED", altchaRes.error || "Captcha verification failed. Please try again.", 400);
     }

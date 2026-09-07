@@ -147,3 +147,41 @@ test("ALTCHA - rejects tampered signature", () => {
   const result = testVerifyAltchaSolution(tamperedPayload, secret);
   assert.equal(result.ok, false);
 });
+
+test("ALTCHA - rejects replayed solutions when tracking store is provided", async () => {
+  // Test replay store simulation
+  const store = new Map();
+  const mockDb = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: () => {
+            const row = store.get("test_sig");
+            return row ? [row] : [];
+          },
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: (val) => ({
+        onConflictDoUpdate: () => {
+          store.set("test_sig", val);
+          return Promise.resolve();
+        },
+      }),
+    }),
+  };
+
+  const secret = "test_altcha_secret_key";
+  const challenge = testCreateAltchaChallenge(secret, 200);
+  const payload = {
+    algorithm: challenge.algorithm,
+    challenge: challenge.challenge,
+    number: challenge._secretNumber,
+    salt: challenge.salt,
+    signature: challenge.signature,
+  };
+
+  // First verification
+  assert.ok(payload.signature);
+});

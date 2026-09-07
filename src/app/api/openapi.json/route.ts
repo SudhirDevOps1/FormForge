@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const origin = new URL(request.url).origin;
   const spec = {
     openapi: "3.0.3",
     info: {
@@ -17,7 +18,7 @@ export async function GET() {
       },
     },
     servers: [
-      { url: "https://apnaform.sudhirdevops1.workers.dev", description: "Production" },
+      { url: origin, description: "Current FormForge Instance" },
     ],
     paths: {
       "/api/auth/register": {

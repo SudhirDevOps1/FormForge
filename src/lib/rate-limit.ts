@@ -3,6 +3,44 @@ import { sql } from "drizzle-orm";
 import { rateLimits } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+const IPV6_REGEX = /^[a-fA-F0-9:]+$/;
+
+/**
+ * Extract and sanitize client IP address with priority on tamper-proof Cloudflare edge headers.
+ * Validates against IPv4 and IPv6 to prevent header injection or spoofing.
+ */
+export function getClientIp(request: Request): string {
+  // 1. Cloudflare edge header (unspoofable on Cloudflare Workers / Pages)
+  const cfIp = request.headers.get("cf-connecting-ip")?.trim();
+  if (cfIp && (IPV4_REGEX.test(cfIp) || (IPV6_REGEX.test(cfIp) && cfIp.includes(":")))) {
+    return cfIp;
+  }
+
+  // 2. True-Client-IP (Enterprise reverse proxies)
+  const trueIp = request.headers.get("true-client-ip")?.trim();
+  if (trueIp && (IPV4_REGEX.test(trueIp) || (IPV6_REGEX.test(trueIp) && trueIp.includes(":")))) {
+    return trueIp;
+  }
+
+  // 3. X-Real-IP
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp && (IPV4_REGEX.test(realIp) || (IPV6_REGEX.test(realIp) && realIp.includes(":")))) {
+    return realIp;
+  }
+
+  // 4. X-Forwarded-For (take the first client IP and strictly validate)
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first && (IPV4_REGEX.test(first) || (IPV6_REGEX.test(first) && first.includes(":")))) {
+      return first;
+    }
+  }
+
+  return "127.0.0.1";
+}
+
 export async function checkRateLimit(
   db: AppDb,
   key: string,

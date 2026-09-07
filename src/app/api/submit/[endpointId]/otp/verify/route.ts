@@ -34,6 +34,14 @@ export async function POST(
       return Response.json({ ok: false, error: "Email and code are required" }, { status: 400 });
     }
 
+    // Rate Limiting: Prevent OTP brute force attacks
+    const { checkRateLimit, rateLimitResponse, getClientIp } = await import("@/lib/rate-limit");
+    const ip = getClientIp(request);
+    const ipLimit = await checkRateLimit(db, `otp_ver_ip:${ip}`, 10, 600); // 10 attempts per 10 min
+    if (!ipLimit.allowed) {
+      return rateLimitResponse(ipLimit.resetAt);
+    }
+
     const result = await verifyOtp(db, form.id, email, code);
 
     if (!result.success) {

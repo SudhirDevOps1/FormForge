@@ -25,11 +25,9 @@ export async function POST(request: Request) {
     return jsonError("REGISTRATION_DISABLED", "Registration is disabled on this instance.", 403);
   }
 
-  // Get client IP for rate limiting
-  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "127.0.0.1";
-  
-  // Import checkRateLimit dynamically
-  const { checkRateLimit, rateLimitResponse } = await import("@/lib/rate-limit");
+  // Import rate limiting helpers dynamically
+  const { checkRateLimit, rateLimitResponse, getClientIp } = await import("@/lib/rate-limit");
+  const ip = getClientIp(request);
   const limitRes = await checkRateLimit(db, `register:${ip}`, 30, 60); // 30 per minute (prevent block during DB setup)
   if (!limitRes.allowed) {
     return rateLimitResponse(limitRes.resetAt);
@@ -57,7 +55,7 @@ export async function POST(request: Request) {
     const { verifyAltchaSolution } = await import("@/lib/altcha");
     const { getAuthSecret } = await import("@/lib/auth");
     const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
-    const altchaRes = await verifyAltchaSolution({ rawPayload: altchaPayload, hmacKey });
+    const altchaRes = await verifyAltchaSolution({ rawPayload: altchaPayload, hmacKey, db });
     if (!altchaRes.ok) {
       return jsonError("ALTCHA_FAILED", altchaRes.error || "Captcha verification failed. Please try again.", 400);
     }

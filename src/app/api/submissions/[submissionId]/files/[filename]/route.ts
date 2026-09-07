@@ -19,6 +19,21 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const { submissionId, filename } = await context.params;
+
+  // Verify that the requested submission actually belongs to a form owned by this user (IDOR prevention)
+  const { forms, submissions } = await import("@/db/schema");
+  const { and, eq } = await import("drizzle-orm");
+  const rows = await db
+    .select({ id: submissions.id })
+    .from(submissions)
+    .innerJoin(forms, eq(submissions.formId, forms.id))
+    .where(and(eq(submissions.id, submissionId), eq(forms.userId, user.id)))
+    .limit(1);
+
+  if (!rows[0]) {
+    return new Response("Unauthorized or file not found", { status: 404 });
+  }
+
   const decodedFilename = decodeURIComponent(filename);
   const storageKey = `uploads/${submissionId}/${decodedFilename}`;
 

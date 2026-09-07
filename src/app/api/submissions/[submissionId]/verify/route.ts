@@ -51,6 +51,22 @@ export async function GET(request: Request, context: RouteContext) {
       });
     }
 
+    // Cryptographic verification token validation
+    const url = new URL(request.url);
+    const token = url.searchParams.get("token");
+    const { hmacSha256 } = await import("@/lib/crypto");
+    const { getAuthSecret } = await import("@/lib/auth");
+    const { timingSafeEqualHex } = await import("@/lib/security");
+    const secret = getAuthSecret() || form.endpointId;
+    const expectedToken = await hmacSha256(`verify:${sub.id}:${sub.email}`, secret);
+
+    if (!token || !timingSafeEqualHex(token, expectedToken)) {
+      return new Response(errorHtml("Invalid or Tampered Verification Token", "This verification link is invalid, expired, or was altered. Please use the exact link sent to your email."), {
+        status: 403,
+        headers: { "Content-Type": "text/html" }
+      });
+    }
+
     if (sub.status === "pending") {
       // Update status to accepted
       await db

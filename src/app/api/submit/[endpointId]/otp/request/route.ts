@@ -28,10 +28,22 @@ export async function POST(
 
     const form = formRows[0];
     const body = (await request.json().catch(() => ({}))) as { email?: string };
-    const email = body.email?.trim();
+    const email = body.email?.trim()?.toLowerCase();
 
     if (!email || !email.includes("@")) {
       return Response.json({ ok: false, error: "Valid email address is required" }, { status: 400 });
+    }
+
+    // Rate Limiting: Prevent email bombing & provider abuse (by IP & target email)
+    const { checkRateLimit, rateLimitResponse, getClientIp } = await import("@/lib/rate-limit");
+    const ip = getClientIp(request);
+    const ipLimit = await checkRateLimit(db, `otp_req_ip:${ip}`, 5, 600); // 5 per 10 min
+    if (!ipLimit.allowed) {
+      return rateLimitResponse(ipLimit.resetAt);
+    }
+    const emailLimit = await checkRateLimit(db, `otp_req_mail:${form.id}:${email}`, 3, 600); // 3 per 10 min
+    if (!emailLimit.allowed) {
+      return rateLimitResponse(emailLimit.resetAt);
     }
 
     const { code } = await createOtp(db, form.id, email);

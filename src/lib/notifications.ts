@@ -588,7 +588,11 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
     return false;
   }
 
-  const verifyUrl = `${appUrl}/api/submissions/${submission.id}/verify`;
+  const { hmacSha256 } = await import("./crypto");
+  const { getAuthSecret } = await import("./auth");
+  const secret = getAuthSecret() || form.endpointId;
+  const token = await hmacSha256(`verify:${submission.id}:${submission.email}`, secret);
+  const verifyUrl = `${appUrl}/api/submissions/${submission.id}/verify?token=${token}`;
   const subject = `📩 Verify your submission to ${form.name}`;
   
   const text = `Hello,\n\nWe received a form submission using your email address for "${form.name}".\n\nPlease verify your email and confirm your submission by clicking the link below:\n\n${verifyUrl}\n\nIf you did not make this submission, you can safely ignore this email.`;

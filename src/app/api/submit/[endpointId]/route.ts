@@ -314,8 +314,8 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   // Rate Limiting
-  const ip = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  const { checkRateLimit, rateLimitResponse } = await import("@/lib/rate-limit");
+  const { checkRateLimit, rateLimitResponse, getClientIp } = await import("@/lib/rate-limit");
+  const ip = getClientIp(request);
   const limitRes = await checkRateLimit(db, `submit:${form.id}:${ip}`, 60, 60); // 60 submissions per min
   if (!limitRes.allowed) {
     return new Response(JSON.stringify({ ok: false, code: "RATE_LIMITED", message: "Too many submissions. Please try again later." }), {
@@ -372,6 +372,7 @@ export async function POST(request: Request, context: RouteContext) {
       const verification = await verifyAltchaSolution({
         rawPayload: altchaRaw,
         hmacKey,
+        db,
       });
 
       if (!verification.ok) {
