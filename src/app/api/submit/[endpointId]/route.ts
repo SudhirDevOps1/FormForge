@@ -344,6 +344,64 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
+  // ALTCHA Proof-of-Work Verification (100% Free, Zero-Config, Self-Hosted)
+  if (form.altchaEnabled) {
+    const altchaRaw = (payload["altcha"] as string) ||
+                      (payload["altcha-response"] as string) ||
+                      request.headers.get("x-altcha-response") ||
+                      request.headers.get("x-altcha");
+
+    if (!altchaRaw) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          code: "ALTCHA_REQUIRED",
+          message: "ALTCHA Proof-of-Work anti-spam verification token is missing.",
+        }),
+        {
+          status: 400,
+          headers: { ...cors, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    try {
+      const { verifyAltchaSolution } = await import("@/lib/altcha");
+      const { getAuthSecret } = await import("@/lib/auth");
+      const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
+      const verification = await verifyAltchaSolution({
+        rawPayload: altchaRaw,
+        hmacKey,
+      });
+
+      if (!verification.ok) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            code: "ALTCHA_FAILED",
+            message: verification.error || "ALTCHA spam verification failed.",
+          }),
+          {
+            status: 400,
+            headers: { ...cors, "Content-Type": "application/json" },
+          }
+        );
+      }
+    } catch (err) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          code: "ALTCHA_ERROR",
+          message: "Error verifying ALTCHA token.",
+        }),
+        {
+          status: 500,
+          headers: { ...cors, "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
   // Turnstile Verification
   if (form.turnstileEnabled && form.turnstileSecretKey) {
     const token = (payload["cf-turnstile-response"] as string) || 

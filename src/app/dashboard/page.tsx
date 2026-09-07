@@ -18,6 +18,7 @@ type Form = {
   redirectUrl: string | null;
   submissionsCount: number;
   isActive: boolean;
+  altchaEnabled?: boolean;
   turnstileEnabled: boolean;
   turnstileSecretKey: string | null;
   autoresponderSubject: string | null;
@@ -558,6 +559,10 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
 
   const theme = colorMap[formColor];
 
+  const altchaSnippet = form.altchaEnabled
+    ? `\n  <!-- ALTCHA Free Anti-Spam Widget (100% Free & Self-Hosted) -->\n  <script type="module" src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" async defer></script>\n  <altcha-widget challengeurl="${base}/api/altcha/challenge"></altcha-widget>`
+    : "";
+
   const htmlSnippet = formTemplate === "plain"
     ? `<form method="POST" action="${endpoint}"${enctype}>
 ${snippetFields.map(f => {
@@ -569,7 +574,7 @@ ${snippetFields.map(f => {
   }
   return `  <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Your ${f}" />`;
 }).join("\n")}
-  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
   <button type="submit">Send</button>
 </form>`
     : formTemplate === "contact"
@@ -595,7 +600,7 @@ ${snippetFields.map(f => {
   </div>`;
 }).join("\n")}
   <!-- Honeypot Bot Trap -->
-  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
   <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r ${theme.fromTo} text-white font-semibold rounded-xl ${theme.hoverFromTo} transition-all">
     Send Message
   </button>
@@ -690,7 +695,7 @@ ${snippetFields.map(f => {
   }
   return `      <input type="${f === "email" ? "email" : "text"}" name="${f}" required placeholder="${f}" className="border p-2 rounded w-full bg-slate-900 text-white" />`;
 }).join("\n")}
-      <button type="submit" className="bg-sky-500 px-4 py-2 text-white font-bold rounded">Send</button>
+${form.altchaEnabled ? `      {/* ALTCHA Free Anti-Spam Widget */}\n      <altcha-widget challengeurl="${base}/api/altcha/challenge"></altcha-widget>\n` : ""}      <button type="submit" className="bg-sky-500 px-4 py-2 text-white font-bold rounded">Send</button>
       {status === "success" && <p className="text-emerald-400 mt-2">Sent successfully!</p>}
       {status === "failed" && <p className="text-rose-400 mt-2">Submission failed.</p>}
     </form>
@@ -1801,6 +1806,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [webhookUrl, setWebhookUrl] = useState(form.webhookUrl ?? "");
   const [emailTo, setEmailTo] = useState(form.emailTo ?? "");
   const [notifyEmail, setNotifyEmail] = useState(form.notifyEmail);
+  const [altchaEnabled, setAltchaEnabled] = useState(form.altchaEnabled ?? false);
   const [turnstileEnabled, setTurnstileEnabled] = useState(form.turnstileEnabled ?? false);
   const [turnstileSecretKey, setTurnstileSecretKey] = useState(form.turnstileSecretKey ?? "");
   const [autoresponderSubject, setAutoresponderSubject] = useState(form.autoresponderSubject ?? "");
@@ -1878,6 +1884,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setWebhookUrl(form.webhookUrl ?? "");
     setEmailTo(form.emailTo ?? "");
     setNotifyEmail(form.notifyEmail);
+    setAltchaEnabled(form.altchaEnabled ?? false);
     setTurnstileEnabled(form.turnstileEnabled ?? false);
     setTurnstileSecretKey(form.turnstileSecretKey ?? "");
     setAutoresponderSubject(form.autoresponderSubject ?? "");
@@ -1921,6 +1928,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           webhookUrl: webhookUrl || null,
           emailTo: emailTo || null,
           notifyEmail,
+          altchaEnabled,
           turnstileEnabled,
           turnstileSecretKey: turnstileSecretKey || null,
           autoresponderSubject: autoresponderSubject || null,
@@ -2039,18 +2047,62 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           <input id="settings-blocklist" value={spamBlocklist} onChange={(e) => setSpamBlocklist(e.target.value)} className="ff-input text-sm" placeholder="crypto, casino, lottery" />
         </div>
         
+        {/* ALTCHA Proof-of-Work Anti-Spam (100% Free, Zero-Config, Self-Hosted) */}
         <div className="border-t border-white/5 pt-4 space-y-3">
-          <label className="flex items-center gap-2 text-xs text-slate-300">
-            <input type="checkbox" checked={turnstileEnabled} onChange={() => setTurnstileEnabled(!turnstileEnabled)} className="h-4 w-4 rounded" />
-            Enable Cloudflare Turnstile Verification
-          </label>
-          {turnstileEnabled && (
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <label htmlFor="settings-turnstile-secret" className="mb-1 block text-[10px] text-slate-400">Turnstile Secret Key</label>
-              <input id="settings-turnstile-secret" type="password" value={turnstileSecretKey} onChange={(e) => setTurnstileSecretKey(e.target.value)} className="ff-input text-sm" placeholder={turnstileSecretKey === "__TURNSTILE_SECRET_SET__" ? "Turnstile Secret is configured and encrypted" : "0x4AAAAAA..."} />
-              <p className="text-[9px] text-slate-500 mt-1">🔒 Your Turnstile Secret is securely encrypted in D1 database using AES-GCM encryption.</p>
+              <label className="flex items-center gap-2 text-xs font-semibold text-white cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={altchaEnabled}
+                  onChange={() => setAltchaEnabled(!altchaEnabled)}
+                  className="h-4 w-4 rounded accent-cyan-400"
+                />
+                <span>Enable ALTCHA Proof-of-Work Anti-Spam (100% Free &amp; Self-Hosted)</span>
+              </label>
+              <p className="text-[11px] text-slate-400 mt-1 pl-6 leading-relaxed">
+                Zero cookies, privacy-first, and zero external dependencies. Eliminates bot spam via silent in-browser Proof-of-Work. No Cloudflare Turnstile, no Google reCAPTCHA, and zero secret keys required.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+              Free &bull; Self-Hosted
+            </span>
+          </div>
+
+          {altchaEnabled && (
+            <div className="ml-6 mt-2 rounded-xl border border-white/10 bg-black/40 p-3 space-y-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-400 font-medium">Challenge URL for widget:</span>
+                <span className="text-[10px] text-emerald-400 font-mono">Ready to use</span>
+              </div>
+              <code className="block break-all text-xs font-mono text-cyan-300 bg-white/5 p-2 rounded-lg select-all">
+                {typeof window !== "undefined" ? `${window.location.origin}/api/altcha/challenge` : "/api/altcha/challenge"}
+              </code>
+              <p className="text-[10px] text-slate-500">
+                The official <code className="text-cyan-400">&lt;altcha-widget&gt;</code> will automatically fetch challenges and include the solved token in your form submissions.
+              </p>
             </div>
           )}
+
+          {/* Optional Legacy Turnstile */}
+          <details className="mt-2 text-slate-500">
+            <summary className="text-[11px] cursor-pointer hover:text-slate-400 transition">
+              Legacy Cloudflare Turnstile (Optional)
+            </summary>
+            <div className="mt-2 space-y-3 pl-4 border-l border-white/10">
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" checked={turnstileEnabled} onChange={() => setTurnstileEnabled(!turnstileEnabled)} className="h-4 w-4 rounded" />
+                Enable Cloudflare Turnstile Verification
+              </label>
+              {turnstileEnabled && (
+                <div>
+                  <label htmlFor="settings-turnstile-secret" className="mb-1 block text-[10px] text-slate-400">Turnstile Secret Key</label>
+                  <input id="settings-turnstile-secret" type="password" value={turnstileSecretKey} onChange={(e) => setTurnstileSecretKey(e.target.value)} className="ff-input text-sm" placeholder={turnstileSecretKey === "__TURNSTILE_SECRET_SET__" ? "Turnstile Secret is configured and encrypted" : "0x4AAAAAA..."} />
+                  <p className="text-[9px] text-slate-500 mt-1">🔒 Your Turnstile Secret is securely encrypted in D1 database using AES-GCM encryption.</p>
+                </div>
+              )}
+            </div>
+          </details>
         </div>
 
         <div className="border-t border-white/5 pt-4 space-y-3">

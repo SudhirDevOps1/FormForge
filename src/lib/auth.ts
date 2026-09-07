@@ -23,12 +23,14 @@ function parseCookies(header: string | null): Map<string, string> {
   return cookies;
 }
 
-function authSecret(): string | null {
+export function getAuthSecret(): string | null {
   const secret = getRuntimeEnv().AUTH_SECRET?.trim();
   if (!secret) return null;
   if (secret.length < 24) return null;
   return secret;
 }
+
+const authSecret = getAuthSecret;
 
 export const AUTH_SECRET_HELP = `AUTH_SECRET is not set in your Cloudflare Worker. How to fix:
 1. Go to Cloudflare Dashboard → Workers & Pages

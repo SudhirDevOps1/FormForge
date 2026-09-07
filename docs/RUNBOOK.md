@@ -56,7 +56,7 @@ before retention purges if compliance requires offline copies.
 | Incident | Action |
 | -------- | ------ |
 | `AUTH_SECRET` leaked | Generate new secret, `wrangler secret put AUTH_SECRET`, redeploy, delete all rows in `sessions`, revoke API keys (`revoked_at`), force owner password reset |
-| Spam flood | Enable Turnstile + proof-of-work on the form, tighten blocklist, lower submit throttle, set retention purge |
+| Spam flood | Enable ALTCHA PoW (100% free) or Turnstile on the form, tighten blocklist, lower submit throttle, set retention purge |
 | Malicious webhook exfiltrating | Clear `webhook_url` on affected forms, rotate any exposed tokens, review `notifications` table errors |
 | Bad deploy | Roll back: `git tag` the last good release, `git checkout vX.Y.Z`, `npm run deploy`; D1 schema self-heals forward (no down-migration needed) |
 | Committed secret | Revoke/rotate immediately, purge from git history, verify Gitleaks passes |

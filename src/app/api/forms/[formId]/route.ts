@@ -116,6 +116,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     emailTo: readString(body.emailTo, result.form.emailTo ?? "") || null,
     webhookUrl: webhookUrlVal,
     isActive: typeof body.isActive === "boolean" ? body.isActive : result.form.isActive,
+    altchaEnabled: typeof body.altchaEnabled === "boolean" ? body.altchaEnabled : result.form.altchaEnabled,
     turnstileEnabled: typeof body.turnstileEnabled === "boolean" ? body.turnstileEnabled : result.form.turnstileEnabled,
     turnstileSecretKey: turnstileSecretVal,
     autoresponderSubject: readString(body.autoresponderSubject, result.form.autoresponderSubject ?? "") || null,

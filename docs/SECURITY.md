@@ -53,7 +53,7 @@ The server refuses to create sessions when it is missing or shorter than
   hex/octal-obfuscated IPv4.
 - Throttles: login **5 / 15 min**, registration **30 / min**, public form
   submission **60 / min** (429 + `Retry-After`).
-- Spam defense: honeypot trap, proof-of-work option, custom blocklist,
+- Spam defense: honeypot trap, ALTCHA Proof-of-Work (100% free, zero cookies, self-hosted),
   Turnstile CAPTCHA option, DNS-MX validation, retention auto-purge.
 - Public API errors are generic (`An error occurred …`, CWE-209); SMTP
   diagnostics return detail only to the authenticated form owner.
