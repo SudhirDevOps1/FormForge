@@ -77,10 +77,11 @@ async function recordNotification(db: AppDb, formId: string, submissionId: strin
   });
 }
 
-export async function deliverNotifications(db: AppDb, form: Form, submission: Submission): Promise<DeliveryResult[]> {
+export async function deliverNotifications(db: AppDb, form: Form, submission: Submission, appUrl?: string): Promise<DeliveryResult[]> {
   const results: DeliveryResult[] = [];
   const env = getRuntimeEnv();
   const payload = JSON.parse(submission.payload) as Record<string, unknown>;
+  const dashboardUrl = appUrl ? `${appUrl}/dashboard` : (env.APP_URL ? `${env.APP_URL}/dashboard` : "/dashboard");
 
   if (form.notifyEmail && form.emailTo) {
     const tableRows = Object.entries(payload)
@@ -120,7 +121,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
     </table>
     
     <div style="text-align: center; margin: 25px 0 10px 0;">
-      <a href="https://apnaform.sudhirdevops1.workers.dev/dashboard" style="background: linear-gradient(135deg, #38BDF8, #0284C7); color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 9999px; display: inline-block; box-shadow: 0 4px 12px 0 rgba(14, 165, 233, 0.25); transition: all 0.2s ease;">
+      <a href="${dashboardUrl}" style="background: linear-gradient(135deg, #38BDF8, #0284C7); color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 9999px; display: inline-block; box-shadow: 0 4px 12px 0 rgba(14, 165, 233, 0.25); transition: all 0.2s ease;">
         View in Dashboard
       </a>
     </div>

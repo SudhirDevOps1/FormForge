@@ -2877,7 +2877,7 @@ npx wrangler secret put AUTH_SECRET
       try {
         const apiUrl = (typeof window !== 'undefined' && window.location.origin && window.location.origin.startsWith('http'))
           ? `${window.location.origin}/api/public-stats`
-          : 'https://apnaform.sudhirdevops1.workers.dev/api/public-stats';
+          : '/api/public-stats';
         const res = await fetch(apiUrl);
         const data = await res.json();
         if (data.ok) {

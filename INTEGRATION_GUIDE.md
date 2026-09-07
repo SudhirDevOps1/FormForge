@@ -1,6 +1,6 @@
 # 🛠️ FormForge - Custom App & Game Integration Guide
 
-This guide explains how to connect custom applications, static games (like **Chor-Sipahi Game**), or headless frontend frameworks to your FormForge backend.
+This guide explains how to connect custom applications, static web games, or headless frontend frameworks to your FormForge backend.
 
 ---
 
@@ -30,14 +30,14 @@ sequenceDiagram
 
 ## 🌍 1. Crucial Pre-requisite: CORS (Cross-Origin Resource Sharing)
 
-If your app or game is hosted on a domain like `https://chor-sipahi-game.sudhirdevops1.workers.dev` and your FormForge backend is on `https://apnaform.sudhirdevops1.workers.dev`, **browsers will block the request** unless you allow CORS.
+If your app or game is hosted on a domain like `https://my-game.pages.dev` and your FormForge backend is on `https://formforge.YOUR-SUBDOMAIN.workers.dev`, **browsers will block the request** unless you allow CORS.
 
 ### 🛠️ How to Enable CORS for Your App:
 1. Log in to your **FormForge Dashboard** (`/dashboard`).
 2. Select your form and click the **Settings** tab.
 3. Locate the **Allowed Origins** field:
    * **To Allow Everything (Development):** Set it to `*`.
-   * **To Secure in Production:** Set it to your exact domain, e.g., `https://chor-sipahi-game.sudhirdevops1.workers.dev`.
+   * **To Secure in Production:** Set it to your exact domain, e.g., `https://my-game.pages.dev`.
 4. Click **Save Settings**.
 
 ---
@@ -45,19 +45,19 @@ If your app or game is hosted on a domain like `https://chor-sipahi-game.sudhird
 ## 💻 2. Integration Snippets
 
 ### Option A: Modern JavaScript `fetch` (Best for games & dynamic scripts)
-Use this within your game logic (e.g., when a player wins, loses, or finishes a round of Chor-Sipahi) to store game statistics.
+Use this within your game or app logic (e.g., when a player wins, loses, or finishes a round) to store game statistics.
 
 ```javascript
 // Function to upload game results to FormForge
 async function saveGameResult(playerName, score, role, roundsPlayed) {
-  const url = "https://apnaform.sudhirdevops1.workers.dev/api/submit/YOUR_ENDPOINT_ID";
+  const url = "https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID";
   
   const payload = {
     player_name: playerName,
     final_score: score,
-    assigned_role: role, // e.g., Raja, Mantri, Chor, Sipahi
+    assigned_role: role,
     rounds: roundsPlayed,
-    submitted_via: "Chor-Sipahi Web Game v1.0"
+    submitted_via: "Web Game v1.0"
   };
 
   try {
@@ -87,7 +87,7 @@ Use this if you are collecting user feedback, bug reports, or attachments (such 
 ```html
 <form 
   method="POST" 
-  action="https://apnaform.sudhirdevops1.workers.dev/api/submit/YOUR_ENDPOINT_ID"
+  action="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
   enctype="multipart/form-data"
   style="font-family: sans-serif; max-width: 400px; display: flex; flex-direction: column; gap: 12px;"
 >
@@ -199,7 +199,7 @@ export default function ContactForm() {
 ## ⚠️ 3. Troubleshooting Integration Failures
 
 ### 1. `Response to preflight request doesn't pass access control check`
-* **Fix:** The Origin header of your request doesn't match the `Allowed Origins` in your Form settings. Go to FormForge settings and add `https://chor-sipahi-game.sudhirdevops1.workers.dev` to the origin list.
+* **Fix:** The Origin header of your request doesn't match the `Allowed Origins` in your Form settings. Go to FormForge settings and add your frontend origin (e.g. `https://my-game.pages.dev`) to the allowed origins list.
 
 ### 2. Form submits, but fields are empty in the Dashboard
 * **Fix:** If sending raw JSON, ensure headers have `"Content-Type": "application/json"`. If sending HTML form, make sure all inputs have unique `name="..."` tags.

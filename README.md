@@ -42,7 +42,7 @@
 | [🔒 System Limitations](./limitation.md) | Architectural constraints, IP rate limiting, and free-tier limits. |
 | [🔧 Troubleshooting Notes](./troubleshooting1.md) | Additional debugging documentation and configuration details. |
 | [📋 Feature Status & Security Audit](./fixed.md) | Full feature checklist, security score, and next-version roadmap. |
-| [🛠️ Custom App/Game Integration](./INTEGRATION_GUIDE.md) | Connect HTML/JS static games (Chor-Sipahi), React apps, and bypass CORS. |
+| [🛠️ Custom App/Game Integration](./INTEGRATION_GUIDE.md) | Connect HTML/JS static web games/apps, React apps, and configure CORS. |
 | [🔐 Privacy Policy](./privacypolicy.html) | Data handling, encryption, and privacy commitments. |
 
 </div>

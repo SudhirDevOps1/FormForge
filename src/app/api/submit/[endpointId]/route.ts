@@ -538,17 +538,19 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    const appUrl = new URL(request.url).origin;
+
     if (status === "accepted") {
       try {
         const { getCloudflareContext } = await import("@opennextjs/cloudflare");
         const ctx = getCloudflareContext().ctx;
         if (ctx && typeof ctx.waitUntil === "function") {
-          ctx.waitUntil(deliverNotifications(db, form, submission as typeof submissions.$inferSelect));
+          ctx.waitUntil(deliverNotifications(db, form, submission as typeof submissions.$inferSelect, appUrl));
         } else {
-          await deliverNotifications(db, form, submission as typeof submissions.$inferSelect);
+          await deliverNotifications(db, form, submission as typeof submissions.$inferSelect, appUrl);
         }
       } catch {
-        await deliverNotifications(db, form, submission as typeof submissions.$inferSelect);
+        await deliverNotifications(db, form, submission as typeof submissions.$inferSelect, appUrl);
       }
     } else if (status === "pending") {
       if (form.otpEnabled && email) {
