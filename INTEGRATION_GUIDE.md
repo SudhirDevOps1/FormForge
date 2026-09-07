@@ -207,6 +207,38 @@ export default function ContactForm() {
 ### 3. Verification Link displays raw HTML instead of CSS styling
 * **Fix:** The mail client is loading text fallback. FormForge v1.2.0 uses inline-table layouts optimized for all clients. Update to v1.2.0.
 
+### 4. Content Security Policy (CSP) Violation: `Loading the script 'cdn.jsdelivr.net' violates directive 'script-src'`
+* **Cause:** Enterprise or high-security frontend applications (like E2EE or Next.js apps) often enforce strict CSP headers (`script-src 'self'`) that block third-party CDNs like `cdn.jsdelivr.net`.
+* **Fix (Dual-Shield Approach):**
+  * **Option A (Self-Hosted — Recommended):** Save `altcha.min.js` directly in your frontend app's `public/vendor/altcha.min.js` (or `public/altcha.min.js`). Then load it locally:
+    ```html
+    <script defer src="/vendor/altcha.min.js" type="module"></script>
+    ```
+    Because it loads from `'self'`, CSP will never block it, and it loads with 0ms third-party latency.
+  * **Option B (CSP Whitelist):** In your frontend app's `next.config.js`, `middleware.ts`, or reverse proxy, add `https://cdn.jsdelivr.net` to both `script-src` and `connect-src`.
+
+### 5. Network Drop / Proxy Failure: `net::ERR_PROXY_CONNECTION_FAILED`
+* **Cause:** Occurs if the visitor has a broken local proxy/VPN extension, temporary network drop, or if the endpoint domain is unreachable.
+* **Fix (Client-Side Resilient Fallback Pattern):** Always wrap external form submissions in a `try...catch` block. If your app has an internal API or database, fallback to it gracefully so user inquiries are never lost:
+  ```javascript
+  try {
+    const res = await fetch("https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error("External submit returned non-200");
+  } catch (externalErr) {
+    console.warn("External FormForge submit failed, executing internal fallback:", externalErr);
+    // Optional fallback to your app's internal API route:
+    await fetch("/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(e => console.error("Internal fallback also failed:", e));
+  }
+  ```
+
 ---
 
 > **FormForge** — Developed by [Sudhir Singh](https://github.com/SudhirDevOps1)  

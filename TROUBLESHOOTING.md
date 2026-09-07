@@ -285,5 +285,81 @@ When cloning this repository to a new machine or account, follow this checklist:
 
 ---
 
+## 5. Enterprise Frontend & Security Troubleshooting (CSP, ALTCHA & Fallbacks)
+
+### ❌ Issue 1: Content Security Policy (CSP) Violations with `<altcha-widget>`
+
+#### Error:
+```text
+Loading the script 'https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js' violates the following Content Security Policy directive: "script-src 'self' 'unsafe-inline' ..."
+```
+
+#### Cause:
+Modern enterprise web applications (e.g. Next.js, E2EE platforms, banking interfaces) often deploy strict Content Security Policy (CSP) headers restricting scripts to `'self'`. When loading `<altcha-widget>` from third-party CDNs like `cdn.jsdelivr.net`, the browser blocks script execution.
+
+#### Dual-Shield Solution:
+1. **Self-Hosted `/vendor/altcha.min.js` (Recommended):**
+   - Download the official bundle directly into your frontend repository: `public/vendor/altcha.min.js` (or `public/altcha.min.js`).
+   - Load it using same-origin URL:
+     ```html
+     <script defer src="/vendor/altcha.min.js" type="module"></script>
+     ```
+   - **Why this is best:** Browser loads it from `'self'` (same origin), meaning CSP will never block it, third-party CDN downtime risks are eliminated, and loading happens in 0ms.
+2. **CSP Policy Whitelist:**
+   - If loading from CDN, add `https://cdn.jsdelivr.net` to `script-src` and `connect-src` in your application's CSP headers (e.g., in `next.config.js`, reverse proxy, or `middleware.ts`).
+
+---
+
+### ❌ Issue 2: Network Drop / Proxy Disconnect (`net::ERR_PROXY_CONNECTION_FAILED`)
+
+#### Error:
+```text
+Failed to load resource: net::ERR_PROXY_CONNECTION_FAILED
+```
+
+#### Cause:
+This error originates on the client machine/browser when:
+1. The user has an active VPN, AdBlocker, or local proxy tool that dropped the connection.
+2. The endpoint domain was misconfigured, mistyped, or temporary network disconnection occurred.
+
+#### Resilient Client-Side Dual-Backend Pattern:
+When embedding FormForge in production applications, always wrap outbound requests in an error boundary so client inquiries are never lost even if client-side proxies fail:
+
+```typescript
+async function submitWithFailover(payload: Record<string, unknown>) {
+  const formForgeUrl = "https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID";
+  
+  try {
+    const res = await fetch(formForgeUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    
+    if (res.ok) {
+      return { success: true, channel: "formforge" };
+    }
+    throw new Error(`FormForge responded with status ${res.status}`);
+  } catch (externalError) {
+    console.warn("External form endpoint unreachable, triggering internal backup:", externalError);
+    
+    // Graceful fallback to your app's internal route:
+    try {
+      const fallbackRes = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      return { success: fallbackRes.ok, channel: "internal_fallback" };
+    } catch (fallbackError) {
+      console.error("All delivery channels failed:", fallbackError);
+      return { success: false, error: "Network unavailable" };
+    }
+  }
+}
+```
+
+---
+
 > **FormForge** — Developed by [Sudhir Singh](https://github.com/SudhirDevOps1)  
 > © 2024-2026 Sudhir Singh. All rights reserved.

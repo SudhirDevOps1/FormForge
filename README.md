@@ -299,7 +299,8 @@ Before embedding your form, ensure your client setup adheres to these core backe
 ---
 
 #### Template 2: Single-Endpoint HTML Form with ALTCHA Anti-Spam (100% Free & Self-Hosted)
-> 🛡️ Both the cryptographic challenge (`GET`) and form submission (`POST`) use the **exact same endpoint URL**!
+> 🛡️ Both the cryptographic challenge (`GET`) and form submission (`POST`) use the **exact same endpoint URL**!  
+> 💡 **Enterprise CSP Tip:** If your app enforces strict Content Security Policy (`script-src 'self'`), save `altcha.min.js` in your `public/` directory and load from `/altcha.min.js` without any external CDN dependencies.
 
 ```html
 <!DOCTYPE html>
@@ -307,7 +308,7 @@ Before embedding your form, ensure your client setup adheres to these core backe
 <head>
   <meta charset="UTF-8">
   <title>Contact Us</title>
-  <!-- 1. Include the lightweight ALTCHA script -->
+  <!-- 1. Include the lightweight ALTCHA script (or load locally from /altcha.min.js) -->
   <script defer src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" type="module"></script>
 </head>
 <body>
@@ -329,8 +330,9 @@ Before embedding your form, ensure your client setup adheres to these core backe
     <label for="message">Message</label>
     <textarea id="message" name="message" rows="4" required></textarea>
 
-    <!-- 2. ALTCHA PoW Widget: Uses the EXACT same FormForge endpoint! -->
+    <!-- 2. ALTCHA PoW Widget: Uses auto="onload" for instant background solving and EXACT same FormForge endpoint! -->
     <altcha-widget 
+      auto="onload"
       challengeurl="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
     ></altcha-widget>
 
