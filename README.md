@@ -243,44 +243,282 @@ npm run deploy
 
 ---
 
-## API Examples
+## 🔌 Client App & Website Integration Guide
 
-### Register owner
+Connect any frontend website, mobile/web application, or static site to your FormForge backend in minutes.
 
-```bash
-curl -X POST https://YOUR-WORKER.workers.dev/api/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"owner@example.com","name":"Owner","password":"change-this-password"}'
-```
+### 📋 Core Integration Rules & Requirements
 
-### Create a form
+Before embedding your form, ensure your client setup adheres to these core backend rules:
 
-```bash
-curl -X POST https://YOUR-WORKER.workers.dev/api/forms \
-  -H 'Content-Type: application/json' \
-  -b cookies.txt -c cookies.txt \
-  -d '{"name":"Contact","allowedOrigins":"https://example.com"}'
-```
+| Rule | Requirement | Backend Behavior |
+| :--- | :--- | :--- |
+| **Unified Single Endpoint** | `https://YOUR-WORKER.workers.dev/api/submit/{endpointId}` | Handles both `POST` (submission) and `GET` (live ALTCHA PoW challenge) at the exact same URL. |
+| **Allowed Origins (CORS)** | Configure in Dashboard ➔ Form Settings | In production, set to your exact domain (e.g. `https://mywebsite.com`). In dev/test, set to `*`. Unauthorized origins receive `403 Forbidden` (`ORIGIN_BLOCKED`). |
+| **Email Field Validation** | Field name: `name="email"` (or `reply_to`) | If provided, must be syntactically valid (`user@domain.com`) AND pass live DNS MX record checks. Invalid emails or dead domains receive `400 Bad Request`. |
+| **Honeypot Bot Trap** | Field name: `name="website"` (hidden) | Legitimate users leave it blank; spam bots fill it automatically. If filled, the submission receives `+100` spam score and is flagged as spam. |
+| **Spam Blocklist** | Custom keywords in Form Settings | Any submission containing banned words (e.g. `casino, crypto`) is flagged as spam automatically. |
+| **Payload Limit** | Max `64 KB` per submission | Payloads exceeding 64KB receive `413 PAYLOAD_TOO_LARGE`. |
+| **Rate Limiting** | Max `60 requests / minute` per IP | Rapid submissions receive `429 RATE_LIMITED` with `Retry-After` header. |
+| **ALTCHA Status** | Form Settings ➔ ALTCHA Toggle | If **ON**, client must submit an `altcha` PoW token. If **OFF**, forms submit instantly without any challenge. |
 
-### Use in HTML
+---
+
+### 🚀 Ready-to-Use Code Templates
+
+#### Template 1: Plain HTML Form (Zero JavaScript, Direct POST with Redirect)
+> 💡 **Requirement:** In FormForge dashboard, make sure **ALTCHA Proof-of-Work** is toggled **OFF** for zero-JS forms.
 
 ```html
-<form method="POST" action="https://YOUR-WORKER.workers.dev/api/submit/endpoint_xxx">
-  <input name="email" type="email" required />
-  <textarea name="message" required></textarea>
-  <input name="website" tabindex="-1" autocomplete="off" hidden />
-  <button>Send</button>
+<form 
+  action="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID" 
+  method="POST"
+  style="max-width: 480px; display: flex; flex-direction: column; gap: 12px; font-family: sans-serif;"
+>
+  <!-- Optional redirect: User goes here after submitting -->
+  <input type="hidden" name="_next" value="https://mywebsite.com/thank-you.html" />
+
+  <!-- Anti-Bot Honeypot Trap (Do not remove, keep hidden) -->
+  <input type="text" name="website" style="display:none;" tabindex="-1" autocomplete="off" />
+
+  <label for="name">Your Name</label>
+  <input id="name" name="name" type="text" placeholder="John Doe" required />
+
+  <label for="email">Email Address</label>
+  <input id="email" name="email" type="email" placeholder="john@example.com" required />
+
+  <label for="message">Message</label>
+  <textarea id="message" name="message" rows="4" placeholder="How can we help?" required></textarea>
+
+  <button type="submit" style="padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+    Send Message
+  </button>
 </form>
 ```
 
-### Use with fetch
+---
 
-```js
-await fetch("https://YOUR-WORKER.workers.dev/api/submit/endpoint_xxx", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ email: "hello@example.com", message: "Hi" }),
+#### Template 2: Single-Endpoint HTML Form with ALTCHA Anti-Spam (100% Free & Self-Hosted)
+> 🛡️ Both the cryptographic challenge (`GET`) and form submission (`POST`) use the **exact same endpoint URL**!
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Contact Us</title>
+  <!-- 1. Include the lightweight ALTCHA script -->
+  <script defer src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" type="module"></script>
+</head>
+<body>
+
+  <form 
+    action="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID" 
+    method="POST"
+    style="max-width: 480px; display: flex; flex-direction: column; gap: 12px; font-family: sans-serif;"
+  >
+    <input type="hidden" name="_next" value="https://mywebsite.com/thank-you" />
+    <input type="text" name="website" style="display:none;" tabindex="-1" autocomplete="off" />
+
+    <label for="name">Your Name</label>
+    <input id="name" name="name" type="text" placeholder="John Doe" required />
+
+    <label for="email">Email Address</label>
+    <input id="email" name="email" type="email" placeholder="john@example.com" required />
+
+    <label for="message">Message</label>
+    <textarea id="message" name="message" rows="4" required></textarea>
+
+    <!-- 2. ALTCHA PoW Widget: Uses the EXACT same FormForge endpoint! -->
+    <altcha-widget 
+      challengeurl="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
+    ></altcha-widget>
+
+    <button type="submit" style="padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+      Submit Form
+    </button>
+  </form>
+
+</body>
+</html>
+```
+
+---
+
+#### Template 3: React / Next.js Component (`fetch` with JSON & Status Feedback)
+
+```tsx
+"use client";
+
+import { useState } from "react";
+
+const ENDPOINT_URL = "https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID";
+
+export default function ContactForm() {
+  const [formData, setFormData] = useState({ name: "", email: "", message: "", website: "" });
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("submitting");
+    setErrorMessage("");
+
+    try {
+      const res = await fetch(ENDPOINT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || `Submission failed with status ${res.status}`);
+      }
+
+      setStatus("success");
+      setFormData({ name: "", email: "", message: "", website: "" });
+    } catch (err: any) {
+      setStatus("error");
+      setErrorMessage(err.message || "An unexpected error occurred. Please try again.");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ maxWidth: 440, display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Honeypot field (hidden from real users) */}
+      <input 
+        type="text" 
+        name="website" 
+        value={formData.website} 
+        onChange={(e) => setFormData({ ...formData, website: e.target.value })} 
+        style={{ display: "none" }} 
+        tabIndex={-1} 
+        autoComplete="off" 
+      />
+
+      <input
+        type="text"
+        placeholder="Your Name"
+        value={formData.name}
+        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        required
+        disabled={status === "submitting"}
+      />
+
+      <input
+        type="email"
+        placeholder="Your Email"
+        value={formData.email}
+        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+        required
+        disabled={status === "submitting"}
+      />
+
+      <textarea
+        rows={4}
+        placeholder="Your Message..."
+        value={formData.message}
+        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+        required
+        disabled={status === "submitting"}
+      />
+
+      <button type="submit" disabled={status === "submitting"}>
+        {status === "submitting" ? "Sending..." : "Send Message"}
+      </button>
+
+      {status === "success" && (
+        <p style={{ color: "#16a34a", fontWeight: 500 }}>✓ Thank you! Your message has been received.</p>
+      )}
+      {status === "error" && (
+        <p style={{ color: "#dc2626", fontWeight: 500 }}>✕ {errorMessage}</p>
+      )}
+    </form>
+  );
+}
+```
+
+---
+
+#### Template 4: Vanilla JavaScript / AJAX (FormData with File Uploads)
+
+```javascript
+const form = document.querySelector("#contact-form");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  
+  const submitBtn = form.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Sending...";
+
+  const endpoint = "https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID";
+  const formData = new FormData(form);
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      body: formData, // Automatically handles multipart/form-data & file attachments
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.ok) {
+      alert("✓ Message sent successfully! Reference ID: " + data.submissionId);
+      form.reset();
+    } else {
+      alert("✕ Error: " + (data.message || "Failed to submit form."));
+    }
+  } catch (err) {
+    alert("✕ Network or CORS error occurred: " + err.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Send Message";
+  }
 });
+```
+
+---
+
+#### Template 5: 1-Line Floating Modal Widget (`/widget.js`)
+Embed an interactive contact & feedback popup modal into Webflow, WordPress, Shopify, Framer, or any HTML page with zero build steps:
+
+```html
+<script 
+  src="https://YOUR-WORKER.workers.dev/widget.js" 
+  data-formforge-endpoint="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
+  data-formforge-title="Get in Touch"
+  data-formforge-primary-color="#2563eb"
+  defer>
+</script>
+```
+
+---
+
+### 💻 Backend & CLI Submissions
+
+#### cURL (Bash / Terminal)
+```bash
+curl -X POST https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alex","email":"alex@example.com","message":"Loving FormForge!"}'
+```
+
+#### Python (`requests`)
+```python
+import requests
+
+url = "https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
+payload = {
+    "name": "Alex",
+    "email": "alex@example.com",
+    "message": "Hello from Python backend"
+}
+
+response = requests.post(url, json=payload)
+print(response.status_code, response.json())
 ```
 
 ---

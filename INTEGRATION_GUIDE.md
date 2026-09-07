@@ -108,6 +108,92 @@ Use this if you are collecting user feedback, bug reports, or attachments (such 
 </form>
 ```
 
+### Option C: Single-Endpoint HTML Form with ALTCHA Anti-Spam (100% Free & Self-Hosted)
+Use this when you have enabled **ALTCHA Proof-of-Work** in your FormForge dashboard settings. Both the cryptographic challenge (`GET`) and the form submission (`POST`) use the exact same endpoint URL!
+
+```html
+<!-- 1. Include the lightweight ALTCHA script in your <head> -->
+<script defer src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" type="module"></script>
+
+<!-- 2. Form submission -->
+<form 
+  method="POST" 
+  action="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
+  style="max-width: 400px; display: flex; flex-direction: column; gap: 12px; font-family: sans-serif;"
+>
+  <label>Your Name</label>
+  <input name="name" type="text" required placeholder="Enter name" />
+
+  <label>Email Address</label>
+  <input name="email" type="email" required placeholder="name@domain.com" />
+
+  <label>Message</label>
+  <textarea name="message" required placeholder="Type your message"></textarea>
+
+  <!-- Honeypot anti-bot field (keep hidden) -->
+  <input name="website" tabindex="-1" autocomplete="off" style="display:none;" />
+
+  <!-- 3. ALTCHA PoW Widget: Uses the EXACT same FormForge endpoint URL! -->
+  <altcha-widget 
+    challengeurl="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
+  ></altcha-widget>
+
+  <button type="submit">Submit Form</button>
+</form>
+```
+
+### Option D: React / Next.js Component (`fetch` with JSON & State)
+```tsx
+"use client";
+
+import { useState } from "react";
+
+const ENDPOINT_URL = "https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID";
+
+export default function ContactForm() {
+  const [formData, setFormData] = useState({ name: "", email: "", message: "", website: "" });
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("submitting");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch(ENDPOINT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Submission failed");
+
+      setStatus("success");
+      setFormData({ name: "", email: "", message: "", website: "" });
+    } catch (err: any) {
+      setStatus("error");
+      setErrorMsg(err.message || "Failed to submit.");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="text" name="website" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} style={{ display: "none" }} tabIndex={-1} autoComplete="off" />
+      <input type="text" placeholder="Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+      <input type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+      <textarea placeholder="Message" value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} required />
+      <button type="submit" disabled={status === "submitting"}>
+        {status === "submitting" ? "Sending..." : "Submit"}
+      </button>
+      {status === "success" && <p>✓ Message sent successfully!</p>}
+      {status === "error" && <p>✕ {errorMsg}</p>}
+    </form>
+  );
+}
+```
+
 ---
 
 ## ⚠️ 3. Troubleshooting Integration Failures
