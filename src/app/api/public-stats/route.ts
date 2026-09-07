@@ -25,9 +25,9 @@ export async function GET() {
   if (!db) {
     return Response.json({
       ok: true,
-      submissions: 2418,
-      forms: 12,
-      users: 3,
+      submissions: 0,
+      forms: 0,
+      users: 0,
       fallback: true
     }, { headers: corsHeaders });
   }
@@ -39,17 +39,17 @@ export async function GET() {
 
     return Response.json({
       ok: true,
-      submissions: subsCount[0]?.count || 0,
-      forms: formsCount[0]?.count || 0,
-      users: usersCount[0]?.count || 0,
+      submissions: Number(subsCount[0]?.count || 0),
+      forms: Number(formsCount[0]?.count || 0),
+      users: Number(usersCount[0]?.count || 0),
       fallback: false
     }, { headers: corsHeaders });
   } catch (error) {
     return Response.json({
       ok: true,
-      submissions: 2418,
-      forms: 12,
-      users: 3,
+      submissions: 0,
+      forms: 0,
+      users: 0,
       fallback: true
     }, { headers: corsHeaders });
   }

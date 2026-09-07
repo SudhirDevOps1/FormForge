@@ -1,3 +1,5 @@
+import { LiveStatsCard } from "@/components/LiveStatsCard";
+
 const features = [
   "HTML form + JSON submissions",
   "Unlimited forms on your own D1 database",
@@ -107,46 +109,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="glass-panel rounded-[2rem] p-4 sm:p-6 animate-float">
-          <div className="rounded-[1.5rem] border border-white/10 bg-slate-950/80 p-5">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Dashboard Preview</p>
-                <h2 className="text-2xl font-bold text-white">Live Submissions</h2>
-              </div>
-              <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/15 border border-emerald-400/30 px-3 py-1 text-xs font-semibold text-emerald-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                D1 Bound
-              </span>
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              {["2,418 Total", "99.2% Accepted", "0 Paid Limits"].map((metric) => (
-                <div key={metric} className="rounded-2xl bg-white/[0.04] p-4 text-sm text-slate-300">
-                  <strong className="block text-xl text-white">{metric.split(" ")[0]}</strong>
-                  <span className="text-xs text-slate-400">{metric.split(" ").slice(1).join(" ")}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 space-y-3">
-              {[
-                ["Contact form", "accepted", "New project inquiry from static site", "just now"],
-                ["Beta Waitlist", "accepted", "Early tester signup via Next.js SSG", "12m ago"],
-                ["Survey Form", "spam", "Honeypot trap triggered (blocked)", "1h ago"],
-              ].map(([form, status, text, time]) => (
-                <div key={`${form}-${text}`} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-white truncate text-sm">{form}</p>
-                      <span className="text-[10px] text-slate-500">{time}</span>
-                    </div>
-                    <p className="text-xs text-slate-400 truncate mt-0.5">{text}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${status === "spam" ? "bg-amber-300/15 border border-amber-300/30 text-amber-200" : "bg-emerald-300/15 border border-emerald-300/30 text-emerald-200"}`}>{status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <LiveStatsCard />
       </section>
 
       <section id="features" className="relative mx-auto w-full max-w-7xl px-5 py-16 sm:px-8">

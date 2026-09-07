@@ -1631,12 +1631,12 @@
           <div class="repo-freshness-card" style="border-color: rgba(56, 189, 248, 0.2); background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.05), transparent 80%);">
             <div>
               <div class="repo-stat-label">Live System Stats</div>
-              <div class="big-number" style="color: var(--accent);"><span id="live-total-submissions">2418</span></div>
+              <div class="big-number" style="color: var(--accent);"><span id="live-total-submissions">0</span></div>
               <p style="color: var(--text-secondary); font-size: 14px; margin-top: 10px;">Total processed submissions</p>
             </div>
             <div style="font-size: 12px; color: var(--text-muted); margin-top: 14px; display: flex; gap: 12px; border-top: 1px solid var(--border); padding-top: 8px;">
-              <span>Forms: <strong id="live-total-forms" style="color: white;">12</strong></span>
-              <span>Active Users: <strong id="live-total-users" style="color: white;">3</strong></span>
+              <span>Forms: <strong id="live-total-forms" style="color: white;">0</strong></span>
+              <span>Active Users: <strong id="live-total-users" style="color: white;">0</strong></span>
             </div>
           </div>
         </div>
@@ -2829,7 +2829,10 @@ npx wrangler secret put AUTH_SECRET
     // 6. Fetch live metrics from public D1 API
     async function fetchLiveStats() {
       try {
-        const res = await fetch('https://apnaform.sudhirdevops1.workers.dev/api/public-stats');
+        const apiUrl = (typeof window !== 'undefined' && window.location.origin && window.location.origin.startsWith('http'))
+          ? `${window.location.origin}/api/public-stats`
+          : 'https://apnaform.sudhirdevops1.workers.dev/api/public-stats';
+        const res = await fetch(apiUrl);
         const data = await res.json();
         if (data.ok) {
           const subEl = document.getElementById('live-total-submissions');
