@@ -1,0 +1,51 @@
+# Path-based auto-labeler for FormForge PRs.
+security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/lib/crypto.ts'
+      - 'src/lib/auth.ts'
+      - 'src/lib/encryption.ts'
+      - 'src/lib/security.ts'
+      - 'src/lib/api-key-auth.ts'
+      - 'src/lib/rate-limit.ts'
+      - 'src/lib/url-validation.ts'
+
+database:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/db/**'
+      - 'migrations/**'
+      - 'drizzle.config.ts'
+
+frontend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/app/**/*.tsx'
+      - 'src/app/**/*.css'
+      - 'public/**'
+
+api:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/app/api/**'
+
+infrastructure:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'wrangler.jsonc'
+      - 'next.config.ts'
+      - 'open-next.config.ts'
+      - 'build-cf.js'
+      - '.github/**'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'package-lock.json'

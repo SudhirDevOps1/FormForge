@@ -6,9 +6,17 @@
     "dev": "next dev",
     "build": "node build-cf.js",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
+    "test": "node tests/run-all-security-tests.mjs",
+    "test:security": "node tests/run-all-security-tests.mjs",
+    "prepare": "husky",
     "deploy": "wrangler deploy",
+    "deploy:cf": "wrangler deploy",
+    "deploy:vercel": "vercel --prod",
+    "deploy:netlify": "netlify deploy --prod",
+    "build:vercel": "next build",
+    "build:netlify": "next build",
     "db:setup:local": "wrangler d1 migrations apply formforge-db --local",
     "db:migrate:local": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
@@ -16,24 +24,38 @@
     "setup": "node setup.js"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@neondatabase/serverless": "^1.1.0",
     "@opennextjs/cloudflare": "1.20.1",
     "drizzle-orm": "0.38.3",
-    "next": "15.1.3",
+    "next": "15.5.18",
     "nodemailer": "^7.0.13",
-    "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250408.0",
+    "@cloudflare/workers-types": "^5.0.0",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@eslint/eslintrc": "^3.0.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "22.10.2",
     "@types/nodemailer": "^6.4.17",
-    "@types/react": "19.0.2",
-    "@types/react-dom": "19.0.2",
+    "@types/react": "19.1.0",
+    "@types/react-dom": "19.1.0",
     "drizzle-kit": "0.30.1",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "15.5.18",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
     "postcss": "^8.4.0",
     "typescript": "5.7.2",
     "wrangler": "^4.108.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs}": [
+      "eslint --no-warn-ignored --max-warnings=0 --fix"
+    ]
   },
   "description": "Privacy-first open-source form backend for static sites on Cloudflare Workers and D1",
   "cloudflare": {
@@ -90,5 +112,14 @@
         "description": "Optional. S3-compatible endpoint URL (e.g. https://s3.us-west-002.backblazeb2.com). Works with Backblaze B2, Wasabi, Storj, MinIO, AWS S3, etc."
       }
     }
+  },
+  "allowScripts": {
+    "esbuild@0.25.4": true,
+    "esbuild@0.19.12": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.28.1": true,
+    "workerd@1.20260903.1": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.12.2": true
   }
 }

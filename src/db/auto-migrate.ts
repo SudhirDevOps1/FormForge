@@ -1,0 +1,236 @@
+import { sql } from "drizzle-orm";
+import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+
+let migrationExecuted = false;
+
+export async function autoMigrate(db: BaseSQLiteDatabase<"async", any, any>): Promise<void> {
+  if (migrationExecuted) return;
+
+  try {
+    // 1. Core tables
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY NOT NULL,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT DEFAULT 'owner' NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+    `);
+
+    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);`);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS forms (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        endpoint_id TEXT NOT NULL,
+        description TEXT,
+        redirect_url TEXT,
+        success_message TEXT DEFAULT 'Thanks! Your response has been received.' NOT NULL,
+        allowed_origins TEXT DEFAULT '*' NOT NULL,
+        honeypot_field TEXT DEFAULT 'website' NOT NULL,
+        require_proof_of_work INTEGER DEFAULT 0 NOT NULL,
+        notify_email INTEGER DEFAULT 0 NOT NULL,
+        email_to TEXT,
+        webhook_url TEXT,
+        store_ip_hash INTEGER DEFAULT 1 NOT NULL,
+        is_active INTEGER DEFAULT 1 NOT NULL,
+        submissions_count INTEGER DEFAULT 0 NOT NULL,
+        turnstile_enabled INTEGER DEFAULT 0 NOT NULL,
+        turnstile_secret_key TEXT,
+        autoresponder_subject TEXT,
+        autoresponder_body TEXT,
+        spam_blocklist TEXT,
+        retention_days INTEGER DEFAULT 0,
+        email_verification_enabled INTEGER DEFAULT 0 NOT NULL,
+        smtp_enabled INTEGER DEFAULT 0 NOT NULL,
+        smtp_host TEXT,
+        smtp_port INTEGER,
+        smtp_user TEXT,
+        smtp_pass TEXT,
+        smtp_from TEXT,
+        gas_url TEXT,
+        telegram_bot_token TEXT,
+        telegram_chat_id TEXT,
+        ntfy_topic TEXT,
+        otp_enabled INTEGER DEFAULT 0 NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await db.run(sql`CREATE INDEX IF NOT EXISTS forms_user_id_idx ON forms (user_id);`);
+    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS forms_endpoint_id_idx ON forms (endpoint_id);`);
+    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS forms_user_slug_idx ON forms (user_id, slug);`);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS form_fields (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        form_id TEXT NOT NULL,
+        field_key TEXT NOT NULL,
+        label TEXT NOT NULL,
+        type TEXT DEFAULT 'text' NOT NULL,
+        required INTEGER DEFAULT 0 NOT NULL,
+        position INTEGER DEFAULT 0 NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await db.run(sql`CREATE INDEX IF NOT EXISTS form_fields_form_id_idx ON form_fields (form_id);`);
+    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS form_fields_form_key_idx ON form_fields (form_id, field_key);`);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS submissions (
+        id TEXT PRIMARY KEY NOT NULL,
+        form_id TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        email TEXT,
+        ip_hash TEXT,
+        user_agent TEXT,
+        referer TEXT,
+        status TEXT DEFAULT 'accepted' NOT NULL,
+        spam_score INTEGER DEFAULT 0 NOT NULL,
+        spam_reasons TEXT DEFAULT '[]' NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await db.run(sql`CREATE INDEX IF NOT EXISTS submissions_form_id_idx ON submissions (form_id);`);
+    await db.run(sql`CREATE INDEX IF NOT EXISTS submissions_created_at_idx ON submissions (created_at);`);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        last_seen_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS sessions_token_hash_idx ON sessions (token_hash);`);
+    await db.run(sql`CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);`);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS api_keys (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        key_prefix TEXT NOT NULL,
+        key_hash TEXT NOT NULL,
+        scopes TEXT DEFAULT 'forms:read,submissions:read' NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        last_used_at TEXT,
+        revoked_at TEXT,
+        expires_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await db.run(sql`CREATE INDEX IF NOT EXISTS api_keys_user_id_idx ON api_keys (user_id);`);
+    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS api_keys_hash_idx ON api_keys (key_hash);`);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        form_id TEXT NOT NULL,
+        submission_id TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        status TEXT DEFAULT 'queued' NOT NULL,
+        error TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+        FOREIGN KEY (submission_id) REFERENCES submissions(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await db.run(sql`CREATE INDEX IF NOT EXISTS notifications_form_id_idx ON notifications (form_id);`);
+    await db.run(sql`CREATE INDEX IF NOT EXISTS notifications_submission_id_idx ON notifications (submission_id);`);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        user_id TEXT,
+        form_id TEXT,
+        action TEXT NOT NULL,
+        metadata TEXT DEFAULT '{}' NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE SET NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE SET NULL
+      );
+    `);
+
+    await db.run(sql`CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON audit_logs (user_id);`);
+    await db.run(sql`CREATE INDEX IF NOT EXISTS audit_logs_form_id_idx ON audit_logs (form_id);`);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS rate_limits (
+        key TEXT PRIMARY KEY NOT NULL,
+        count INTEGER DEFAULT 0 NOT NULL,
+        reset_at TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+    `);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS otp_codes (
+        id TEXT PRIMARY KEY NOT NULL,
+        form_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        code_hash TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        verified_at TEXT,
+        attempts INTEGER DEFAULT 0 NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await db.run(sql`CREATE INDEX IF NOT EXISTS otp_codes_form_id_idx ON otp_codes (form_id);`);
+    await db.run(sql`CREATE INDEX IF NOT EXISTS otp_codes_email_idx ON otp_codes (email);`);
+
+    // Safe column additions for existing databases
+    const columnsToAdd = [
+      "ALTER TABLE forms ADD COLUMN gas_url TEXT;",
+      "ALTER TABLE forms ADD COLUMN telegram_bot_token TEXT;",
+      "ALTER TABLE forms ADD COLUMN telegram_chat_id TEXT;",
+      "ALTER TABLE forms ADD COLUMN ntfy_topic TEXT;",
+      "ALTER TABLE forms ADD COLUMN otp_enabled INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN turnstile_enabled INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN turnstile_secret_key TEXT;",
+      "ALTER TABLE forms ADD COLUMN autoresponder_subject TEXT;",
+      "ALTER TABLE forms ADD COLUMN autoresponder_body TEXT;",
+      "ALTER TABLE forms ADD COLUMN spam_blocklist TEXT;",
+      "ALTER TABLE forms ADD COLUMN retention_days INTEGER DEFAULT 0;",
+      "ALTER TABLE forms ADD COLUMN email_verification_enabled INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN smtp_enabled INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN smtp_host TEXT;",
+      "ALTER TABLE forms ADD COLUMN smtp_port INTEGER;",
+      "ALTER TABLE forms ADD COLUMN smtp_user TEXT;",
+      "ALTER TABLE forms ADD COLUMN smtp_pass TEXT;",
+      "ALTER TABLE forms ADD COLUMN smtp_from TEXT;",
+    ];
+
+    for (const ddl of columnsToAdd) {
+      try {
+        await db.run(sql.raw(ddl));
+      } catch {
+        // Column already exists, safe to ignore
+      }
+    }
+
+    migrationExecuted = true;
+  } catch (err) {
+    console.warn("Auto-migrate warning (safe to ignore if tables already exist):", err);
+  }
+}

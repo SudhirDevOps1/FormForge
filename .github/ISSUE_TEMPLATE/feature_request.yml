@@ -1,0 +1,62 @@
+name: Feature Request
+description: Suggest a new feature or improvement for FormForge
+title: 'feat: '
+labels: [enhancement, needs-triage]
+assignees:
+  - SudhirDevOps1
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature. Please describe it clearly below.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What is the use case?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe how you'd like this to work.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or workarounds you've considered.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      options:
+        - Form submission & processing
+        - Email notifications
+        - File storage (S3/R2)
+        - Authentication & API keys
+        - Dashboard & UI
+        - Cloudflare integration
+        - Security & privacy
+        - Developer experience
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (your assessment)
+      options:
+        - Low — nice to have
+        - Medium — would significantly improve my workflow
+        - High — blocking a real use case
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy Alignment
+      options:
+        - label: This feature aligns with FormForge's privacy-first philosophy
+          required: true

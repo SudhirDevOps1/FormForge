@@ -130,6 +130,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     smtpUser: readString(body.smtpUser, result.form.smtpUser ?? "") || null,
     smtpPass: smtpPassVal,
     smtpFrom: readString(body.smtpFrom, result.form.smtpFrom ?? "") || null,
+    gasUrl: readString(body.gasUrl, result.form.gasUrl ?? "") || null,
+    telegramBotToken: readString(body.telegramBotToken, result.form.telegramBotToken ?? "") || null,
+    telegramChatId: readString(body.telegramChatId, result.form.telegramChatId ?? "") || null,
+    ntfyTopic: readString(body.ntfyTopic, result.form.ntfyTopic ?? "") || null,
+    otpEnabled: typeof body.otpEnabled === "boolean" ? body.otpEnabled : result.form.otpEnabled,
     updatedAt: new Date().toISOString(),
   };
 

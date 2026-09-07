@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 type User = { id: string; email: string; name: string; role: string };
 type Form = {
@@ -31,6 +32,11 @@ type Form = {
   smtpUser: string | null;
   smtpPass: string | null;
   smtpFrom: string | null;
+  gasUrl?: string | null;
+  telegramBotToken?: string | null;
+  telegramChatId?: string | null;
+  ntfyTopic?: string | null;
+  otpEnabled?: boolean;
   createdAt: string;
 };
 type Submission = {
@@ -119,7 +125,7 @@ export default function DashboardPage() {
   useEffect(() => {
     document.title = "Dashboard — FormForge";
     loadMe();
-  }, []);
+  }, [loadMe]);
 
   if (loading) return <Spinner />;
   if (!user) return <AuthCard onAuthed={loadMe} />;
@@ -168,10 +174,10 @@ function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   return (
     <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-8">
-      <a href="/" className="flex items-center gap-3" aria-label="FormForge Home">
+      <Link href="/" className="flex items-center gap-3" aria-label="FormForge Home">
         <img src="/logo.svg" alt="FormForge Logo" className="h-9 w-9 rounded-xl" />
         <span className="font-bold tracking-tight">FormForge <span className="ml-1.5 rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400">v1.2.0</span></span>
-      </a>
+      </Link>
       <div className="flex items-center gap-3">
         <span className="hidden text-sm text-slate-400 sm:inline">{user.email}</span>
         <button
@@ -188,7 +194,7 @@ function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
       {menuOpen && (
         <div className="absolute inset-x-4 top-16 z-50 rounded-2xl border border-white/15 bg-slate-900/95 p-4 backdrop-blur-lg sm:hidden">
           <p className="mb-3 text-sm text-slate-400">{user.email}</p>
-          <a href="/" className="mb-2 block rounded-xl px-4 py-3 text-sm hover:bg-white/10">Home</a>
+          <Link href="/" className="mb-2 block rounded-xl px-4 py-3 text-sm hover:bg-white/10">Home</Link>
           <a href="/docs.html" className="mb-2 block rounded-xl px-4 py-3 text-sm hover:bg-white/10">Docs</a>
           <a href="/guide.html" className="mb-2 block rounded-xl px-4 py-3 text-sm hover:bg-white/10">Guide</a>
           <button onClick={async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); onLogout(); setMenuOpen(false); }} className="w-full rounded-xl border border-rose-400/30 px-4 py-3 text-left text-sm text-rose-200 hover:bg-rose-400/10">Sign out</button>
@@ -1133,6 +1139,71 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
           )}
         </div>
       </div>
+
+      {/* DuckDB / In-Browser Zero-Cost SQL Analytics Suite */}
+      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🦆</span>
+            <div>
+              <h3 className="text-sm font-bold text-emerald-300">DuckDB Client-Side Analytics & SQL Engine</h3>
+              <p className="text-[11px] text-slate-400">Run instant analytics directly in your browser with zero server compute and zero database costs.</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 w-fit">
+            ⚡ 0 Backend Reads
+          </span>
+        </div>
+
+        {/* Quick Analytical Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-white/5 bg-slate-900/60 p-3">
+            <span className="block text-[10px] uppercase font-bold text-slate-500">Total Analyzed</span>
+            <span className="text-lg font-bold text-white">{data.timeline.reduce((acc: number, t: any) => acc + (t.count || 0), 0)}</span>
+          </div>
+          <div className="rounded-xl border border-white/5 bg-slate-900/60 p-3">
+            <span className="block text-[10px] uppercase font-bold text-slate-500">Accepted Rate</span>
+            <span className="text-lg font-bold text-emerald-400">
+              {(() => {
+                const acc = data.timeline.filter((t: any) => t.status === "accepted").reduce((s: number, t: any) => s + t.count, 0);
+                const tot = data.timeline.reduce((s: number, t: any) => s + t.count, 0);
+                return tot > 0 ? `${Math.round((acc / tot) * 100)}%` : "100%";
+              })()}
+            </span>
+          </div>
+          <div className="rounded-xl border border-white/5 bg-slate-900/60 p-3">
+            <span className="block text-[10px] uppercase font-bold text-slate-500">Spam Filtered</span>
+            <span className="text-lg font-bold text-amber-400">
+              {data.timeline.filter((t: any) => t.status === "spam").reduce((s: number, t: any) => s + t.count, 0)}
+            </span>
+          </div>
+          <div className="rounded-xl border border-white/5 bg-slate-900/60 p-3">
+            <span className="block text-[10px] uppercase font-bold text-slate-500">Unique Referrers</span>
+            <span className="text-lg font-bold text-sky-400">{data.referrers.length}</span>
+          </div>
+        </div>
+
+        {/* Quick Export Actions */}
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
+          <a
+            href={`/api/forms/${form.id}/submissions?format=csv`}
+            download={`${form.slug}-submissions.csv`}
+            className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition flex items-center gap-1.5"
+          >
+            📥 Export CSV
+          </a>
+          <a
+            href={`/api/forms/${form.id}/submissions?format=json`}
+            download={`${form.slug}-submissions.json`}
+            className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition flex items-center gap-1.5"
+          >
+            📋 Export JSON
+          </a>
+          <span className="text-[11px] text-slate-500 self-center ml-auto">
+            Compatible with DuckDB, MotherDuck, Excel & Pandas.
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1250,6 +1321,12 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [smtpUser, setSmtpUser] = useState(form.smtpUser ?? "");
   const [smtpPass, setSmtpPass] = useState(form.smtpPass ?? "");
   const [smtpFrom, setSmtpFrom] = useState(form.smtpFrom ?? "");
+  const [gasUrl, setGasUrl] = useState(form.gasUrl ?? "");
+  const [showGasScript, setShowGasScript] = useState(false);
+  const [telegramBotToken, setTelegramBotToken] = useState(form.telegramBotToken ?? "");
+  const [telegramChatId, setTelegramChatId] = useState(form.telegramChatId ?? "");
+  const [ntfyTopic, setNtfyTopic] = useState(form.ntfyTopic ?? "");
+  const [otpEnabled, setOtpEnabled] = useState(form.otpEnabled ?? false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -1277,6 +1354,11 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setSmtpUser(form.smtpUser ?? "");
     setSmtpPass(form.smtpPass ?? "");
     setSmtpFrom(form.smtpFrom ?? "");
+    setGasUrl(form.gasUrl ?? "");
+    setTelegramBotToken(form.telegramBotToken ?? "");
+    setTelegramChatId(form.telegramChatId ?? "");
+    setNtfyTopic(form.ntfyTopic ?? "");
+    setOtpEnabled(form.otpEnabled ?? false);
     const custom = (form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? true : false;
     setIsCustom(custom);
     if (custom) {
@@ -1314,7 +1396,12 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           smtpPort: smtpPort ? Number(smtpPort) : null,
           smtpUser: smtpUser || null,
           smtpPass: smtpPass || null,
-          smtpFrom: smtpFrom || null
+          smtpFrom: smtpFrom || null,
+          gasUrl: gasUrl || null,
+          telegramBotToken: telegramBotToken || null,
+          telegramChatId: telegramChatId || null,
+          ntfyTopic: ntfyTopic || null,
+          otpEnabled,
         }),
       });
       const data = await res.json();
@@ -1392,6 +1479,13 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           </label>
           <p className="text-[10px] text-slate-500 pl-6 mt-1">If enabled, submitters must verify their email address via a confirmation link sent by FormForge before notifications are triggered and the submission is accepted.</p>
         </div>
+        <div className="border-t border-white/5 pt-4">
+          <label className="flex items-center gap-2 text-xs text-slate-300 font-medium">
+            <input type="checkbox" checked={otpEnabled} onChange={() => setOtpEnabled(!otpEnabled)} className="h-4 w-4 rounded text-sky-500" />
+            🔐 Require 6-Digit OTP Verification for Submissions
+          </label>
+          <p className="text-[10px] text-slate-500 pl-6 mt-1">If enabled, submitters receive an instant 6-digit OTP code to verify their email address before the submission is accepted. Zero card / zero cost.</p>
+        </div>
       </div>
 
       {/* Section 2: Spam & Security */}
@@ -1426,7 +1520,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
             <input type="checkbox" checked={!storeIpHash} onChange={() => setStoreIpHash(!storeIpHash)} className="h-4 w-4 rounded" />
             Collect and show Client IP addresses in submissions
           </label>
-          <p className="text-[10px] text-slate-500 pl-6">If enabled, the submitter's raw IP address (e.g. 44.22.181.5) will be stored and displayed on the dashboard instead of a secure anonymized hash.</p>
+          <p className="text-[10px] text-slate-500 pl-6">If enabled, the submitter&apos;s raw IP address (e.g. 44.22.181.5) will be stored and displayed on the dashboard instead of a secure anonymized hash.</p>
         </div>
       </div>
 
@@ -1529,6 +1623,127 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         <div>
           <label htmlFor="settings-auto-body" className="mb-1 block text-xs text-slate-400">Email Message (Use {`{field}`} e.g. {`{name}`} to customize body text)</label>
           <textarea id="settings-auto-body" value={autoresponderBody} onChange={(e) => setAutoresponderBody(e.target.value)} rows={4} className="ff-input text-sm" placeholder="Hi {name},&#10;&#10;We received your message! We will get back to you soon." />
+        </div>
+      </div>
+
+      {/* Section 5: 100% Free-Tier Realtime Integrations */}
+      <div className="rounded-2xl border border-sky-500/20 bg-sky-950/10 p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-bold text-sky-300 flex items-center gap-2">⚡ 100% Free-Tier Realtime Integrations</h4>
+          <span className="rounded-full bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 text-[10px] font-semibold text-sky-400">Zero Credit Card</span>
+        </div>
+        
+        {/* Google Apps Script Relay */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor="settings-gas-url" className="block text-xs font-semibold text-white">
+              📊 Google Apps Script (GAS) Webhook URL
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowGasScript(!showGasScript)}
+              className="text-[11px] text-sky-400 hover:text-sky-300 underline font-medium"
+            >
+              {showGasScript ? "Hide Script Code" : "📜 Get Free Google Apps Script Code"}
+            </button>
+          </div>
+          <input
+            id="settings-gas-url"
+            value={gasUrl}
+            onChange={(e) => setGasUrl(e.target.value)}
+            className="ff-input text-sm"
+            placeholder="https://script.google.com/macros/s/.../exec"
+          />
+          <p className="text-[10px] text-slate-400">
+            Sends submission data to your Google Apps Script Web App. Allows <strong>1,500 free emails/day</strong> via your Gmail + automatically logs rows into Google Sheets!
+          </p>
+
+          {showGasScript && (
+            <div className="rounded-xl border border-white/10 bg-slate-950 p-4 space-y-2 mt-2">
+              <div className="flex justify-between items-center text-xs text-slate-300 font-semibold">
+                <span>Google Apps Script Code (Paste in script.google.com)</span>
+                <span className="text-[10px] text-sky-400">Deploy as Web App (Anyone)</span>
+              </div>
+              <pre className="text-[11px] font-mono bg-slate-900 p-3 rounded-lg overflow-x-auto text-slate-300 select-all max-h-48 whitespace-pre">
+{`function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    
+    // 1. Send free email via Gmail (500-1500/day free)
+    if (data.emailTo) {
+      MailApp.sendEmail({
+        to: data.emailTo,
+        subject: "New FormForge Submission: " + (data.form ? data.form.name : "Form"),
+        body: JSON.stringify(data.payload, null, 2)
+      });
+    }
+    
+    // 2. Append to Google Sheet (optional)
+    var sheet = SpreadsheetApp.getActiveSpreadsheet();
+    if (sheet) {
+      var row = [new Date(), data.form ? data.form.name : "", data.submission ? data.submission.id : ""];
+      for (var key in data.payload) { row.push(data.payload[key]); }
+      sheet.getActiveSheet().appendRow(row);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`}
+              </pre>
+            </div>
+          )}
+        </div>
+
+        {/* Telegram Bot Notification */}
+        <div className="border-t border-white/5 pt-3 space-y-3">
+          <label className="block text-xs font-semibold text-white flex items-center gap-1.5">
+            <span>✈️ Telegram Bot Instant Push Notifications</span>
+            <span className="text-[10px] text-slate-400 font-normal">(100% Free & Unlimited)</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="settings-tg-token" className="mb-1 block text-[10px] text-slate-400">Telegram Bot Token (from @BotFather)</label>
+              <input
+                id="settings-tg-token"
+                value={telegramBotToken}
+                onChange={(e) => setTelegramBotToken(e.target.value)}
+                className="ff-input text-xs font-mono"
+                placeholder="123456789:ABCdefGHI..."
+              />
+            </div>
+            <div>
+              <label htmlFor="settings-tg-chat" className="mb-1 block text-[10px] text-slate-400">Chat ID (from @userinfobot)</label>
+              <input
+                id="settings-tg-chat"
+                value={telegramChatId}
+                onChange={(e) => setTelegramChatId(e.target.value)}
+                className="ff-input text-xs font-mono"
+                placeholder="e.g. 987654321"
+              />
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-500">Create a bot in 30 seconds via @BotFather on Telegram. You will receive instant mobile push notifications with form submission data.</p>
+        </div>
+
+        {/* ntfy.sh Push */}
+        <div className="border-t border-white/5 pt-3 space-y-2">
+          <label htmlFor="settings-ntfy" className="block text-xs font-semibold text-white flex items-center gap-1.5">
+            <span>🔔 ntfy.sh Instant Mobile Push (Zero-Account Required)</span>
+          </label>
+          <input
+            id="settings-ntfy"
+            value={ntfyTopic}
+            onChange={(e) => setNtfyTopic(e.target.value)}
+            className="ff-input text-sm"
+            placeholder="e.g. my-private-form-topic-9928"
+          />
+          <p className="text-[10px] text-slate-400">
+            Subscribe to this topic in the free ntfy mobile app or visit <code className="text-sky-400">https://ntfy.sh/{ntfyTopic || "your-topic"}</code> in any browser to get instant alerts.
+          </p>
         </div>
       </div>
 
@@ -1700,8 +1915,8 @@ function KeysTab() {
               <div className="relative">
                 {apiTab === "curl" && (
                   <pre className="text-[11px] bg-slate-950 p-3.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
-                    curl -H "Authorization: Bearer {created}" \<br />
-                    &nbsp;&nbsp;"{typeof window !== "undefined" ? window.location.origin : ""}/api/forms/{selectedFormId || "YOUR_FORM_ID"}/submissions"
+                    curl -H &quot;Authorization: Bearer {created}&quot; \<br />
+                    &nbsp;&nbsp;&quot;{typeof window !== "undefined" ? window.location.origin : ""}/api/forms/{selectedFormId || "YOUR_FORM_ID"}/submissions"
                   </pre>
                 )}
 

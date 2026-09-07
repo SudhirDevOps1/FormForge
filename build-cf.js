@@ -19,7 +19,14 @@ function copyFolderSync(from, to) {
   });
 }
 
-if (process.env.IN_OPEN_NEXT === 'true') {
+const isVercel = process.env.VERCEL === '1' || process.env.NOW_BUILDER !== undefined;
+const isNetlify = process.env.NETLIFY === 'true';
+const isStandard = process.env.BUILD_TARGET === 'standard' || process.env.BUILD_TARGET === 'node';
+
+if (isVercel || isNetlify || isStandard) {
+  console.log(`--- Multi-Platform Build detected (${isVercel ? 'Vercel' : isNetlify ? 'Netlify' : 'Standard'}): Running next build ---`);
+  execSync('next build', { stdio: 'inherit' });
+} else if (process.env.IN_OPEN_NEXT === 'true') {
   console.log("--- Inside OpenNext: Running standard Next.js build ---");
   execSync('next build', { stdio: 'inherit' });
 } else {

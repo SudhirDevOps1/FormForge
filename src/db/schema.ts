@@ -70,6 +70,11 @@ export const forms = sqliteTable(
     smtpUser: text("smtp_user"),
     smtpPass: text("smtp_pass"),
     smtpFrom: text("smtp_from"),
+    gasUrl: text("gas_url"),
+    telegramBotToken: text("telegram_bot_token"),
+    telegramChatId: text("telegram_chat_id"),
+    ntfyTopic: text("ntfy_topic"),
+    otpEnabled: integer("otp_enabled", { mode: "boolean" }).notNull().default(false),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
@@ -189,9 +194,31 @@ export const rateLimits = sqliteTable("rate_limits", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const otpCodes = sqliteTable(
+  "otp_codes",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id")
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    verifiedAt: text("verified_at"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    formIdx: index("otp_codes_form_id_idx").on(table.formId),
+    emailIdx: index("otp_codes_email_idx").on(table.email),
+  }),
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Form = typeof forms.$inferSelect;
 export type NewForm = typeof forms.$inferInsert;
 export type Submission = typeof submissions.$inferSelect;
 export type NewSubmission = typeof submissions.$inferInsert;
+export type OtpCode = typeof otpCodes.$inferSelect;
+export type NewOtpCode = typeof otpCodes.$inferInsert;

@@ -1,0 +1,39 @@
+# FormForge CODEOWNERS
+# Syntax: <pattern> <owner> [<owner> ...]
+# Security-sensitive files require a second reviewer via branch protection rules.
+
+# Default: all files require maintainer review
+*                              @SudhirDevOps1
+
+# Core application source
+/src/                          @SudhirDevOps1
+
+# Security-critical modules — require 2 reviewers (enforce via branch protection)
+/src/lib/crypto.ts             @SudhirDevOps1
+/src/lib/auth.ts               @SudhirDevOps1
+/src/lib/encryption.ts         @SudhirDevOps1
+/src/lib/security.ts           @SudhirDevOps1
+/src/lib/api-key-auth.ts       @SudhirDevOps1
+/src/lib/rate-limit.ts         @SudhirDevOps1
+/src/lib/url-validation.ts     @SudhirDevOps1
+
+# Database schema and migrations
+/src/db/                       @SudhirDevOps1
+/migrations/                   @SudhirDevOps1
+/drizzle.config.ts             @SudhirDevOps1
+
+# Infrastructure and deployment
+/wrangler.jsonc                @SudhirDevOps1
+/next.config.ts                @SudhirDevOps1
+/open-next.config.ts           @SudhirDevOps1
+/build-cf.js                   @SudhirDevOps1
+
+# CI/CD and security policy
+/.github/                      @SudhirDevOps1
+/docs/SECURITY.md              @SudhirDevOps1
+/docs/THREAT-MODEL.md          @SudhirDevOps1
+
+# Notification infrastructure
+/src/lib/notifications.ts      @SudhirDevOps1
+/src/lib/http.ts               @SudhirDevOps1
+/src/lib/storage.ts            @SudhirDevOps1

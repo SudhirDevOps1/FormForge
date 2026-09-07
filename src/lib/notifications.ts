@@ -58,7 +58,7 @@ function getSmtpConfig(form: Form, env: Record<string, string | undefined>) {
 }
 
 type DeliveryResult = {
-  channel: "email" | "webhook";
+  channel: "email" | "webhook" | "gas" | "telegram" | "ntfy";
   status: "sent" | "skipped" | "failed";
   error?: string;
 };
@@ -487,6 +487,80 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
     results.push({ channel: "webhook", status: "skipped" });
   }
 
+  // Google Apps Script (GAS) Webhook & Free Email Relay
+  const gasUrl = form.gasUrl || env.GAS_URL;
+  if (gasUrl) {
+    try {
+      const response = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "form_submission",
+          form: { id: form.id, name: form.name, slug: form.slug },
+          submission: { id: submission.id, email: submission.email, createdAt: submission.createdAt },
+          payload,
+          emailTo: form.emailTo,
+        }),
+      });
+      results.push(
+        response.ok
+          ? { channel: "gas", status: "sent" }
+          : { channel: "gas", status: "failed", error: `GAS response: ${response.status}` }
+      );
+    } catch (error) {
+      results.push({ channel: "gas", status: "failed", error: error instanceof Error ? error.message : "GAS delivery error" });
+    }
+  }
+
+  // Telegram Bot Notification (100% Free, Unlimited)
+  const tgToken = form.telegramBotToken || env.TELEGRAM_BOT_TOKEN;
+  const tgChatId = form.telegramChatId || env.TELEGRAM_CHAT_ID;
+  if (tgToken && tgChatId) {
+    try {
+      const lines = Object.entries(payload).map(([k, v]) => `• *${k}*: \`${String(v).slice(0, 100)}\``);
+      const text = `📬 *New Form Submission*\n\n*Form:* ${form.name}\n*Date:* ${submission.createdAt}\n\n*Data:*\n${lines.join("\n")}`;
+      const response = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: tgChatId,
+          text,
+          parse_mode: "Markdown",
+        }),
+      });
+      results.push(
+        response.ok
+          ? { channel: "telegram", status: "sent" }
+          : { channel: "telegram", status: "failed", error: `Telegram status ${response.status}` }
+      );
+    } catch (error) {
+      results.push({ channel: "telegram", status: "failed", error: error instanceof Error ? error.message : "Telegram error" });
+    }
+  }
+
+  // ntfy.sh Free Instant Push Notification
+  const ntfyTopic = form.ntfyTopic || env.NTFY_TOPIC;
+  if (ntfyTopic) {
+    try {
+      const response = await fetch(`https://ntfy.sh/${encodeURIComponent(ntfyTopic)}`, {
+        method: "POST",
+        headers: {
+          Title: `New submission: ${form.name}`,
+          Priority: "default",
+          Tags: "envelope,form",
+        },
+        body: `New submission from ${submission.email || "visitor"}\n${Object.entries(payload).map(([k, v]) => `${k}: ${v}`).slice(0, 5).join("\n")}`,
+      });
+      results.push(
+        response.ok
+          ? { channel: "ntfy", status: "sent" }
+          : { channel: "ntfy", status: "failed", error: `ntfy status ${response.status}` }
+      );
+    } catch (error) {
+      results.push({ channel: "ntfy", status: "failed", error: error instanceof Error ? error.message : "ntfy error" });
+    }
+  }
+
   await Promise.all(results.map((result) => recordNotification(db, form.id, submission.id, result)));
   return results;
 }
@@ -679,6 +753,107 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
     } catch (error) {
       console.error("Failed to send Mailgun email verification:", error);
       return false;
+    }
+  }
+
+  return false;
+}
+
+export async function sendOtpEmail(form: Form, toEmail: string, code: string): Promise<boolean> {
+  const env = getRuntimeEnv();
+  const subject = `🔐 Your Verification Code: ${code} (${form.name})`;
+  const text = `Your 6-digit verification code for "${form.name}" is:\n\n${code}\n\nThis code will expire in 10 minutes. If you did not request this code, you can safely ignore this email.`;
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #030712; padding: 40px 10px; text-align: center;">
+  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden;">
+    <tr>
+      <td style="padding: 32px 24px; text-align: center;">
+        <h2 style="font-size: 22px; font-weight: 800; color: #ffffff; margin: 0 0 12px;">Verification Code</h2>
+        <p style="font-size: 14px; color: #94a3b8; margin: 0 0 24px;">Use this code to verify your submission to <strong>${form.name}</strong>:</p>
+        <div style="background-color: #1e293b; border: 1px dashed #38bdf8; border-radius: 12px; padding: 18px 24px; display: inline-block; margin-bottom: 24px;">
+          <span style="font-family: monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #38bdf8;">${code}</span>
+        </div>
+        <p style="font-size: 13px; color: #64748b; margin: 0;">Expires in 10 minutes &bull; Do not share this code.</p>
+      </td>
+    </tr>
+  </table>
+</div>
+  `;
+
+  // 1. Google Apps Script Relay (Zero-card Free)
+  const gasUrl = form.gasUrl || env.GAS_URL;
+  if (gasUrl) {
+    try {
+      const response = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "send_email",
+          to: toEmail,
+          subject,
+          text,
+          html,
+          code,
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("GAS OTP relay failed, trying other providers:", e);
+    }
+  }
+
+  // 2. SMTP
+  const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+  if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
+    try {
+      let decryptedPass = "";
+      if (smtp.hasDbPass && smtp.dbPass) {
+        const { decryptText } = await import("./encryption");
+        decryptedPass = await decryptText(smtp.dbPass);
+      } else {
+        decryptedPass = smtp.envPass || "";
+      }
+      const res = await sendSmtpEmail(smtp.host!, smtp.port, smtp.user!, decryptedPass, smtp.from!, toEmail, subject, text, html);
+      if (res.success) return true;
+    } catch (e) {
+      console.warn("SMTP OTP delivery failed:", e);
+    }
+  }
+
+  // 3. Resend
+  if (env.RESEND_API_KEY && env.RESEND_FROM) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ from: env.RESEND_FROM, to: toEmail, subject, text, html }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Resend OTP delivery failed:", e);
+    }
+  }
+
+  // 4. Brevo
+  if (env.BREVO_API_KEY && env.BREVO_FROM) {
+    try {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "api-key": env.BREVO_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: { email: env.BREVO_FROM, name: form.name },
+          to: [{ email: toEmail }],
+          subject,
+          textContent: text,
+          htmlContent: html,
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Brevo OTP delivery failed:", e);
     }
   }
 

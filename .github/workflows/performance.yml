@@ -1,0 +1,109 @@
+# FormForge Performance — bundle size regression and Lighthouse CI checks.
+name: Performance
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ── 1. Bundle Size Check ────────────────────────────────────────────────
+  bundle-size:
+    name: Bundle Size Regression Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build for bundle analysis
+        run: npm run build
+        env:
+          AUTH_SECRET: ci-perf-placeholder-not-a-real-secret-00000000000
+
+      - name: Analyze bundle size
+        run: |
+          echo "## Bundle Size Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d ".open-next" ]; then
+            WORKER_SIZE=$(du -sh .open-next/worker.js 2>/dev/null | cut -f1 || echo "N/A")
+            ASSETS_SIZE=$(du -sh .open-next/assets 2>/dev/null | cut -f1 || echo "N/A")
+            TOTAL_SIZE=$(du -sh .open-next 2>/dev/null | cut -f1 || echo "N/A")
+            echo "| Artifact | Size |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| -------- | ---- |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Worker JS | $WORKER_SIZE |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Static Assets | $ASSETS_SIZE |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Total .open-next | $TOTAL_SIZE |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Build output not found — check build step" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── 2. Lighthouse CI ────────────────────────────────────────────────────
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Write Lighthouse CI config
+        run: |
+          cat > lighthouserc.json << 'EOF'
+          {
+            "ci": {
+              "collect": {
+                "url": ["http://localhost:3000"],
+                "numberOfRuns": 2,
+                "startServerCommand": "npm run start",
+                "startServerReadyPattern": "ready on"
+              },
+              "assert": {
+                "assertions": {
+                  "categories:performance": ["warn", {"minScore": 0.85}],
+                  "categories:accessibility": ["error", {"minScore": 0.90}],
+                  "categories:best-practices": ["warn", {"minScore": 0.90}],
+                  "categories:seo": ["warn", {"minScore": 0.85}]
+                }
+              },
+              "upload": {
+                "target": "temporary-public-storage"
+              }
+            }
+          }
+          EOF
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@1b0e7c33270fbba31a18a0fbb1cd7a9b7e3f4e7c # v12.1.0
+        with:
+          configPath: lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true

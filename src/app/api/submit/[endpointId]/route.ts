@@ -293,7 +293,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { score, reasons, serialized } = await calculateSpamScore(form, payload, request);
-  const isPendingVerification = form.emailVerificationEnabled && email;
+  const isPendingVerification = (form.emailVerificationEnabled || form.otpEnabled) && email;
   const status = score >= 80 ? "spam" : isPendingVerification ? "pending" : "accepted";
   
   const submission: NewSubmission = {
@@ -338,18 +338,29 @@ export async function POST(request: Request, context: RouteContext) {
         await deliverNotifications(db, form, submission as typeof submissions.$inferSelect);
       }
     } else if (status === "pending") {
-      const { sendVerificationEmail } = await import("@/lib/notifications");
-      const appUrl = new URL(request.url).origin;
-      try {
-        const { getCloudflareContext } = await import("@opennextjs/cloudflare");
-        const ctx = getCloudflareContext().ctx;
-        if (ctx && typeof ctx.waitUntil === "function") {
-          ctx.waitUntil(sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl));
-        } else {
+      if (form.otpEnabled && email) {
+        try {
+          const { createOtp } = await import("@/lib/otp");
+          const { sendOtpEmail } = await import("@/lib/notifications");
+          const { code } = await createOtp(db, form.id, email);
+          await sendOtpEmail(form, email, code);
+        } catch (otpErr) {
+          console.error("Failed to generate and send OTP:", otpErr);
+        }
+      } else {
+        const { sendVerificationEmail } = await import("@/lib/notifications");
+        const appUrl = new URL(request.url).origin;
+        try {
+          const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+          const ctx = getCloudflareContext().ctx;
+          if (ctx && typeof ctx.waitUntil === "function") {
+            ctx.waitUntil(sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl));
+          } else {
+            await sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl);
+          }
+        } catch {
           await sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl);
         }
-      } catch {
-        await sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl);
       }
     }
 

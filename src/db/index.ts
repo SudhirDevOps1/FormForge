@@ -1,11 +1,14 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { D1Database } from "@cloudflare/workers-types";
-import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
+import { drizzle as drizzleD1, type DrizzleD1Database } from "drizzle-orm/d1";
+import { drizzle as drizzleLibSql, type LibSQLDatabase } from "drizzle-orm/libsql";
+import { createClient } from "@libsql/client/web";
 import * as schema from "./schema";
+import { autoMigrate } from "./auto-migrate";
 
 export type AppDb = DrizzleD1Database<typeof schema>;
 
-type CloudflareEnv = {
+export type CloudflareEnv = {
   DB?: D1Database;
   AUTH_SECRET?: string;
   RESEND_API_KEY?: string;
@@ -28,12 +31,30 @@ type CloudflareEnv = {
   SMTP_PASS?: string;
   SMTP_FROM?: string;
   SMTP_ENABLED?: string;
-  // S3-Compatible Storage
+  // Google Apps Script (GAS)
+  GAS_URL?: string;
+  GAS_WEBHOOK_URL?: string;
+  // Telegram Bot
+  TELEGRAM_BOT_TOKEN?: string;
+  TELEGRAM_CHAT_ID?: string;
+  // Ntfy.sh
+  NTFY_TOPIC?: string;
+  // Turso / libSQL
+  TURSO_DATABASE_URL?: string;
+  TURSO_AUTH_TOKEN?: string;
+  LIBSQL_URL?: string;
+  LIBSQL_AUTH_TOKEN?: string;
+  DATABASE_URL?: string;
+  // S3 / Backblaze B2 Storage
   S3_ENDPOINT?: string;
   S3_ACCESS_KEY_ID?: string;
   S3_SECRET_ACCESS_KEY?: string;
   S3_BUCKET_NAME?: string;
   S3_REGION?: string;
+  B2_ENDPOINT?: string;
+  B2_APPLICATION_KEY_ID?: string;
+  B2_APPLICATION_KEY?: string;
+  B2_BUCKET_NAME?: string;
   // R2 Bucket binding (optional)
   FILES_BUCKET?: any;
   [key: string]: unknown;
@@ -71,33 +92,90 @@ export function getRuntimeEnv(): CloudflareEnv {
     SMTP_PASS: cfEnv?.SMTP_PASS ?? process.env.SMTP_PASS,
     SMTP_FROM: cfEnv?.SMTP_FROM ?? process.env.SMTP_FROM,
     SMTP_ENABLED: cfEnv?.SMTP_ENABLED ?? process.env.SMTP_ENABLED,
-    // S3 Storage
-    S3_ENDPOINT: cfEnv?.S3_ENDPOINT ?? process.env.S3_ENDPOINT,
-    S3_ACCESS_KEY_ID: cfEnv?.S3_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID,
-    S3_SECRET_ACCESS_KEY: cfEnv?.S3_SECRET_ACCESS_KEY ?? process.env.S3_SECRET_ACCESS_KEY,
-    S3_BUCKET_NAME: cfEnv?.S3_BUCKET_NAME ?? process.env.S3_BUCKET_NAME,
-    S3_REGION: cfEnv?.S3_REGION ?? process.env.S3_REGION,
+    // Google Apps Script (GAS)
+    GAS_URL: cfEnv?.GAS_URL ?? process.env.GAS_URL ?? cfEnv?.GAS_WEBHOOK_URL ?? process.env.GAS_WEBHOOK_URL,
+    GAS_WEBHOOK_URL: cfEnv?.GAS_WEBHOOK_URL ?? process.env.GAS_WEBHOOK_URL,
+    // Telegram Bot
+    TELEGRAM_BOT_TOKEN: cfEnv?.TELEGRAM_BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_ID: cfEnv?.TELEGRAM_CHAT_ID ?? process.env.TELEGRAM_CHAT_ID,
+    // Ntfy.sh
+    NTFY_TOPIC: cfEnv?.NTFY_TOPIC ?? process.env.NTFY_TOPIC,
+    // Turso / libSQL
+    TURSO_DATABASE_URL: cfEnv?.TURSO_DATABASE_URL ?? process.env.TURSO_DATABASE_URL ?? cfEnv?.LIBSQL_URL ?? process.env.LIBSQL_URL,
+    TURSO_AUTH_TOKEN: cfEnv?.TURSO_AUTH_TOKEN ?? process.env.TURSO_AUTH_TOKEN ?? cfEnv?.LIBSQL_AUTH_TOKEN ?? process.env.LIBSQL_AUTH_TOKEN,
+    DATABASE_URL: cfEnv?.DATABASE_URL ?? process.env.DATABASE_URL,
+    // S3 / Backblaze B2 Storage
+    S3_ENDPOINT: cfEnv?.S3_ENDPOINT ?? process.env.S3_ENDPOINT ?? cfEnv?.B2_ENDPOINT ?? process.env.B2_ENDPOINT,
+    S3_ACCESS_KEY_ID: cfEnv?.S3_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID ?? cfEnv?.B2_APPLICATION_KEY_ID ?? process.env.B2_APPLICATION_KEY_ID,
+    S3_SECRET_ACCESS_KEY: cfEnv?.S3_SECRET_ACCESS_KEY ?? process.env.S3_SECRET_ACCESS_KEY ?? cfEnv?.B2_APPLICATION_KEY ?? process.env.B2_APPLICATION_KEY,
+    S3_BUCKET_NAME: cfEnv?.S3_BUCKET_NAME ?? process.env.S3_BUCKET_NAME ?? cfEnv?.B2_BUCKET_NAME ?? process.env.B2_BUCKET_NAME,
+    S3_REGION: cfEnv?.S3_REGION ?? process.env.S3_REGION ?? "us-east-1",
     // R2
     FILES_BUCKET: cfEnv?.FILES_BUCKET,
   };
 }
 
 let cachedDb: AppDb | null = null;
-let cachedD1: D1Database | null = null;
+let cachedSource: string | null = null;
 
 export function getDb(): AppDb | null {
-  const d1 = getRuntimeEnv().DB;
+  const env = getRuntimeEnv();
 
-  if (!d1) {
-    return null;
-  }
-
-  if (cachedDb && cachedD1 === d1) {
+  // 1. Check for Cloudflare D1 database binding
+  if (env.DB) {
+    if (cachedDb && cachedSource === "d1") {
+      return cachedDb;
+    }
+    const db = drizzleD1(env.DB, { schema });
+    cachedDb = db;
+    cachedSource = "d1";
+    // Trigger auto-migration asynchronously
+    void autoMigrate(db as any);
     return cachedDb;
   }
 
-  cachedD1 = d1;
-  cachedDb = drizzle(d1, { schema });
+  // 2. Check for Turso / libSQL credentials (works on Vercel, Netlify, Cloudflare, Node)
+  const tursoUrl = env.TURSO_DATABASE_URL || (env.DATABASE_URL?.startsWith("libsql://") || env.DATABASE_URL?.startsWith("https://") ? env.DATABASE_URL : undefined);
+  const tursoToken = env.TURSO_AUTH_TOKEN;
+
+  if (tursoUrl) {
+    if (cachedDb && cachedSource === tursoUrl) {
+      return cachedDb;
+    }
+    try {
+      const client = createClient({
+        url: tursoUrl,
+        authToken: tursoToken,
+      });
+      const db = drizzleLibSql(client, { schema });
+      cachedDb = db as unknown as AppDb;
+      cachedSource = tursoUrl;
+      // Trigger auto-migration asynchronously
+      void autoMigrate(db as any);
+      return cachedDb;
+    } catch (error) {
+      console.error("Failed to initialize Turso/libSQL client:", error);
+    }
+  }
+
+  // 3. Fallback for local development or file/memory SQLite
+  if (env.DATABASE_URL?.startsWith("file:") || process.env.NODE_ENV !== "production") {
+    const fallbackUrl = env.DATABASE_URL?.startsWith("file:") ? env.DATABASE_URL : "file:formforge.db";
+    if (cachedDb && cachedSource === fallbackUrl) {
+      return cachedDb;
+    }
+    try {
+      const client = createClient({ url: fallbackUrl });
+      const db = drizzleLibSql(client, { schema });
+      cachedDb = db as unknown as AppDb;
+      cachedSource = fallbackUrl;
+      void autoMigrate(db as any);
+      return cachedDb;
+    } catch (err) {
+      console.warn("Local SQLite client initialization note:", err);
+    }
+  }
+
   return cachedDb;
 }
 
@@ -105,9 +183,9 @@ export function databaseUnavailableResponse() {
   return Response.json(
     {
       ok: false,
-      code: "D1_NOT_CONFIGURED",
+      code: "DB_NOT_CONFIGURED",
       message:
-        "Cloudflare D1 binding DB is not available. Create a D1 database, add database_id in wrangler.jsonc, apply migrations, then deploy with OpenNext.",
+        "Database is not configured. For Cloudflare, bind a D1 database. For Vercel, Netlify, or self-hosted, set TURSO_DATABASE_URL (and optional TURSO_AUTH_TOKEN) in environment variables.",
     },
     { status: 503 },
   );

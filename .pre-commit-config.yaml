@@ -1,0 +1,43 @@
+# FormForge pre-commit hooks — mirrors CI checks for local development.
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+        exclude: '\.map$'
+      - id: trailing-whitespace
+        exclude: '\.md$'
+      - id: check-json
+        exclude: 'package-lock\.json'
+      - id: check-yaml
+        args: ['--allow-multiple-documents']
+      - id: check-added-large-files
+        args: ['--maxkb=1024']
+      - id: detect-private-key
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: 'package-lock\.json'
+
+  - repo: local
+    hooks:
+      - id: eslint
+        name: ESLint (zero warnings)
+        language: node
+        entry: npx eslint --max-warnings=0
+        types_or: [ts, tsx, javascript]
+        exclude: '^(.next|.open-next|node_modules)/'
+        pass_filenames: true
+
+      - id: typecheck
+        name: TypeScript typecheck
+        language: system
+        entry: npm run typecheck
+        pass_filenames: false
+        types_or: [ts, tsx]
