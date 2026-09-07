@@ -438,7 +438,7 @@ function CreateFormInline({ onCreated }: { onCreated: () => void }) {
 /* ─────────────────── Form Detail ─────────────────── */
 
 function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) {
-  const [view, setView] = useState<"submissions" | "analytics" | "settings">("submissions");
+  const [view, setView] = useState<"submissions" | "connect" | "analytics" | "settings">("submissions");
   const [subs, setSubs] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -786,13 +786,102 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
         <StatCard label="Accept rate" value={subs.length > 0 ? `${Math.round((accepted / subs.length) * 100)}%` : "—"} color="text-purple-400" />
       </div>
 
-      {/* Endpoint & Snippets */}
-      <div className="px-5">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Submission endpoint</p>
-        <div className="flex items-center gap-2 rounded-xl bg-black/40 px-3 py-2">
-          <code className="flex-1 break-all text-sm text-cyan-200">{endpoint}</code>
-          <button onClick={() => copy(endpoint, "url")} className="shrink-0 text-xs text-cyan-300 hover:text-white min-h-[44px] min-w-[44px]">{copied === "url" ? "✓" : "Copy"}</button>
-        </div>
+      {/* Primary Navigation Tabs */}
+      <div role="tablist" aria-label="Form navigation" className="flex items-center gap-1 border-b border-white/10 px-5 pt-1 overflow-x-auto">
+        <button
+          role="tab"
+          aria-selected={view === "submissions"}
+          aria-controls="view-submissions-panel"
+          onClick={() => setView("submissions")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            view === "submissions"
+              ? "border-cyan-400 text-cyan-300"
+              : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+          }`}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-6l-2 3h-4l-2-3H2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7z"/><path d="M5.45 5.11L2 12v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+          <span>Submissions</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-mono font-medium ${
+            view === "submissions" ? "bg-cyan-500/20 text-cyan-200 border border-cyan-500/30" : "bg-white/5 text-slate-400"
+          }`}>
+            {total}
+          </span>
+        </button>
+
+        <button
+          role="tab"
+          aria-selected={view === "connect"}
+          aria-controls="view-connect-panel"
+          onClick={() => setView("connect")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            view === "connect"
+              ? "border-cyan-400 text-cyan-300"
+              : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+          }`}
+        >
+          <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>Connect &amp; Snippets</span>
+          <span className="rounded-full bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 text-[10px] text-amber-300 font-medium">Embed</span>
+        </button>
+
+        <button
+          role="tab"
+          aria-selected={view === "analytics"}
+          aria-controls="view-analytics-panel"
+          onClick={() => setView("analytics")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            view === "analytics"
+              ? "border-cyan-400 text-cyan-300"
+              : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+          }`}
+        >
+          <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Analytics &amp; DuckDB</span>
+        </button>
+
+        <button
+          role="tab"
+          aria-selected={view === "settings"}
+          aria-controls="view-settings-panel"
+          onClick={() => setView("settings")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            view === "settings"
+              ? "border-cyan-400 text-cyan-300"
+              : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+          }`}
+        >
+          <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Settings</span>
+        </button>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="px-5 pb-5">
+        {/* Connect & Snippets Tab */}
+        {view === "connect" && (
+          <div id="view-connect-panel" role="tabpanel" aria-label="Connect and Code Snippets" className="space-y-5 pt-2">
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Submission endpoint</p>
+              <div className="flex items-center gap-2 rounded-xl bg-black/50 border border-white/10 px-4 py-3">
+                <code className="flex-1 break-all text-sm font-mono text-cyan-300 select-all">{endpoint}</code>
+                <button
+                  onClick={() => copy(endpoint, "url")}
+                  className="shrink-0 flex items-center gap-1.5 rounded-lg bg-cyan-400/10 hover:bg-cyan-400/20 text-cyan-300 px-3 py-1.5 text-xs font-medium transition min-h-[36px]"
+                >
+                  {copied === "url" ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span className="text-emerald-300">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      <span>Copy URL</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
         
         {/* Dynamic Fields Embed Generator Selector */}
         <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
@@ -1090,41 +1179,10 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
           </div>
         </div>
       </div>
+    )}
 
-      {/* Tabs */}
-      <div role="tablist" aria-label="Form navigation" className="flex gap-2 border-b border-white/10 px-5">
-        <button
-          role="tab"
-          aria-selected={view === "submissions"}
-          aria-controls="view-submissions-panel"
-          onClick={() => setView("submissions")}
-          className={`border-b-2 px-3 pb-3 text-sm font-semibold ${view === "submissions" ? "border-cyan-300 text-white" : "border-transparent text-slate-400 hover:text-white"}`}
-        >
-          Submissions ({total})
-        </button>
-        <button
-          role="tab"
-          aria-selected={view === "analytics"}
-          aria-controls="view-analytics-panel"
-          onClick={() => setView("analytics")}
-          className={`border-b-2 px-3 pb-3 text-sm font-semibold ${view === "analytics" ? "border-cyan-300 text-white" : "border-transparent text-slate-400 hover:text-white"}`}
-        >
-          Analytics
-        </button>
-        <button
-          role="tab"
-          aria-selected={view === "settings"}
-          aria-controls="view-settings-panel"
-          onClick={() => setView("settings")}
-          className={`border-b-2 px-3 pb-3 text-sm font-semibold ${view === "settings" ? "border-cyan-300 text-white" : "border-transparent text-slate-400 hover:text-white"}`}
-        >
-          Settings
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="px-5 pb-5">
-        {view === "submissions" && (
+    {/* Submissions Tab */}
+    {view === "submissions" && (
           <div id="view-submissions-panel" role="tabpanel" aria-label="Submissions List">
             {/* Submissions Toolbar: Search, Status Filter Pills & Export Controls */}
             <div className="space-y-3 mb-4">

@@ -12,66 +12,64 @@
 body {
   margin: 0;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.22), transparent 50rem),
-    radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.12), transparent 45rem),
-    radial-gradient(circle at 0% 50%, rgba(236, 72, 153, 0.05), transparent 40rem),
-    #030712;
+  background-color: #060911;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -15%, rgba(14, 165, 233, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 0% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 50%);
+  background-attachment: fixed;
+  color: #f1f5f9;
   overflow-x: hidden;
 }
 
-/* Glassmorphism styling overrides */
-.glass-panel {
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: linear-gradient(135deg, rgba(13, 17, 30, 0.7) 0%, rgba(3, 7, 18, 0.8) 100%);
-  box-shadow: 
-    0 4px 30px rgba(0, 0, 0, 0.4),
-    inset 0 1px 1px rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
 ::selection {
-  background: rgba(56, 189, 248, 0.35);
+  background: rgba(14, 165, 233, 0.35);
   color: #ffffff;
 }
 
+/* Modern Glass Panels with subtle inner specular highlight */
 .glass-panel {
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(13, 17, 30, 0.65);
-  box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(24px);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.65) 0%, rgba(10, 15, 30, 0.75) 100%);
+  box-shadow: 
+    0 10px 30px -5px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .grid-mask {
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: linear-gradient(to bottom, black, transparent);
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black 50%, transparent 100%);
 }
 
 .ff-input {
-  margin-top: 0.3rem;
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.6);
+  padding: 0.65rem 1rem;
   color: #ffffff;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.875rem;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ff-input:focus-visible {
-  outline: 2px solid #38bdf8;
-  outline-offset: 2px;
+  outline: none;
 }
 
 .ff-input:focus {
   border-color: #38bdf8;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
 }
 
 .ff-input::placeholder {
