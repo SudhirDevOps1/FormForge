@@ -2525,6 +2525,52 @@ npx wrangler secret put AUTH_SECRET
         const formData = new FormData(form);
         const payload = {};
         formData.forEach((value, key) => { payload[key] = value; });
+
+        // Auto-solve ALTCHA PoW challenge if endpoint host provides it
+        try {
+          submitBtn.textContent = '⚡ Solving ALTCHA PoW...';
+          const endpointHost = new URL(endpoint).origin;
+          const chalRes = await fetch(endpointHost + '/api/altcha/challenge?maxnumber=20000');
+          if (chalRes.ok) {
+            const chalData = await chalRes.json();
+            if (chalData.challenge && chalData.salt) {
+              const enc = new TextEncoder();
+              const target = chalData.challenge.toLowerCase();
+              let solved = -1;
+              const max = Math.min(chalData.maxnumber || 20000, 50000);
+              const batch = 300;
+              for (let b = 0; b <= max; b += batch) {
+                const batchEnd = Math.min(b + batch, max + 1);
+                const promises = [];
+                for (let i = b; i < batchEnd; i++) {
+                  promises.push(
+                    crypto.subtle.digest('SHA-256', enc.encode(chalData.salt + i)).then(buf => ({
+                      i,
+                      hex: Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, '0')).join('')
+                    }))
+                  );
+                }
+                const resBatch = await Promise.all(promises);
+                const found = resBatch.find(r => r.hex === target);
+                if (found) { solved = found.i; break; }
+              }
+              if (solved !== -1) {
+                const altchaObj = {
+                  algorithm: 'SHA-256',
+                  challenge: chalData.challenge,
+                  number: solved,
+                  salt: chalData.salt,
+                  signature: chalData.signature
+                };
+                payload.altcha = btoa(JSON.stringify(altchaObj));
+              }
+            }
+          }
+        } catch (powErr) {
+          console.warn('ALTCHA auto-solve skipped:', powErr);
+        }
+
+        submitBtn.textContent = 'Sending...';
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -2533,7 +2579,7 @@ npx wrangler secret put AUTH_SECRET
         const data = await res.json();
         if (res.ok && data.ok) {
           statusBox.className = 'status-box success';
-          statusBox.innerHTML = '<strong>✓ Success!</strong><br>Submission received: ' + (data.message || 'Accepted') + '<br>ID: ' + data.submissionId;
+          statusBox.innerHTML = '<strong>✓ Success!</strong><br>Submission received: ' + (data.message || 'Accepted') + '<br>ID: ' + (data.submissionId || 'Recorded') + (payload.altcha ? '<br><small style="color:#6ee7b7">⚡ Verified with ALTCHA Proof-of-Work</small>' : '');
         } else {
           statusBox.className = 'status-box error';
           statusBox.innerHTML = '<strong>❌ Error (' + res.status + ')</strong><br>' + (data.message || 'Failed to submit form.');
