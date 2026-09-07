@@ -1,4 +1,4 @@
-<h1 align="center">FormForge v2.0 Universal</h1>
+<h1 align="center">FormForge v2.1 Universal</h1>
 
 <div align="center">
   A forever-free, open-source, universal form backend & analytics engine for static sites.
@@ -9,7 +9,7 @@
   <br /><br />
   🔓 <em>No paid database required.</em> 📀 <em>Own your data.</em> ⚡️ <em>Zero-card forever free.</em>
   <br /><br />
-  <img src="https://img.shields.io/badge/Version-2.0.0%20Universal-blue?style=for-the-badge" alt="Version 2.0.0" />
+  <img src="https://img.shields.io/badge/Version-2.1.0%20Universal-blue?style=for-the-badge" alt="Version 2.1.0" />
   <img src="https://img.shields.io/badge/Platforms-Vercel%20%7C%20Netlify%20%7C%20Cloudflare-success?style=for-the-badge&logo=vercel&color=059669" alt="Platforms: Vercel | Netlify | Cloudflare" />
   <img src="https://img.shields.io/badge/Databases-Neon%20%7C%20D1%20%7C%20Turso%20%7C%20SQLite-blueviolet?style=for-the-badge" alt="Databases: Neon | D1 | Turso | SQLite" />
   <img src="https://img.shields.io/badge/Security%20Tests-53%2F53%20Passed-brightgreen?style=for-the-badge" alt="Security Tests: 53/53 Passed" />
@@ -17,7 +17,7 @@
 
 <br />
 
-> 🚀 **v2.0 Universal Status:** Fully tested across Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), Cloudflare Pages (`*.pages.dev`), Cloudflare Workers (`*.workers.dev`), and local dev. Features include Multi-Database auto-migration (Neon Serverless Postgres, Cloudflare D1, Turso libSQL, SQLite), In-Browser DuckDB Live SQL Query Studio, Zero-Dependency Floating Embed Widget (`/widget.js`), Real-Time Integration & Webhook Tester with HMAC-SHA256 signatures, Free Notification Relays (Google Apps Script Gmail+Sheets, Telegram Bot, ntfy.sh), 6-digit OTP verification, Turnstile CAPTCHA, and Backblaze B2 S3 storage.
+> 🚀 **v2.1 Universal Status:** Fully tested across Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), Cloudflare Pages (`*.pages.dev`), Cloudflare Workers (`*.workers.dev`), and local dev. Features include Multi-Database auto-migration (Neon Serverless Postgres, Cloudflare D1, Turso libSQL, SQLite), In-Browser DuckDB Live SQL Query Studio, Zero-Dependency Floating Embed Widget (`/widget.js`), Real-Time Submission Search & Status Filtering (`all`, `inbox`, `spam`, `pending`), Submission Lifecycle Management (single/bulk deletion & spam toggles), Dynamic HTML Form Redirects (`_next`, `_redirect`, `next`), Glassmorphic Browser Thank-You Page for zero-JS forms, Real-Time Integration & Webhook Tester with HMAC-SHA256 signatures, Free Notification Relays (Google Apps Script Gmail+Sheets, Telegram Bot, ntfy.sh), 6-digit OTP verification, Turnstile CAPTCHA, and Backblaze B2 S3 storage.
 
 <div align="center">
   <img src="public/logo.svg" width="128" height="128" alt="FormForge logo" />

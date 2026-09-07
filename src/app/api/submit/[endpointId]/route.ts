@@ -79,6 +79,123 @@ async function parsePayload(request: Request, submissionId: string): Promise<Par
   return payload;
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderSuccessHtml(formName: string, message: string, submissionId: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Submission Received — FormForge</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 0%, #0c1527 0%, #030712 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #f8fafc;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .card {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+      padding: 40px 32px;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(56, 189, 248, 0.1);
+    }
+    .icon-box {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      color: #34d399;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 32px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: #ffffff;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    .ref-badge {
+      display: inline-block;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 28px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .footer {
+      margin-top: 32px;
+      font-size: 11px;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-box">✓</div>
+    <h1>${escapeHtml(formName)}</h1>
+    <p>${escapeHtml(message)}</p>
+    <div><span class="ref-badge">Reference ID: ${escapeHtml(submissionId)}</span></div>
+    <div>
+      <button class="btn" onclick="history.back()">← Return to Site</button>
+    </div>
+    <div class="footer">FormForge &bull; Zero-Card Free Tier Form Engine</div>
+  </div>
+</body>
+</html>`;
+}
+
 function hasInvalidEmail(payload: ParsedSubmission): boolean {
   for (const key of ["email", "Email", "reply_to", "replyTo"]) {
     const value = payload[key];
@@ -364,10 +481,15 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
-    if (form.redirectUrl && request.headers.get("accept")?.includes("text/html")) {
+    const dynamicRedirect = typeof payload._next === "string" ? payload._next :
+                            typeof payload._redirect === "string" ? payload._redirect :
+                            typeof payload.next === "string" ? payload.next : null;
+    const targetRedirectUrl = dynamicRedirect || form.redirectUrl;
+
+    if (targetRedirectUrl && request.headers.get("accept")?.includes("text/html")) {
       const { isSafeRedirectUrl } = await import("@/lib/url-validation");
-      if (isSafeRedirectUrl(form.redirectUrl)) {
-        let finalRedirectUrl = form.redirectUrl;
+      if (isSafeRedirectUrl(targetRedirectUrl)) {
+        let finalRedirectUrl = targetRedirectUrl;
         for (const [key, val] of Object.entries(payload)) {
           if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
             finalRedirectUrl = finalRedirectUrl.replace(new RegExp(`\\{${key}\\}`, "gi"), encodeURIComponent(String(val)));
@@ -375,6 +497,20 @@ export async function POST(request: Request, context: RouteContext) {
         }
         return Response.redirect(finalRedirectUrl, 303);
       }
+    }
+
+    const acceptHeader = request.headers.get("accept") || "";
+    if (acceptHeader.includes("text/html") && !acceptHeader.includes("application/json")) {
+      return new Response(
+        renderSuccessHtml(
+          form.name,
+          isPendingVerification
+            ? "Please check your inbox to verify your email address and confirm this submission."
+            : form.successMessage,
+          submission.id
+        ),
+        { status: 200, headers: { ...cors, "Content-Type": "text/html; charset=utf-8" } }
+      );
     }
 
     return new Response(

@@ -24,6 +24,8 @@ When deploying to Cloudflare using the **Deploy to Cloudflare** button, you must
 The backend database has no tables created yet, or the database binding is missing.
 
 #### Fix:
+> 💡 **Auto-Migration Note (v2.0+):** FormForge v2.0+ includes self-healing startup migrations (`autoMigrate`). Tables and columns are initialized automatically upon first request. If automatic migration is prevented by Cloudflare permissions, use the manual query below as a fallback:
+
 1. Open your **Cloudflare Dashboard** -> **D1 Database** -> Select `formforge-db`.
 2. Go to the **Console** tab.
 3. Paste the following SQL query and click **Execute**:

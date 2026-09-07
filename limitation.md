@@ -19,22 +19,28 @@ This document outlines the architectural limits, security rules (like IP blockin
 
 ---
 
-## 2. Infrastructure & Database (Cloudflare D1)
+## 2. Infrastructure & Multi-Database Engine (Universal Zero-Card Free Tier)
 
-### 📊 D1 Database Limitations
-* **Storage Limit:** Since FormForge is designed to scale on Cloudflare's Free Tier, D1 databases are limited to Cloudflare’s free tier limits (typically **500MB** of database storage per database).
-* **Read/Write Limits:** Cloudflare Free Plan allows up to **5 Million Reads** and **100,000 Writes** per day. If exceeded, the database will return query execution errors.
+FormForge v2.1 Universal dynamically detects and connects to any of the following databases on boot with zero configuration:
+
+### 📊 Supported Database Capacity Matrix
+* **Cloudflare D1:** 500MB storage, 5M reads/day, 100k writes/day (No credit card needed).
+* **Neon Serverless Postgres:** 0.5GB storage, auto-scaling to zero, HTTP serverless connection (`NEON_DATABASE_URL` or `POSTGRES_URL`) (No credit card needed).
+* **Turso (libSQL):** 5GB storage, 100 databases, libSQL HTTP/WebSocket connection (`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`) (No credit card needed).
+* **Local SQLite:** Unlimited local development file storage (`better-sqlite3`).
+* **Self-Healing Auto-Migration:** Automatically detects SQLite vs PostgreSQL syntax and executes missing table/column DDL on application startup.
 
 ---
 
 ## 3. Integrations & Features
 
-### 📧 Email Alerts (Resend.com or Custom SMTP)
-* **Constraint:** Form submissions will **not** send email notifications unless configured with either:
-  * **Global Resend:** Requires `RESEND_API_KEY` and `RESEND_FROM` set as environment variables.
-  * **Custom SMTP:** Configured per-form on the dashboard settings. Enables support for **10+ email providers** including Gmail, Yahoo, Outlook/Hotmail, Resend SMTP, Mailjet, Brevo, SMTP2GO, SendGrid, Amazon SES, Mailgun, and Postmark.
-* **🔒 AES-GCM Security Encryption:** SMTP passwords entered into the dashboard are securely encrypted in D1 using **AES-GCM (Web Crypto API)** and your `AUTH_SECRET` key, and masked in all client-side API requests.
-* **⚡ Non-Blocking Background Sending:** Emails and Webhooks are sent asynchronously via Next.js `waitUntil` background execution context so that submissions remain instant (0.01s) without waiting for SMTP handshakes.
+### 📧 Email Alerts & Free Push Relays
+* **Google Apps Script (GAS):** 500–1,500 100% free emails/day via personal Gmail + live Google Sheets logging (Zero card, zero cost).
+* **Telegram Bot:** Unlimited instant push notifications directly to mobile/desktop via Telegram Bot API (`telegramBotToken` + `telegramChatId`).
+* **ntfy.sh:** Zero-account instant pub/sub mobile push notifications.
+* **Direct API Integrations:** Resend, Brevo, SendGrid, Mailgun.
+* **Custom SMTP:** 10+ providers with AES-GCM password encryption at rest.
+* **⚡ Non-Blocking Background Sending:** Emails and Webhooks are sent asynchronously via Next.js / Cloudflare `waitUntil` background execution context so that submissions remain instant (0.01s) without waiting for SMTP handshakes.
 
 ### 🤖 Proof of Work (Spam Protection)
 * **Constraint:** When `require_proof_of_work` is enabled on a form, the client browser must solve a mathematical puzzle before submitting.
@@ -49,9 +55,34 @@ The `build-cf.js` script was custom-created to act as an intelligent compile wra
 1. **Prevents Infinite Build Loops:**
    * Normally, setting `package.json` build command to OpenNext and wrangler's build command to `npm run build` triggers a circular loop where OpenNext calls the package manager build, which calls OpenNext again.
    * `build-cf.js` uses the environment variable `IN_OPEN_NEXT === 'true'` to detect the build phase. It runs standard `next build` if inside OpenNext, and `opennextjs-cloudflare build` if triggered by the outer deployment process, successfully breaking the cycle.
+
+---
+
 ## 5. Added Features & Enhancements
 
 The following custom features have been added to the production codebase:
+
+### 🦆 In-Browser DuckDB Live SQL Query Studio
+* **WebAssembly Execution:** Run analytical SQL queries on your submission data in real time directly inside the browser using DuckDB.
+* **Export Presets:** One-click copy for DuckDB CLI commands, MotherDuck cloud queries, and custom SQL analytics.
+
+### 🎈 Zero-Dependency Floating Embed Widget (`/widget.js`)
+* **Ultra-Lightweight:** Less than `3KB` standalone script. Simply drop `<script src="https://your-domain.com/widget.js" data-form-id="..."></script>` into any website.
+* **Glassmorphic Popup:** Provides an interactive floating bubble with responsive modal, honeypot bot trap, and AJAX submit handling.
+
+### ⚡ Live Integration & Webhook Tester
+* **Dashboard Testing:** Test Webhooks, Google Apps Script, Telegram Bot, and ntfy.sh directly from the Form Settings panel.
+* **Latency & Status:** Displays real-time HTTP response status, latency in milliseconds, and headers.
+
+### 🔍 Real-Time Submission Search & Status Filtering
+* **Keyword Search:** Instant live filtering by submitter email, field name, or payload content.
+* **Status Filtering:** One-click filter pills for `All`, `Inbox / Accepted`, `Spam`, and `Pending`.
+* **Lifecycle Management:** Mark as Spam / Move to Inbox, single submission deletion, and bulk "Clear All Spam".
+
+### 🔀 Dynamic HTML Form Redirects & Browser Thank-You Page
+* **Zero-JS Support:** Full support for standard `<form action="..." method="POST">` submissions without JavaScript.
+* **Dynamic Redirection:** Specify custom redirect destinations via hidden inputs `<input type="hidden" name="_next" value="https://mysite.com/thanks">`.
+* **Glassmorphic Thank-You Page:** When submitted directly from a browser without a redirect URL, FormForge returns an elegant confirmation page with reference ID and back button.
 
 ### 📊 In-App Submissions Analytics
 * **Dashboard Tab:** Accessible via the "Analytics" tab for each form.

@@ -90,14 +90,21 @@ export default function HomePage() {
             </a>
           </div>
 
-          <div className="mt-10 grid max-w-2xl grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            {["D1", "Drizzle", "OpenNext", "Tailwind"].map((item) => (
-              <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-slate-200">{item}</div>
+          <div className="mt-10 grid max-w-2xl grid-cols-2 gap-3 text-xs sm:grid-cols-3 md:grid-cols-6 font-medium">
+            {[
+              "Cloudflare D1",
+              "Neon Postgres",
+              "Turso libSQL",
+              "DuckDB Studio",
+              "GAS Relay",
+              "Telegram & ntfy",
+            ].map((item) => (
+              <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-center text-slate-200 hover-lift">{item}</div>
             ))}
           </div>
         </div>
 
-        <div className="glass-panel rounded-[2rem] p-4 sm:p-6">
+        <div className="glass-panel rounded-[2rem] p-4 sm:p-6 animate-float">
           <div className="rounded-[1.5rem] border border-white/10 bg-slate-950/80 p-5">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>

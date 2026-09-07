@@ -2,6 +2,17 @@
 
 All notable changes to FormForge are documented in this file.
 
+## [2.1.0] - 2026-09-07
+
+### Added
+- **Submission Lifecycle Management Endpoints** — New `/api/submissions/[submissionId]` endpoint supporting `GET`, `DELETE` (with automatic form counter synchronization), and `PATCH` for instant status toggling (`accepted` <-> `spam`).
+- **Real-Time Submission Search & Status Filtering** — Live search query parameter (`?q=...`) filtering across emails and payload fields, plus status filtering tabs (`all`, `inbox`, `spam`, `pending`).
+- **Bulk Submission Deletion & Spam Cleaner** — `DELETE /api/forms/[formId]/submissions` supporting selective bulk deletion and single-click "Clear All Spam".
+- **Dynamic Non-AJAX HTML Form Redirection** — Native support for `_next`, `_redirect`, and `next` hidden form fields with SSRF-safe redirect validation.
+- **Glassmorphic Browser Thank-You Page** — Clean, responsive zero-JS confirmation screen rendered automatically for browser form submissions with submission reference IDs and back buttons.
+- **Micro-Animations & Premium UI/UX Polish** — Added CSS `@keyframes` for `pulseGlow`, `floatAnimation`, `shimmerEffect`, and `scaleInModal` across the dashboard and home page.
+- **Direct Submissions Export Toolbar** — 1-click CSV, JSON, and PDF/Print export triggers embedded directly into the Submissions table header.
+
 ## [2.0.0] - 2026-09-07
 
 ### Added

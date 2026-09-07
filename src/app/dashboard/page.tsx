@@ -364,7 +364,7 @@ function FormsTab() {
         <div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
           {filtered.length === 0 && <p className="py-4 text-center text-sm text-slate-500">No forms found.</p>}
           {filtered.map((form) => (
-            <button key={form.id} onClick={() => setSelectedId(form.id)} className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${selectedId === form.id ? "border-cyan-300/60 bg-cyan-300/10" : "border-white/10 bg-white/5 hover:bg-white/10"}`}>
+            <button key={form.id} onClick={() => setSelectedId(form.id)} className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition hover-lift ${selectedId === form.id ? "border-cyan-300/60 bg-cyan-300/10 shadow-lg shadow-cyan-950/20" : "border-white/10 bg-white/5 hover:bg-white/10"}`}>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-white">{form.name}</p>
                 <p className="text-xs text-slate-400">{form.submissionsCount} submissions</p>
@@ -381,7 +381,7 @@ function FormsTab() {
           <StatCard label="Inactive" value={String(forms.filter((f) => !f.isActive).length)} />
         </div>
         <div className="text-[10px] text-slate-500 text-center border-t border-white/5 pt-3">
-          FormForge Engine v1.2.0 · Live on Cloudflare D1
+          FormForge Engine v2.1 Universal · D1 • Neon • Turso • DuckDB
         </div>
       </aside>
 
@@ -444,32 +444,86 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   const [copied, setCopied] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const [subStatus, setSubStatus] = useState<"all" | "accepted" | "spam" | "pending">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [counts, setCounts] = useState({ all: 0, accepted: 0, spam: 0, pending: 0 });
   const limit = 20;
 
   const base = getEndpointBase();
   const endpoint = `${base}/api/submit/${form.endpointId}`;
 
-  const loadSubs = useCallback(async () => {
+  const loadSubs = useCallback(async (currentStatus = subStatus, currentQ = searchQuery, currentOffset = offset) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/forms/${form.id}/submissions?limit=${limit}&offset=${offset}`, { credentials: "include" });
+      const qParam = currentQ.trim() ? `&q=${encodeURIComponent(currentQ.trim())}` : "";
+      const statusParam = currentStatus !== "all" ? `&status=${currentStatus}` : "";
+      const res = await fetch(`/api/forms/${form.id}/submissions?limit=${limit}&offset=${currentOffset}${statusParam}${qParam}`, { credentials: "include" });
       const data = await res.json();
       if (data.ok) {
         setSubs(data.data.submissions);
         setTotal(data.data.pagination.total ?? data.data.submissions.length);
+        if (data.data.counts) {
+          setCounts(data.data.counts);
+        }
       }
     } finally {
       setLoading(false);
     }
-  }, [form.id, offset]);
+  }, [form.id, limit, offset, subStatus, searchQuery]);
 
   useEffect(() => {
     setOffset(0);
-  }, [form.id]);
+  }, [form.id, subStatus, searchQuery]);
 
   useEffect(() => {
-    loadSubs();
-  }, [loadSubs]);
+    loadSubs(subStatus, searchQuery, offset);
+  }, [loadSubs, subStatus, searchQuery, offset]);
+
+  const handleToggleStatus = async (subId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "spam" ? "accepted" : "spam";
+    setSubs((prev) => prev.map((s) => (s.id === subId ? { ...s, status: newStatus } : s)));
+    try {
+      await fetch(`/api/submissions/${subId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      loadSubs();
+    } catch (e) {
+      console.error("Failed to toggle status", e);
+    }
+  };
+
+  const handleDeleteSub = async (subId: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this submission?")) return;
+    setSubs((prev) => prev.filter((s) => s.id !== subId));
+    setTotal((t) => Math.max(0, t - 1));
+    try {
+      await fetch(`/api/submissions/${subId}`, { method: "DELETE" });
+      onChanged();
+      loadSubs();
+    } catch (e) {
+      console.error("Failed to delete submission", e);
+    }
+  };
+
+  const handleClearSpam = async () => {
+    if (!window.confirm(`Are you sure you want to delete all ${counts.spam} spam submissions?`)) return;
+    setLoading(true);
+    try {
+      await fetch(`/api/forms/${form.id}/submissions`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clearSpam: true }),
+      });
+      onChanged();
+      loadSubs();
+    } catch (e) {
+      console.error("Failed to clear spam", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [snippetTab, setSnippetTab] = useState<"html" | "widget" | "react" | "js" | "python" | "curl">("html");
   const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "newsletter" | "feedback">("plain");
@@ -1072,26 +1126,121 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
       <div className="px-5 pb-5">
         {view === "submissions" && (
           <div id="view-submissions-panel" role="tabpanel" aria-label="Submissions List">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs text-slate-500">Form Submission History</span>
-              <button
-                type="button"
-                onClick={() => loadSubs()}
-                className="flex items-center gap-1.5 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1 text-xs text-cyan-200 hover:bg-white/10 transition"
-              >
-                🔄 Refresh
-              </button>
+            {/* Submissions Toolbar: Search, Status Filter Pills & Export Controls */}
+            <div className="space-y-3 mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                {/* Status Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 bg-white/[0.02] border border-white/10 rounded-xl p-1">
+                  {(
+                    [
+                      { id: "all", label: "All", count: counts.all },
+                      { id: "accepted", label: "Inbox", count: counts.accepted },
+                      { id: "spam", label: "Spam", count: counts.spam },
+                      { id: "pending", label: "Pending", count: counts.pending },
+                    ] as const
+                  ).map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setSubStatus(filter.id)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                        subStatus === filter.id
+                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                          : "text-slate-400 hover:text-white border border-transparent"
+                      }`}
+                    >
+                      {filter.label} <span className="text-[10px] opacity-75">({filter.count})</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Export & Actions Toolbar */}
+                <div className="flex items-center gap-2">
+                  {counts.spam > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearSpam}
+                      className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-500/20 transition"
+                    >
+                      🗑️ Clear Spam ({counts.spam})
+                    </button>
+                  )}
+                  <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5 text-xs text-slate-300">
+                    <span className="px-2 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Export</span>
+                    <a
+                      href={`/api/forms/${form.id}/export?format=csv`}
+                      download
+                      className="px-2 py-1 hover:text-white hover:bg-white/10 rounded transition"
+                      title="Download CSV"
+                    >
+                      CSV
+                    </a>
+                    <a
+                      href={`/api/forms/${form.id}/export?format=json`}
+                      download
+                      className="px-2 py-1 hover:text-white hover:bg-white/10 rounded transition"
+                      title="Download JSON"
+                    >
+                      JSON
+                    </a>
+                    <a
+                      href={`/api/forms/${form.id}/export?format=pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-1 hover:text-white hover:bg-white/10 rounded transition"
+                      title="Print / PDF Report"
+                    >
+                      PDF
+                    </a>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadSubs()}
+                    className="flex items-center gap-1.5 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-cyan-200 hover:bg-white/10 transition"
+                    title="Refresh submissions list"
+                  >
+                    🔄
+                  </button>
+                </div>
+              </div>
+
+              {/* Real-time Search Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="🔍 Search submissions by email, field name, or payload content..."
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-300"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
             {loading ? (
               <p className="py-6 text-center text-sm text-slate-500">Loading submissions…</p>
             ) : subs.length === 0 ? (
               <div className="py-10 text-center text-slate-500">
                 <p className="text-4xl">📭</p>
-                <p className="mt-2 text-sm">No submissions yet. Use the endpoint above to send a test.</p>
+                <p className="mt-2 text-sm">{searchQuery || subStatus !== "all" ? "No matching submissions found for this filter." : "No submissions yet. Use the endpoint above to send a test."}</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {subs.map((sub) => <SubmissionRow key={sub.id} sub={sub} />)}
+                {subs.map((sub) => (
+                  <SubmissionRow
+                    key={sub.id}
+                    sub={sub}
+                    onToggleStatus={handleToggleStatus}
+                    onDelete={handleDeleteSub}
+                  />
+                ))}
                 
                 {/* Pagination Controls */}
                 {total > limit && (
@@ -1446,9 +1595,18 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
   );
 }
 
-function SubmissionRow({ sub }: { sub: Submission }) {
+function SubmissionRow({
+  sub,
+  onToggleStatus,
+  onDelete,
+}: {
+  sub: Submission;
+  onToggleStatus?: (subId: string, currentStatus: string) => void;
+  onDelete?: (subId: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [viewType, setViewType] = useState<"table" | "json">("table");
+  const [copiedJson, setCopiedJson] = useState(false);
   
   let payload: Record<string, unknown> = {};
   try {
@@ -1456,6 +1614,12 @@ function SubmissionRow({ sub }: { sub: Submission }) {
   } catch {
     payload = { raw: sub.payload };
   }
+
+  const copyPayload = () => {
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 2000);
+  };
   
   const preview = Object.entries(payload).slice(0, 3).map(([k, v]) => `${k}: ${String(v).slice(0, 40)}`).join(" · ");
 
@@ -1473,20 +1637,56 @@ function SubmissionRow({ sub }: { sub: Submission }) {
       </button>
       {open && (
         <div className="border-t border-white/10 px-4 py-4 space-y-3">
-          {/* Tab Selector */}
-          <div className="flex gap-1.5 border-b border-white/5 pb-2">
-            <button
-              onClick={() => setViewType("table")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${viewType === "table" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
-            >
-              📋 Table View
-            </button>
-            <button
-              onClick={() => setViewType("json")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${viewType === "json" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
-            >
-              💻 Raw JSON
-            </button>
+          {/* Tab Selector & Action Buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-2">
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setViewType("table")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${viewType === "table" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
+              >
+                📋 Table View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewType("json")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${viewType === "json" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
+              >
+                💻 Raw JSON
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={copyPayload}
+                className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition"
+              >
+                {copiedJson ? "✓ Copied" : "📋 Copy"}
+              </button>
+              {onToggleStatus && (
+                <button
+                  type="button"
+                  onClick={() => onToggleStatus(sub.id, sub.status)}
+                  className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+                    sub.status === "spam"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                      : "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                  }`}
+                >
+                  {sub.status === "spam" ? "Inbox ✓" : "Flag Spam ⚠️"}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(sub.id)}
+                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300 hover:bg-rose-500/20 transition"
+                >
+                  🗑️ Delete
+                </button>
+              )}
+            </div>
           </div>
 
           {viewType === "table" ? (
