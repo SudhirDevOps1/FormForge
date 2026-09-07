@@ -557,7 +557,7 @@
         <span class="pill">🔓 No paid database</span>
         <span class="pill">📀 Own your data</span>
         <span class="pill">⚡ Cloudflare D1</span>
-        <span class="pill">🤖 Turnstile Ready</span>
+        <span class="pill">🛡️ ALTCHA PoW</span>
       </div>
       <h1 class="glow-text">Deploy a free form backend to your Cloudflare account.</h1>
       <p class="lead"><strong>FormForge</strong> is a forever-free, open-source, privacy-first form backend for static sites. Built with <strong>Next.js 16 + React 19 + OpenNext + Cloudflare Workers + D1</strong>. No <code>DATABASE_URL</code>, no PostgreSQL, no Neon, no Supabase, no paid subscriptions needed.</p>
@@ -616,9 +616,9 @@
               <p class="small">Tables are automatically created/altered on first request. No manual migrations needed.</p>
             </div>
             <div>
-              <div class="card-icon">🤖</div>
-              <h3 style="margin:0 0 4px;font-size:15px">Cloudflare Turnstile</h3>
-              <p class="small">Non-intrusive CAPTCHA integration. Block bots without ruining the user experience.</p>
+              <div class="card-icon">🛡️</div>
+              <h3 style="margin:0 0 4px;font-size:15px">ALTCHA Proof-of-Work</h3>
+              <p class="small">100% free, self-hosted anti-spam. Silent cryptographic PoW challenges with zero third-party cookies.</p>
             </div>
             <div>
               <div class="card-icon">📧</div>
@@ -859,7 +859,7 @@ npm run deploy</code></pre>
             <li><strong>Forms tab:</strong> Click + New to create a form, search, select. Each form has its own endpoint, settings, and spam rules.</li>
             <li><strong>Submissions:</strong> Expand rows, view JSON, check status (accepted/spam), see time-ago timestamps.</li>
             <li><strong>Interactive Charts:</strong> View timeline charts showing submission trends over time.</li>
-            <li><strong>Settings tab:</strong> Configure form name, URL slug, allowed origins, honeypot, webhooks, email, Turnstile, spam words, email verification (double opt-in), and data retention.</li>
+            <li><strong>Settings tab:</strong> Configure form name, URL slug, allowed origins, honeypot, webhooks, email, ALTCHA PoW anti-spam, spam words, email verification (double opt-in), and data retention.</li>
             <li><strong>Multi-Format Export:</strong> Download all submissions in CSV, JSON, or TXT report formats — no vendor lock-in.</li>
             <li><strong>API Keys:</strong> Create read-only tokens for programmatic access. Set expiration dates.</li>
             <li><strong>HTML Snippets:</strong> Copy ready-to-use HTML form code for your website.</li>
@@ -906,10 +906,10 @@ npm run deploy</code></pre>
 
           <div class="accordion-item">
             <div class="accordion-header" onclick="toggleAccordion(this)">
-              <span>🤖 Cloudflare Turnstile Verification</span>
+              <span>🛡️ ALTCHA Proof-of-Work Verification</span>
             </div>
             <div class="accordion-body">
-              <p class="small">Integrate Cloudflare's non-intrusive CAPTCHA to verify human submitters. Obtain a <code>Site Key</code> and <code>Secret Key</code> from the Cloudflare Turnstile dashboard. Save the secret key in form settings, and add the Turnstile widget to your HTML frontend.</p>
+              <p class="small">100% free, self-hosted, privacy-first spam protection. Replaces intrusive third-party CAPTCHAs with silent in-browser cryptographic Proof-of-Work challenges. Toggle on in form settings, include the lightweight ALTCHA script on your site, and add the <code>&lt;altcha-widget&gt;</code> element to your form.</p>
             </div>
           </div>
 

@@ -6,7 +6,7 @@
   
   <!-- SEO Optimization for Search & AI Search Engines (ChatGPT, Gemini, Perplexity) -->
   <title>FormForge — Open-Source Privacy-First Form Backend by Sudhir Singh</title>
-  <meta name="description" content="FormForge is a high-performance, open-source, serverless form backend developed by Sudhir Singh. Designed for Cloudflare Workers and D1 SQLite database, featuring AES-GCM encryption, Discord/Slack webhooks, Turnstile CAPTCHA, and 10+ SMTP support.">
+  <meta name="description" content="FormForge is a high-performance, open-source, serverless form backend developed by Sudhir Singh. Designed for Cloudflare Workers and D1 SQLite database, featuring AES-GCM encryption, Discord/Slack webhooks, ALTCHA PoW anti-spam, and 10+ SMTP support.">
   <meta name="keywords" content="FormForge, Sudhir Singh, form backend, self-hosted form backend, Cloudflare Workers, Cloudflare D1, open source form, secure SMTP, serverless form, email verification, spam honeypot, alternative to formspree, alternative to web3forms">
   <meta name="author" content="Sudhir Singh">
   <meta name="robots" content="index, follow">
@@ -21,7 +21,7 @@
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="FormForge — Open-Source Form Backend by Sudhir Singh">
-  <meta name="twitter:description" content="Self-hosted, privacy-first form backend on Cloudflare Workers + D1. 4 direct email APIs, 10+ SMTP relays, R2/S3 file uploads, Turnstile CAPTCHA, and OpenAPI docs.">
+  <meta name="twitter:description" content="Self-hosted, privacy-first form backend on Cloudflare Workers + D1. 4 direct email APIs, 10+ SMTP relays, R2/S3 file uploads, ALTCHA anti-spam, and OpenAPI docs.">
   
   <!-- Canonical URL -->
   <link rel="canonical" href="https://sudhirdevops1.github.io/FormForge/">
@@ -32,7 +32,7 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "FormForge",
-    "description": "FormForge is a privacy-first serverless form backend for static websites, developed by Sudhir Singh. Supports 4 direct email APIs (Resend, Brevo, SendGrid, Mailgun), 10+ SMTP relays, Cloudflare R2 and S3-compatible file uploads, Turnstile CAPTCHA, PoW spam protection, and OpenAPI documentation.",
+    "description": "FormForge is a privacy-first serverless form backend for static websites, developed by Sudhir Singh. Supports 4 direct email APIs (Resend, Brevo, SendGrid, Mailgun), 10+ SMTP relays, Cloudflare R2 and S3-compatible file uploads, ALTCHA PoW spam protection, and OpenAPI documentation.",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Cloudflare Workers",
     "license": "https://opensource.org/licenses/MIT",
@@ -40,7 +40,7 @@
     "downloadUrl": "https://github.com/SudhirDevOps1/FormForge",
     "dateModified": "2026-07-13",
     "softwareVersion": "1.2.0",
-    "featureList": "Form submissions, Email verification, Discord webhooks, Slack webhooks, CSV export, JSON export, Turnstile CAPTCHA, Proof of Work, Honeypot trap, SMTP encryption, R2 file uploads, S3 file uploads, OpenAPI docs, Owner-only mode",
+    "featureList": "Form submissions, Email verification, Discord webhooks, Slack webhooks, CSV export, JSON export, ALTCHA PoW Anti-Spam, Honeypot trap, SMTP encryption, R2 file uploads, S3 file uploads, OpenAPI docs, Owner-only mode",
     "author": {
       "@type": "Person",
       "name": "Sudhir Singh",
@@ -1737,7 +1737,7 @@
             <div class="insight-list">
               <div class="insight-pill">⚡ Runtime: OpenNext on Cloudflare Workers</div>
               <div class="insight-pill">🗄️ Data: Cloudflare D1 + Drizzle ORM</div>
-              <div class="insight-pill">🔐 Security: HMAC sessions, PBKDF2 hashes, Turnstile, rate limits</div>
+              <div class="insight-pill">🔐 Security: HMAC sessions, PBKDF2 hashes, ALTCHA PoW, rate limits</div>
               <div class="insight-pill">📦 Product: Dashboard, analytics, CSV/JSON/TXT export, API keys</div>
             </div>
           </div>
@@ -1848,7 +1848,7 @@
         <div class="card">
           <span class="feature-icon">🛡️</span>
           <h3>Bot Protection Suite</h3>
-          <p style="color: var(--text-secondary); font-size: 15px; margin: 0;">Honeypot fields, IP rate limiting, Cloudflare Turnstile CAPTCHA, custom spam word blocklists, and optional proof-of-work validation for 100% spam-free submissions.</p>
+          <p style="color: var(--text-secondary); font-size: 15px; margin: 0;">Honeypot fields, IP rate limiting, ALTCHA Proof-of-Work anti-spam (100% free, zero cookies), custom spam word blocklists, and optional proof-of-work validation for 100% spam-free submissions.</p>
         </div>
         <div class="card">
           <span class="feature-icon">📧</span>
@@ -1920,30 +1920,31 @@
       <div class="card" style="margin-bottom: 28px;">
         <div class="grid grid-2">
           <div>
-            <h3>🤖 Cloudflare Turnstile Verification</h3>
-            <p style="color: var(--text-secondary); font-size: 15px;">Integrate Cloudflare's non-intrusive Turnstile CAPTCHA to verify that submitters are human. Uses silent JavaScript challenges to stop bots without disrupting user experience.</p>
+            <h3>🛡️ ALTCHA Proof-of-Work Anti-Spam</h3>
+            <p style="color: var(--text-secondary); font-size: 15px;">100% free, self-hosted, privacy-first spam protection. Replaces intrusive third-party CAPTCHAs with silent in-browser cryptographic Proof-of-Work challenges. Zero cookies, GDPR-compliant, and no external API keys required.</p>
           </div>
           <div>
             <div class="step-item">
               <div class="step-badge step-badge-purple">1</div>
               <div>
-                <h5 style="margin: 0 0 4px 0; color: white; font-size: 15px;">Get Turnstile Keys</h5>
-                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">Go to Cloudflare Dashboard → Turnstile → Click <strong>Add site</strong>. Enter your domain, choose Managed challenge, and click Create.</p>
+                <h5 style="margin: 0 0 4px 0; color: white; font-size: 15px;">Enable in Form Settings</h5>
+                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">Open form settings in FormForge, toggle on <strong>ALTCHA Proof-of-Work Anti-Spam</strong>, and save your form.</p>
               </div>
             </div>
             <div class="step-item">
               <div class="step-badge step-badge-purple">2</div>
               <div>
-                <h5 style="margin: 0 0 4px 0; color: white; font-size: 15px;">Configure Secret Key</h5>
-                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">Copy the <strong>Secret Key</strong> and paste it into the <strong>Turnstile Secret Key</strong> input in FormForge settings, then save.</p>
+                <h5 style="margin: 0 0 4px 0; color: white; font-size: 15px;">Add Script to Website</h5>
+                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">Include the lightweight official ALTCHA web-component script in your site header:</p>
+                <code class="inline-code">&lt;script defer src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" type="module"&gt;&lt;/script&gt;</code>
               </div>
             </div>
             <div class="step-item">
               <div class="step-badge step-badge-purple">3</div>
               <div>
-                <h5 style="margin: 0 0 4px 0; color: white; font-size: 15px;">Add Script to Website</h5>
-                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">Embed Cloudflare's script tag in your HTML:</p>
-                <code class="inline-code">&lt;script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer&gt;&lt;/script&gt;</code>
+                <h5 style="margin: 0 0 4px 0; color: white; font-size: 15px;">Add Widget to Your Form</h5>
+                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">Place the widget tag inside your form with your form's challenge URL:</p>
+                <code class="inline-code">&lt;altcha-widget challengeurl="/api/altcha/challenge"&gt;&lt;/altcha-widget&gt;</code>
               </div>
             </div>
           </div>
@@ -2269,10 +2270,10 @@ npx wrangler secret put AUTH_SECRET
               <td><span class="tick">✓</span> One-click</td>
             </tr>
             <tr>
-              <td><strong>Turnstile CAPTCHA</strong></td>
+              <td><strong>ALTCHA Anti-Spam</strong></td>
               <td><span class="cross">✗</span></td>
               <td><span class="cross">✗</span></td>
-              <td><span class="tick">✓</span> Built-in</td>
+              <td><span class="tick">✓</span> Built-in (100% Free)</td>
             </tr>
             <tr>
               <td><strong>Data Retention</strong></td>
@@ -2442,16 +2443,16 @@ npx wrangler secret put AUTH_SECRET
             <span class="arrow">▾</span>
           </button>
           <div class="faq-a">
-            <p>Multi-layer defense: (1) Hidden honeypot fields catch basic bots, (2) IP rate limiting prevents flooding, (3) Custom spam word blocklists filter keyword-based spam (+100 spam score), (4) Optional Cloudflare Turnstile CAPTCHA for silent bot verification, (5) Origin allowlisting restricts submissions to your domains.</p>
+            <p>Multi-layer defense: (1) Hidden honeypot fields catch basic bots, (2) IP rate limiting prevents flooding, (3) Custom spam word blocklists filter keyword-based spam (+100 spam score), (4) Built-in free ALTCHA Proof-of-Work challenge for silent bot verification, (5) Origin allowlisting restricts submissions to your domains.</p>
           </div>
         </div>
         <div class="faq-item">
           <button class="faq-q" onclick="toggleFaq(this)">
-            <span>How secure is my sensitive data (SMTP passwords, Turnstile keys)?</span>
+            <span>How secure is my sensitive data (SMTP passwords)?</span>
             <span class="arrow">▾</span>
           </button>
           <div class="faq-a">
-            <p>FormForge uses bank-grade <strong>AES-GCM (256-bit) encryption</strong> via the native Web Crypto API to encrypt Turnstile Secret Keys and SMTP Passwords before writing to your D1 database. The key is securely derived from your environment secret <code>AUTH_SECRET</code>. When retrieved by the dashboard, these values are completely masked with placeholders (<code>__SMTP_PASSWORD_SET__</code>) to prevent browser-side leakage.</p>
+            <p>FormForge uses bank-grade <strong>AES-GCM (256-bit) encryption</strong> via the native Web Crypto API to encrypt SMTP Passwords before writing to your D1 database. The key is securely derived from your environment secret <code>AUTH_SECRET</code>. When retrieved by the dashboard, these values are completely masked with placeholders (<code>__SMTP_PASSWORD_SET__</code>) to prevent browser-side leakage.</p>
           </div>
         </div>
         <div class="faq-item">
@@ -2469,7 +2470,7 @@ npx wrangler secret put AUTH_SECRET
             <span class="arrow">▾</span>
           </button>
           <div class="faq-a">
-            <p>If you lose or change your <code>AUTH_SECRET</code>, existing encrypted values (SMTP passwords and Turnstile secrets) will become unreadable, and existing login sessions will expire. However, <strong>your database will not be corrupted</strong>. Simply set a new <code>AUTH_SECRET</code>, log in to the dashboard, and re-enter your SMTP/Turnstile secrets in the settings panel to re-encrypt them.</p>
+            <p>If you lose or change your <code>AUTH_SECRET</code>, existing encrypted values (SMTP passwords) will become unreadable, and existing login sessions will expire. However, <strong>your database will not be corrupted</strong>. Simply set a new <code>AUTH_SECRET</code>, log in to the dashboard, and re-enter your SMTP credentials in the settings panel to re-encrypt them.</p>
           </div>
         </div>
         <div class="faq-item">

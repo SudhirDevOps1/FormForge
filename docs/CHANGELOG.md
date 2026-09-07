@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Release automation reads this file: [`release.yml`](../.github/workflows/release.yml)
 extracts the section matching each `v*` tag to build the GitHub Release notes.
 
+## [2.2.0] - 2026-09-08
+
+### Added
+- **Native ALTCHA Proof-of-Work Anti-Spam** — 100% free, privacy-first, self-hosted anti-spam verification powered by native WebCrypto HMAC-SHA256 challenges.
+- **Dedicated Challenge Endpoint (`/api/altcha/challenge`)** — CORS-enabled endpoint delivering cryptographically signed PoW challenges without external services or keys.
+- **Zero-Dependency Anti-Spam UX** — Complete removal of third-party Cloudflare Turnstile in favor of zero cookies, GDPR-compliant Proof-of-Work.
+
 ## [2.1.0] - 2026-09-07
 
 ### Added

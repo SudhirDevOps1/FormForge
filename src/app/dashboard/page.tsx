@@ -19,8 +19,6 @@ type Form = {
   submissionsCount: number;
   isActive: boolean;
   altchaEnabled?: boolean;
-  turnstileEnabled: boolean;
-  turnstileSecretKey: string | null;
   autoresponderSubject: string | null;
   autoresponderBody: string | null;
   spamBlocklist: string | null;
@@ -1807,8 +1805,6 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [emailTo, setEmailTo] = useState(form.emailTo ?? "");
   const [notifyEmail, setNotifyEmail] = useState(form.notifyEmail);
   const [altchaEnabled, setAltchaEnabled] = useState(form.altchaEnabled ?? false);
-  const [turnstileEnabled, setTurnstileEnabled] = useState(form.turnstileEnabled ?? false);
-  const [turnstileSecretKey, setTurnstileSecretKey] = useState(form.turnstileSecretKey ?? "");
   const [autoresponderSubject, setAutoresponderSubject] = useState(form.autoresponderSubject ?? "");
   const [autoresponderBody, setAutoresponderBody] = useState(form.autoresponderBody ?? "");
   const [spamBlocklist, setSpamBlocklist] = useState(form.spamBlocklist ?? "");
@@ -1885,8 +1881,6 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setEmailTo(form.emailTo ?? "");
     setNotifyEmail(form.notifyEmail);
     setAltchaEnabled(form.altchaEnabled ?? false);
-    setTurnstileEnabled(form.turnstileEnabled ?? false);
-    setTurnstileSecretKey(form.turnstileSecretKey ?? "");
     setAutoresponderSubject(form.autoresponderSubject ?? "");
     setAutoresponderBody(form.autoresponderBody ?? "");
     setSpamBlocklist(form.spamBlocklist ?? "");
@@ -1929,8 +1923,6 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           emailTo: emailTo || null,
           notifyEmail,
           altchaEnabled,
-          turnstileEnabled,
-          turnstileSecretKey: turnstileSecretKey || null,
           autoresponderSubject: autoresponderSubject || null,
           autoresponderBody: autoresponderBody || null,
           spamBlocklist: spamBlocklist || null,
@@ -2083,26 +2075,6 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
               </p>
             </div>
           )}
-
-          {/* Optional Legacy Turnstile */}
-          <details className="mt-2 text-slate-500">
-            <summary className="text-[11px] cursor-pointer hover:text-slate-400 transition">
-              Legacy Cloudflare Turnstile (Optional)
-            </summary>
-            <div className="mt-2 space-y-3 pl-4 border-l border-white/10">
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                <input type="checkbox" checked={turnstileEnabled} onChange={() => setTurnstileEnabled(!turnstileEnabled)} className="h-4 w-4 rounded" />
-                Enable Cloudflare Turnstile Verification
-              </label>
-              {turnstileEnabled && (
-                <div>
-                  <label htmlFor="settings-turnstile-secret" className="mb-1 block text-[10px] text-slate-400">Turnstile Secret Key</label>
-                  <input id="settings-turnstile-secret" type="password" value={turnstileSecretKey} onChange={(e) => setTurnstileSecretKey(e.target.value)} className="ff-input text-sm" placeholder={turnstileSecretKey === "__TURNSTILE_SECRET_SET__" ? "Turnstile Secret is configured and encrypted" : "0x4AAAAAA..."} />
-                  <p className="text-[9px] text-slate-500 mt-1">🔒 Your Turnstile Secret is securely encrypted in D1 database using AES-GCM encryption.</p>
-                </div>
-              )}
-            </div>
-          </details>
         </div>
 
         <div className="border-t border-white/5 pt-4 space-y-3">

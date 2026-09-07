@@ -2,6 +2,13 @@
 
 All notable changes to FormForge are documented in this file.
 
+## [2.2.0] - 2026-09-08
+
+### Added
+- **Native ALTCHA Proof-of-Work Anti-Spam** — 100% free, privacy-first, self-hosted anti-spam verification powered by native WebCrypto HMAC-SHA256 challenges.
+- **Dedicated Challenge Endpoint (`/api/altcha/challenge`)** — CORS-enabled endpoint delivering cryptographically signed PoW challenges without external services or keys.
+- **Zero-Dependency Anti-Spam UX** — Complete removal of third-party Cloudflare Turnstile in favor of zero cookies, GDPR-compliant Proof-of-Work.
+
 ## [2.1.0] - 2026-09-07
 
 ### Added

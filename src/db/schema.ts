@@ -58,8 +58,6 @@ export const forms = sqliteTable(
     isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
     submissionsCount: integer("submissions_count").notNull().default(0),
     altchaEnabled: integer("altcha_enabled", { mode: "boolean" }).notNull().default(false),
-    turnstileEnabled: integer("turnstile_enabled", { mode: "boolean" }).notNull().default(false),
-    turnstileSecretKey: text("turnstile_secret_key"),
     autoresponderSubject: text("autoresponder_subject"),
     autoresponderBody: text("autoresponder_body"),
     spamBlocklist: text("spam_blocklist"),

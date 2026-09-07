@@ -4,7 +4,17 @@ This file tracks the versions, release dates, features added, removed, and bug f
 
 ---
 
-## 🚀 Current Version: `v1.1.0` (July 9, 2026)
+## 🚀 Current Version: `v2.2.0` (July 13, 2026)
+
+### 🟢 Added (Naya Add Kiya)
+* **Native ALTCHA Proof-of-Work Integration (100% Free & Self-Hosted):** Completely replaced third-party Cloudflare Turnstile with native in-browser ALTCHA Proof-of-Work anti-spam verification.
+* **Native WebCrypto PoW Challenge & Verification:** Built zero-dependency challenge generator (`/api/altcha/challenge`) and HMAC-SHA256 solution verifier (`src/lib/altcha.ts`) running natively on Cloudflare Workers and Node.js.
+* **Privacy-First & Cookie-Free:** Zero external tracking cookies, zero external API keys or cloud dependencies, fully GDPR/CCPA compliant.
+* **Interactive Dashboard ALTCHA Panel:** Form settings now feature a dedicated ALTCHA toggle with one-click live challenge URL copy and auto-generated snippet integration.
+
+---
+
+## 🚀 Version: `v1.1.0` (July 9, 2026)
 
 ### 🟢 Added (Naya Add Kiya)
 * **Custom SMTP Server Integration:** Fully supports custom SMTP servers enabling support for **10+ major email engines** (Gmail, Yahoo, Outlook, Resend SMTP, Mailjet, Brevo, SMTP2GO, SendGrid, Amazon SES, Mailgun, and Postmark).

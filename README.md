@@ -17,7 +17,7 @@
 
 <br />
 
-> 🚀 **v2.1 Universal Status:** Fully tested across Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), Cloudflare Pages (`*.pages.dev`), Cloudflare Workers (`*.workers.dev`), and local dev. Features include Multi-Database auto-migration (Neon Serverless Postgres, Cloudflare D1, Turso libSQL, SQLite), In-Browser DuckDB Live SQL Query Studio, Zero-Dependency Floating Embed Widget (`/widget.js`), Real-Time Submission Search & Status Filtering (`all`, `inbox`, `spam`, `pending`), Submission Lifecycle Management (single/bulk deletion & spam toggles), Dynamic HTML Form Redirects (`_next`, `_redirect`, `next`), Glassmorphic Browser Thank-You Page for zero-JS forms, Real-Time Integration & Webhook Tester with HMAC-SHA256 signatures, Free Notification Relays (Google Apps Script Gmail+Sheets, Telegram Bot, ntfy.sh), 6-digit OTP verification, Turnstile CAPTCHA, and Backblaze B2 S3 storage.
+> 🚀 **v2.1 Universal Status:** Fully tested across Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), Cloudflare Pages (`*.pages.dev`), Cloudflare Workers (`*.workers.dev`), and local dev. Features include Multi-Database auto-migration (Neon Serverless Postgres, Cloudflare D1, Turso libSQL, SQLite), In-Browser DuckDB Live SQL Query Studio, Zero-Dependency Floating Embed Widget (`/widget.js`), Real-Time Submission Search & Status Filtering (`all`, `inbox`, `spam`, `pending`), Submission Lifecycle Management (single/bulk deletion & spam toggles), Dynamic HTML Form Redirects (`_next`, `_redirect`, `next`), Glassmorphic Browser Thank-You Page for zero-JS forms, Real-Time Integration & Webhook Tester with HMAC-SHA256 signatures, Free Notification Relays (Google Apps Script Gmail+Sheets, Telegram Bot, ntfy.sh), 6-digit OTP verification, ALTCHA PoW anti-spam, and Backblaze B2 S3 storage.
 
 <div align="center">
   <img src="public/logo.svg" width="128" height="128" alt="FormForge logo" />
@@ -100,7 +100,7 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 - **📨 100% Free Notification Relays** — Google Apps Script (500–1,500 free emails/day via Gmail + auto Google Sheets row logging), Telegram Bot push notifications, and ntfy.sh instant mobile alerts without third-party subscriptions.
 - **🔐 6-Digit Cryptographic OTP Verification** — Zero-cost submitter email verification via secure 6-digit one-time passcodes.
 - **📁 Universal S3 / Backblaze B2 File Uploads** — 10GB free permanent storage with Backblaze B2 or Cloudflare R2 compatibility.
-- **🛡️ Enterprise Spam & Abuse Defenses** — Cloudflare Turnstile CAPTCHA, Honeypot bot traps, custom keyword blocklists, DNS MX validation, and timing-safe authentication.
+- **🛡️ Enterprise Spam & Abuse Defenses** — ALTCHA Proof-of-Work (100% free, self-hosted, privacy-first), Honeypot bot traps, custom keyword blocklists, DNS MX validation, and timing-safe authentication.
 - **Multi-Format Data Exports** — Export submissions in CSV, JSON, and clean human-readable TXT reports.
 - **Multi-Framework Code Generator** — Instant copy-paste snippets for Plain HTML, Floating Widget, React, Vanilla JS Fetch, Python Requests, and cURL.
 - **Real Dashboard** at `/dashboard` — Manage forms, inspect submissions, view analytics, and generate API keys.
@@ -111,9 +111,10 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 
 FormForge includes advanced security mechanisms out-of-the-box that are typically behind paid enterprise tiers in commercial form backends:
 
-### 1. 🤖 Cloudflare Turnstile Verification
-Integrate Cloudflare's non-intrusive Turnstile CAPTCHA to verify that submitters are human. Turnstile uses silent JavaScript challenges to stop bots without disrupting user experience.
-* **Setup:** Obtain `Site Key` and `Secret Key` from the Cloudflare Turnstile dashboard. Save the secret key in the form settings dashboard, and add the public Turnstile widget snippet to your HTML frontend.
+### 1. 🛡️ ALTCHA Proof-of-Work Anti-Spam (100% Free & Self-Hosted)
+FormForge replaces third-party CAPTCHAs with native ALTCHA Proof-of-Work protection. Submissions are verified via in-browser cryptographic challenges computed seamlessly by the visitor's device.
+* **Benefits:** Zero third-party cookies, GDPR compliant, zero subscription fees, and no external API keys required.
+* **Setup:** Toggle on in form settings, include the lightweight ALTCHA script on your site, and add the `<altcha-widget challengeurl="/api/altcha/challenge">` element to your form.
 
 ### 2. 📧 Custom Submitter Autoresponder
 Automatically deliver structured, personalized emails to users immediately after they submit a form.

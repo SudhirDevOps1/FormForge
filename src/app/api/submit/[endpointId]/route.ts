@@ -402,43 +402,6 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
-  // Turnstile Verification
-  if (form.turnstileEnabled && form.turnstileSecretKey) {
-    const token = (payload["cf-turnstile-response"] as string) || 
-                  (payload["g-recaptcha-response"] as string) || 
-                  request.headers.get("x-cf-turnstile-response") || 
-                  request.headers.get("x-turnstile-response");
-
-    if (!token) {
-      return new Response(JSON.stringify({ ok: false, code: "TURNSTILE_REQUIRED", message: "Turnstile spam verification token is missing." }), {
-        status: 400,
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
-
-    try {
-      const { decryptText } = await import("@/lib/encryption");
-      const decryptedSecret = await decryptText(form.turnstileSecretKey);
-      const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `secret=${encodeURIComponent(decryptedSecret)}&response=${encodeURIComponent(token)}&remoteip=${encodeURIComponent(ip)}`,
-      });
-      const verifyData = await verifyRes.json() as { success: boolean };
-      if (!verifyData.success) {
-        return new Response(JSON.stringify({ ok: false, code: "TURNSTILE_FAILED", message: "Turnstile spam verification failed." }), {
-          status: 400,
-          headers: { ...cors, "Content-Type": "application/json" },
-        });
-      }
-    } catch (err) {
-      return new Response(JSON.stringify({ ok: false, code: "TURNSTILE_ERROR", message: "Error verifying Turnstile token." }), {
-        status: 500,
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
-  }
-
   // Validate email format strictly to reject typos/spambots like admin@gmailcom
   if (hasInvalidEmail(payload)) {
     return new Response(JSON.stringify({

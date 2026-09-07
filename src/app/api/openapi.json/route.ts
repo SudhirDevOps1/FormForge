@@ -97,7 +97,7 @@ export async function GET() {
           },
           responses: {
             "200": { description: "Submission accepted" },
-            "400": { description: "Validation error (Turnstile, email, etc.)" },
+            "400": { description: "Validation error (ALTCHA, email, etc.)" },
             "404": { description: "Form not found or inactive" },
             "429": { description: "Rate limited" },
           },

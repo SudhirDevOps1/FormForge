@@ -206,7 +206,7 @@ Never commit these in GitHub. In Vercel / Netlify / Cloudflare, mark them as **S
 | `SMTP_PASS` | Custom SMTP password or Gmail App Password | Google Account → Security → App passwords |
 | `S3_SECRET_ACCESS_KEY` / `B2_APPLICATION_KEY` | Backblaze B2 Application Key | Backblaze Console → App Keys |
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot token | Telegram `@BotFather` |
-| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile CAPTCHA secret | Cloudflare Dashboard → Turnstile |
+| `AUTH_SECRET` | 32+ byte hex encryption & session secret | `openssl rand -hex 32` (Auto-powers ALTCHA PoW signing) |
 
 ### 🟢 Plain Text / Public Variables (Safe as Standard Env Vars)
 These are non-sensitive configuration values:

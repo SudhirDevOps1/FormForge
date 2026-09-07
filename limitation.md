@@ -110,9 +110,9 @@ The following custom features have been added to the production codebase:
 * **Mechanism:** Add comma-separated keywords (e.g. `crypto`, `casino`, `viagra`) in the Form Settings.
 * **Score Impact:** Any incoming submission containing any matching blocklisted words anywhere in the payload keys or values will have its spam score increased by `+100` and flagged as spam.
 
-### 🤖 Cloudflare Turnstile Verification
-* **Mechanism:** Integrate Turnstile keys in the form settings dashboard. Turnstile verification prevents bot spam without requiring users to solve frustrating puzzles.
-* **Error Handling:** Failed token validations or missing headers during Turnstile validation will reject submissions.
+### 🛡️ ALTCHA Proof-of-Work Verification
+* **Mechanism:** Enable ALTCHA in the form settings dashboard. ALTCHA uses silent in-browser cryptographic Proof-of-Work challenges to prevent bot spam without requiring external API keys or cookies.
+* **Error Handling:** Failed solutions, tampered signatures, or expired challenges during ALTCHA validation will reject submissions with 400 Bad Request.
 
 ### 🔑 API Key Expiration & Security
 * **Expiry Options:** API keys can be set to expire after `30`, `90`, `365` days, or `Never`.

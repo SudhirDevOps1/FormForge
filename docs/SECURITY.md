@@ -34,7 +34,7 @@ should track the newest `v*` tag (see `docs/RELEASES.md`).
 | Password storage | PBKDF2-SHA256 (`src/lib/crypto.ts`) | 100,000 iterations, 16-byte random salt, 256-bit output, constant-time verify |
 | Session tokens | HMAC-SHA256 (`src/lib/auth.ts`) | 40-byte random token, HMAC stored in D1, HttpOnly `SameSite=Lax` cookie (`Secure` off localhost), 30-day expiry |
 | API keys | HMAC-SHA256 (`src/lib/api-key-auth.ts`) | `ff_<prefix>.<secret>`, hash-only storage, expiry + revocation enforced |
-| Secrets at rest | AES-256-GCM (`src/lib/encryption.ts`) | SMTP passwords, Turnstile secrets; random 12-byte IV per value |
+| Secrets at rest | AES-256-GCM (`src/lib/encryption.ts`) | SMTP passwords, Telegram bot tokens; random 12-byte IV per value |
 | PII anonymization | SHA-256 (`src/lib/security.ts`, submit route) | Per-form scopes (`form:<id>:ip`), emails lowercased/trimmed before hashing |
 | Constant-time compare | Full-length XOR accumulation (`timingSafeEqualHex`) | Used for HMAC/signature checks; never throws on hostile input |
 | Key hygiene | `zeroize()` | Overwrites raw key buffers with zeros after use |
@@ -54,7 +54,7 @@ The server refuses to create sessions when it is missing or shorter than
 - Throttles: login **5 / 15 min**, registration **30 / min**, public form
   submission **60 / min** (429 + `Retry-After`).
 - Spam defense: honeypot trap, ALTCHA Proof-of-Work (100% free, zero cookies, self-hosted),
-  Turnstile CAPTCHA option, DNS-MX validation, retention auto-purge.
+  DNS-MX validation, retention auto-purge.
 - Public API errors are generic (`An error occurred …`, CWE-209); SMTP
   diagnostics return detail only to the authenticated form owner.
 - Automated evidence: `npm run test:security` (48 assertions across the

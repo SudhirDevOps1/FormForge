@@ -19,7 +19,7 @@ This document tracks FormForge's current features, security posture, and zero-ca
 | Feature | Status | Details |
 |---|---|---|
 | 6-Digit Cryptographic OTP | ✅ Done | Instant submitter email verification via 6-digit one-time code |
-| Cloudflare Turnstile | ✅ Done | AES-GCM encrypted secret key in database |
+| ALTCHA Anti-Spam | ✅ Done | 100% free, self-hosted WebCrypto PoW challenge & verification |
 | Honeypot Trap | ✅ Done | Invisible field validation (customizable per form) |
 | Proof of Work (PoW) | ✅ Done | Client-side cryptographic solver challenge |
 | Spam Blocklist | ✅ Done | Custom keyword-based content blocklist per form |
@@ -77,7 +77,7 @@ This document tracks FormForge's current features, security posture, and zero-ca
 | Owner-Only Mode | ✅ Done | Set `ALLOW_REGISTRATION=false` to block all new signups |
 | PBKDF2 Password Hashing | ✅ Done | 100,000 iterations, SHA-256 |
 | HMAC Session Tokens | ✅ Done | Server-side hashed sessions with expiry |
-| AES-GCM Encryption | ✅ Done | SMTP passwords and Turnstile secrets encrypted at rest |
+| AES-GCM Encryption | ✅ Done | SMTP passwords encrypted at rest |
 | SSRF Prevention | ✅ Done | Private IP ranges blocked for webhook URLs |
 | SQL Injection Protection | ✅ Done | Drizzle ORM parameterized queries — no raw SQL |
 
@@ -121,7 +121,7 @@ This document tracks FormForge's current features, security posture, and zero-ca
 | Floating Embed Widget | ✅ Zero-dependency `<3KB` script | ❌ | ❌ | ❌ (Paid add-on) |
 | Webhooks | ✅ Discord, Slack, Teams, Custom HMAC | ❌ | ✅ Custom only | ✅ Paid plans |
 | Email Providers | ✅ 4 APIs + 10+ SMTP Relays | Resend only | Resend, SendGrid | Limited free tier |
-| Turnstile + PoW | ✅ Both | ❌ (PoW Coming) | ✅ Turnstile only | ✅ Captcha |
+| ALTCHA PoW (100% Free) | ✅ Built-in | ❌ | ❌ | ❌ |
 | Submission Search & Filter | ✅ Real-time search + status pills | ❌ | ❌ | ✅ Paid plans |
 | Dynamic Redirects | ✅ `_next` / `_redirect` / custom | ❌ | ❌ | ✅ |
 | Browser Thank-You Page | ✅ Glassmorphic zero-JS page | ❌ | ❌ | ✅ Generic |

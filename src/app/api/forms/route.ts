@@ -24,8 +24,7 @@ export async function GET(request: Request) {
   const rows = await db.select().from(forms).where(eq(forms.userId, user.id)).orderBy(desc(forms.createdAt));
   const sanitizedRows = rows.map(r => ({
     ...r,
-    smtpPass: r.smtpPass ? "__SMTP_PASSWORD_SET__" : null,
-    turnstileSecretKey: r.turnstileSecretKey ? "__TURNSTILE_SECRET_SET__" : null
+    smtpPass: r.smtpPass ? "__SMTP_PASSWORD_SET__" : null
   }));
   return jsonOk({ forms: sanitizedRows });
 }

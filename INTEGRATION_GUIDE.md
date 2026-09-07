@@ -16,7 +16,7 @@ sequenceDiagram
     participant Hook as 💬 Discord / Slack Webhooks
 
     Player->>FF: 1. POST Submission (JSON payload / FormData)
-    Note over FF: 2. Security Check (CORS, Turnstile, Rate Limit, Spam Blocklist)
+    Note over FF: 2. Security Check (CORS, ALTCHA PoW, Rate Limit, Spam Blocklist)
     alt Validation Failed
         FF-->>Player: 3a. Return 400 Bad Request / 429 Rate Limited
     else Validation Passed

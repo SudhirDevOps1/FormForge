@@ -138,8 +138,6 @@ export async function ensureSchema(db: AppDb): Promise<void> {
       // Dynamically add columns if database already exists
       const alterStatements = [
         `ALTER TABLE forms ADD COLUMN altcha_enabled integer NOT NULL DEFAULT 0;`,
-        `ALTER TABLE forms ADD COLUMN turnstile_enabled integer NOT NULL DEFAULT 0;`,
-        `ALTER TABLE forms ADD COLUMN turnstile_secret_key text;`,
         `ALTER TABLE forms ADD COLUMN autoresponder_subject text;`,
         `ALTER TABLE forms ADD COLUMN autoresponder_body text;`,
         `ALTER TABLE forms ADD COLUMN spam_blocklist text;`,
