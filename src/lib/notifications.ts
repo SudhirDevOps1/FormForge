@@ -4,7 +4,16 @@ import { notifications, users, webhookLogs, type Form, type Submission } from "@
 import { randomId } from "./crypto";
 import nodemailer from "nodemailer";
 
-function extractGasSecret(gasUrl?: string | null): string | undefined {
+function extractGasSecret(gasUrl?: string | null, envSecret?: string): string | undefined {
+  if (envSecret && envSecret.trim()) return envSecret.trim();
+  try {
+    const env = getRuntimeEnv();
+    const globalEnvSecret = (env.GAS_SECRET || env.GAS_SECRET_TOKEN || (process.env.GAS_SECRET as string) || (process.env.GAS_SECRET_TOKEN as string))?.trim();
+    if (globalEnvSecret) return globalEnvSecret;
+  } catch {
+    // fallback
+  }
+
   if (!gasUrl) return undefined;
   try {
     const u = new URL(gasUrl);

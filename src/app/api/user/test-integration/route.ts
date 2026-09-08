@@ -48,12 +48,15 @@ export async function POST(request: Request) {
       return jsonError("SSRF_BLOCKED", "Internal network URLs are forbidden.", 403);
     }
 
-    let gasSecret: string | undefined;
-    try {
-      const u = new URL(gasUrl);
-      gasSecret = u.searchParams.get("secret") || u.searchParams.get("token") || undefined;
-    } catch {
-      // ignore
+    const env = (await import("@/db")).getRuntimeEnv();
+    let gasSecret: string | undefined = (env.GAS_SECRET || env.GAS_SECRET_TOKEN || (process.env.GAS_SECRET as string) || (process.env.GAS_SECRET_TOKEN as string))?.trim() || undefined;
+    if (!gasSecret) {
+      try {
+        const u = new URL(gasUrl);
+        gasSecret = u.searchParams.get("secret") || u.searchParams.get("token") || undefined;
+      } catch {
+        // ignore
+      }
     }
 
     try {

@@ -36,6 +36,8 @@ export type CloudflareEnv = {
   // Google Apps Script (GAS)
   GAS_URL?: string;
   GAS_WEBHOOK_URL?: string;
+  GAS_SECRET?: string;
+  GAS_SECRET_TOKEN?: string;
   // Telegram Bot
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;
@@ -100,6 +102,8 @@ export function getRuntimeEnv(): CloudflareEnv {
     // Google Apps Script (GAS)
     GAS_URL: cfEnv?.GAS_URL ?? process.env.GAS_URL ?? cfEnv?.GAS_WEBHOOK_URL ?? process.env.GAS_WEBHOOK_URL,
     GAS_WEBHOOK_URL: cfEnv?.GAS_WEBHOOK_URL ?? process.env.GAS_WEBHOOK_URL,
+    GAS_SECRET: cfEnv?.GAS_SECRET ?? process.env.GAS_SECRET ?? cfEnv?.GAS_SECRET_TOKEN ?? process.env.GAS_SECRET_TOKEN,
+    GAS_SECRET_TOKEN: cfEnv?.GAS_SECRET_TOKEN ?? process.env.GAS_SECRET_TOKEN ?? cfEnv?.GAS_SECRET ?? process.env.GAS_SECRET,
     // Telegram Bot
     TELEGRAM_BOT_TOKEN: cfEnv?.TELEGRAM_BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN,
     TELEGRAM_CHAT_ID: cfEnv?.TELEGRAM_CHAT_ID ?? process.env.TELEGRAM_CHAT_ID,
