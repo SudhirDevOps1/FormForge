@@ -1,194 +1,248 @@
-# 🛠️ FormForge - Custom App & Game Integration Guide
+# 🛠️ FormForge v1.0.0 Universal — Ultimate Integration Guide
+> **Universal Form Backend & Document Intake Engine for Any Website, App, or Framework**
 
-This guide explains how to connect custom applications, static web games, or headless frontend frameworks to your FormForge backend.
+This guide provides drop-in integration recipes for connecting **any website, web app, game, or CMS** to your FormForge backend.
 
 ---
 
-## 🔄 How it Works (Architecture Flow)
+## 🤖 Instructions for AI Coding Assistants (Cursor, ChatGPT, Claude, Copilot, v0, Antigravity)
 
-Below is the dynamic execution flow showing how your frontend game/app interacts with FormForge:
+If you are an AI assistant tasked with integrating FormForge into this codebase:
+1. **Endpoint Resolution**:
+   - Check if the environment variable `NEXT_PUBLIC_FORMFORGE_ENDPOINT` (Next.js), `VITE_FORMFORGE_ENDPOINT` (Vite), or `PUBLIC_FORMFORGE_ENDPOINT` (Astro/SvelteKit) exists in `.env.local` or `.env`.
+   - If not set, define a placeholder `https://formforge.YOUR-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID` and instruct the user to update it with their real endpoint from FormForge Dashboard.
+2. **Bot Trap (Honeypot)**:
+   - Always include a hidden honeypot field:
+     ```html
+     <input name="website" tabindex="-1" autocomplete="off" style="display:none;" />
+     ```
+   - Real users do not see or fill this field. Bots that fill it will have their submissions blocked automatically.
+3. **File Attachments & Documents**:
+   - When the form includes document/file uploads:
+     - Always set `enctype="multipart/form-data"` on `<form>`.
+     - In JavaScript/React/Vue/Svelte, always submit using `new FormData(formElement)`. **Do not** use `JSON.stringify()` for file uploads.
+     - Add appropriate `accept` attribute (e.g. `accept=".pdf,.png,.jpg,.jpeg,.docx"`).
+4. **Anti-Spam (ALTCHA Proof-of-Work)**:
+   - If the user has ALTCHA enabled in FormForge settings, use the exact same endpoint URL for `<altcha-widget challengeurl="YOUR_ENDPOINT_URL"></altcha-widget>`. No extra API key or configuration is needed.
+
+---
+
+## ⚡ Quick Architecture Overview
 
 ```mermaid
 sequenceDiagram
-    participant Player as 🎮 Game / App Frontend
-    participant FF as ⚡ FormForge (Cloudflare Workers)
-    participant DB as 📀 Cloudflare D1 Database
-    participant Hook as 💬 Discord / Slack Webhooks
+    autonumber
+    actor Visitor as 👤 Website Visitor / User
+    participant Site as 🌐 Your Website / App (React, Next.js, HTML)
+    participant FF as ⚡ FormForge Backend (/api/submit/:id)
+    participant Storage as 🗄️ Object Storage (Backblaze B2 / R2 / S3)
+    participant DB as 💾 Database (D1 / Postgres / SQLite)
+    participant Notify as 🔔 Notifications (Email, Discord, Slack, Webhooks)
 
-    Player->>FF: 1. POST Submission (JSON payload / FormData)
-    Note over FF: 2. Security Check (CORS, ALTCHA PoW, Rate Limit, Spam Blocklist)
-    alt Validation Failed
-        FF-->>Player: 3a. Return 400 Bad Request / 429 Rate Limited
-    else Validation Passed
-        FF->>DB: 3b. Store Record (User submission data)
-        FF->>Hook: 3c. Send background notify alerts (waitUntil context)
-        FF-->>Player: 3d. Return 200 OK {"ok": true, "submissionId": "..."}
+    Visitor->>Site: 1. Fills form & selects document
+    Site->>FF: 2. POST /api/submit/:endpointId (FormData / JSON)
+    Note over FF: 3. Security Engine Checks:<br/>CORS Origin • Honeypot Trap • Rate Limit (60/min)<br/>Spam Words • Disposable Email • Magic Bytes Verification
+    alt Security Check Failed
+        FF-->>Site: 4a. 400 Bad Request / 413 Too Large / 429 Too Many Requests
+        Site-->>Visitor: Shows friendly error message
+    else Verification Succeeded
+        FF->>Storage: 4b. Stream sanitized file to B2/R2/S3 (Randomized UUID key)
+        FF->>DB: 4c. Store submission record (AES-256-GCM encrypted PII)
+        FF-->>Notify: 4d. Trigger background webhook / email notifications
+        FF-->>Site: 4e. 200 OK {"ok": true, "submissionId": "sub_..."}
+        Site-->>Visitor: Displays success confirmation
     end
 ```
 
 ---
 
-## 🌍 1. Crucial Pre-requisite: CORS (Cross-Origin Resource Sharing)
+## 🔐 Crucial Step: Set Allowed Origins (CORS)
 
-If your app or game is hosted on a domain like `https://my-game.pages.dev` and your FormForge backend is on `https://formforge.YOUR-SUBDOMAIN.workers.dev`, **browsers will block the request** unless you allow CORS.
+If your website is hosted on `https://mycompany.com` and FormForge is on `https://formforge.mycompany.com`, the visitor’s browser will enforce CORS security.
 
-### 🛠️ How to Enable CORS for Your App:
-1. Log in to your **FormForge Dashboard** (`/dashboard`).
+1. Open your **FormForge Dashboard** (`/dashboard`).
 2. Select your form and click the **Settings** tab.
-3. Locate the **Allowed Origins** field:
-   * **To Allow Everything (Development):** Set it to `*`.
-   * **To Secure in Production:** Set it to your exact domain, e.g., `https://my-game.pages.dev`.
+3. Locate **Allowed Origins**:
+   - **Local Development**: Enter `*` or `http://localhost:3000`.
+   - **Production**: Enter your exact production URL(s), comma-separated: `https://mycompany.com, https://www.mycompany.com`.
 4. Click **Save Settings**.
 
 ---
 
-## 💻 2. Integration Snippets
+## 📦 Ready-to-Use Integration Recipes
 
-### Option A: Modern JavaScript `fetch` (Best for games & dynamic scripts)
-Use this within your game or app logic (e.g., when a player wins, loses, or finishes a round) to store game statistics.
-
-```javascript
-// Function to upload game results to FormForge
-async function saveGameResult(playerName, score, role, roundsPlayed) {
-  const url = "https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID";
-  
-  const payload = {
-    player_name: playerName,
-    final_score: score,
-    assigned_role: role,
-    rounds: roundsPlayed,
-    submitted_via: "Web Game v1.0"
-  };
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-    if (response.ok && data.ok) {
-      console.log("🎉 Stats stored! Submission ID:", data.submissionId);
-    } else {
-      console.error("❌ Submission rejected by FormForge:", data.message);
-    }
-  } catch (error) {
-    console.error("🌐 Network/CORS Error:", error);
-  }
-}
-```
-
-### Option B: HTML5 Multipart Form (Best for Contact/File uploads)
-Use this if you are collecting user feedback, bug reports, or attachments (such as screenshots) from your game.
+### Recipe 1: Modern HTML5 Form with Document Upload & Honeypot
+*Best for: Static websites, landing pages, Hugo, Jekyll, 11ty, WordPress custom HTML.*
 
 ```html
+<!-- FormForge Universal HTML5 Contact & Document Upload Form -->
 <form 
   method="POST" 
-  action="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
+  action="https://YOUR-FORMFORGE-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID"
   enctype="multipart/form-data"
-  style="font-family: sans-serif; max-width: 400px; display: flex; flex-direction: column; gap: 12px;"
+  style="max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; font-family: sans-serif;"
 >
-  <label>Your Name</label>
-  <input name="name" type="text" required placeholder="Enter name" />
+  <div>
+    <label style="display: block; font-weight: bold; margin-bottom: 4px;">Full Name</label>
+    <input name="name" type="text" required placeholder="Jane Doe" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box;" />
+  </div>
 
-  <label>Email Address</label>
-  <input name="email" type="email" required placeholder="name@domain.com" />
+  <div>
+    <label style="display: block; font-weight: bold; margin-bottom: 4px;">Work Email</label>
+    <input name="email" type="email" required placeholder="jane@company.com" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box;" />
+  </div>
 
-  <label>Game Bug Screenshot / Log File</label>
-  <!-- NOTE: File input requires enctype="multipart/form-data" on the <form> element -->
-  <input name="screenshot" type="file" required />
+  <div>
+    <label style="display: block; font-weight: bold; margin-bottom: 4px;">Message</label>
+    <textarea name="message" rows="4" required placeholder="How can we help?" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box;"></textarea>
+  </div>
 
-  <!-- Honeypot field (hidden from users, traps automated bots) -->
-  <input name="website" tabindex="-1" autocomplete="off" style="display:none;" />
+  <!-- Document / Attachment Upload Field -->
+  <div>
+    <label style="display: block; font-weight: bold; margin-bottom: 4px;">Attach Document (PDF, DOCX, PNG, JPG)</label>
+    <input name="attachment" type="file" accept=".pdf,.docx,.png,.jpg,.jpeg" style="width: 100%;" />
+    <small style="color: #666;">Max size: 10MB. Files are verified with binary signature inspection.</small>
+  </div>
 
-  <button type="submit">Submit Report</button>
+  <!-- Anti-Bot Honeypot Trap (Invisible to humans, traps spambots) -->
+  <input name="website" tabindex="-1" autocomplete="off" style="display: none;" />
+
+  <button type="submit" style="padding: 12px 20px; background: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+    Send Message ➔
+  </button>
 </form>
 ```
 
-### Option C: Single-Endpoint HTML Form with ALTCHA Anti-Spam (100% Free & Self-Hosted)
-Use this when you have enabled **ALTCHA Proof-of-Work** in your FormForge dashboard settings. Both the cryptographic challenge (`GET`) and the form submission (`POST`) use the exact same endpoint URL!
+---
+
+### Recipe 2: HTML5 Form with Built-in ALTCHA Proof-of-Work (Anti-Spam)
+*100% Free, GDPR-Compliant, No Google reCAPTCHA, No Cloudflare Turnstile token hassle.*
 
 ```html
-<!-- 1. Include the lightweight ALTCHA script in your <head> -->
+<!-- 1. Include the lightweight ALTCHA WebComponent script in <head> -->
 <script defer src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" type="module"></script>
 
-<!-- 2. Form submission -->
+<!-- 2. Form element -->
 <form 
   method="POST" 
-  action="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
-  style="max-width: 400px; display: flex; flex-direction: column; gap: 12px; font-family: sans-serif;"
+  action="https://YOUR-FORMFORGE-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID"
+  enctype="multipart/form-data"
 >
-  <label>Your Name</label>
-  <input name="name" type="text" required placeholder="Enter name" />
+  <input name="name" type="text" required placeholder="Your Name" />
+  <input name="email" type="email" required placeholder="your@email.com" />
+  <textarea name="message" required placeholder="Your Message"></textarea>
 
-  <label>Email Address</label>
-  <input name="email" type="email" required placeholder="name@domain.com" />
-
-  <label>Message</label>
-  <textarea name="message" required placeholder="Type your message"></textarea>
-
-  <!-- Honeypot anti-bot field (keep hidden) -->
+  <!-- Honeypot Bot Trap -->
   <input name="website" tabindex="-1" autocomplete="off" style="display:none;" />
 
-  <!-- 3. ALTCHA PoW Widget: Uses the EXACT same FormForge endpoint URL! -->
-  <altcha-widget 
-    challengeurl="https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID"
-  ></altcha-widget>
+  <!-- 3. ALTCHA Proof-of-Work Widget: Point challengeurl to the EXACT same FormForge endpoint URL! -->
+  <altcha-widget challengeurl="https://YOUR-FORMFORGE-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID"></altcha-widget>
 
   <button type="submit">Submit Form</button>
 </form>
 ```
 
-### Option D: React / Next.js Component (`fetch` with JSON & State)
+---
+
+### Recipe 3: React / Vite / Next.js Client Component (TypeScript + Tailwind CSS)
+*Best for: Modern React, Next.js (App Router `"use client"`), Vite, Remix, Create-React-App.*
+
 ```tsx
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 
-const ENDPOINT_URL = "https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID";
+// In production, set this in .env.local:
+// NEXT_PUBLIC_FORMFORGE_ENDPOINT="https://formforge.YOUR-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID"
+const ENDPOINT_URL = process.env.NEXT_PUBLIC_FORMFORGE_ENDPOINT || "https://YOUR-FORMFORGE-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID";
 
 export default function ContactForm() {
-  const [formData, setFormData] = useState({ name: "", email: "", message: "", website: "" });
-  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setStatus("submitting");
-    setErrorMsg("");
+    setSubmitting(true);
+    setErrorMsg(null);
+
+    const formData = new FormData(e.currentTarget);
 
     try {
       const res = await fetch(ENDPOINT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: formData, // FormData automatically sets multipart/form-data boundary
       });
 
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.message || "Submission failed");
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || "Failed to submit form.");
+      }
 
-      setStatus("success");
-      setFormData({ name: "", email: "", message: "", website: "" });
+      setSuccess(true);
+      (e.target as HTMLFormElement).reset();
     } catch (err: any) {
-      setStatus("error");
-      setErrorMsg(err.message || "Failed to submit.");
+      setErrorMsg(err.message || "An unexpected error occurred. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  if (success) {
+    return (
+      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center text-emerald-300">
+        <h3 className="text-lg font-bold">✓ Thank you!</h3>
+        <p className="text-sm mt-1">Your message and documents have been securely received.</p>
+        <button
+          onClick={() => setSuccess(false)}
+          className="mt-4 text-xs font-semibold underline hover:text-emerald-200"
+        >
+          Send another submission
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit}>
-      <input type="text" name="website" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} style={{ display: "none" }} tabIndex={-1} autoComplete="off" />
-      <input type="text" placeholder="Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
-      <input type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
-      <textarea placeholder="Message" value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} required />
-      <button type="submit" disabled={status === "submitting"}>
-        {status === "submitting" ? "Sending..." : "Submit"}
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-lg mx-auto bg-slate-900/80 p-6 rounded-2xl border border-slate-800 text-white">
+      <div>
+        <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Full Name</label>
+        <input name="name" type="text" required placeholder="Alex Johnson" className="w-full rounded-xl bg-slate-950 border border-slate-700 p-2.5 text-sm focus:border-cyan-500 focus:outline-none" />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Email Address</label>
+        <input name="email" type="email" required placeholder="alex@company.com" className="w-full rounded-xl bg-slate-950 border border-slate-700 p-2.5 text-sm focus:border-cyan-500 focus:outline-none" />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Message</label>
+        <textarea name="message" rows={3} required placeholder="Tell us about your inquiry..." className="w-full rounded-xl bg-slate-950 border border-slate-700 p-2.5 text-sm focus:border-cyan-500 focus:outline-none" />
+      </div>
+
+      {/* File Upload Dropzone */}
+      <div>
+        <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Document Attachment</label>
+        <input name="attachment" type="file" accept=".pdf,.png,.jpg,.jpeg,.docx" className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/10 file:text-cyan-300 hover:file:bg-cyan-500/20 cursor-pointer" />
+        <span className="text-[11px] text-slate-500 block mt-1">PDF, Word, or image up to 10MB</span>
+      </div>
+
+      {/* Honeypot Bot Trap */}
+      <input name="website" tabIndex={-1} autoComplete="off" style={{ display: "none" }} />
+
+      {errorMsg && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 font-medium">
+          {errorMsg}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={submitting}
+        className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 py-3 font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-60 transition"
+      >
+        {submitting ? "Submitting..." : "Send Secure Message ➔"}
       </button>
-      {status === "success" && <p>✓ Message sent successfully!</p>}
-      {status === "error" && <p>✕ {errorMsg}</p>}
     </form>
   );
 }
@@ -196,50 +250,159 @@ export default function ContactForm() {
 
 ---
 
-## ⚠️ 3. Troubleshooting Integration Failures
+### Recipe 4: Vue 3 / Nuxt 3 Component (`<script setup>`)
+*Best for: Vue 3, Nuxt 3, Vite-Vue.*
 
-### 1. `Response to preflight request doesn't pass access control check`
-* **Fix:** The Origin header of your request doesn't match the `Allowed Origins` in your Form settings. Go to FormForge settings and add your frontend origin (e.g. `https://my-game.pages.dev`) to the allowed origins list.
+```vue
+<script setup>
+import { ref } from "vue";
 
-### 2. Form submits, but fields are empty in the Dashboard
-* **Fix:** If sending raw JSON, ensure headers have `"Content-Type": "application/json"`. If sending HTML form, make sure all inputs have unique `name="..."` tags.
+const ENDPOINT_URL = "https://YOUR-FORMFORGE-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID";
 
-### 3. Verification Link displays raw HTML instead of CSS styling
-* **Fix:** The mail client is loading text fallback. FormForge v1.2.0 uses inline-table layouts optimized for all clients. Update to v1.2.0.
+const submitting = ref(false);
+const success = ref(false);
+const errorMsg = ref("");
 
-### 4. Content Security Policy (CSP) Violation: `Loading the script 'cdn.jsdelivr.net' violates directive 'script-src'`
-* **Cause:** Enterprise or high-security frontend applications (like E2EE or Next.js apps) often enforce strict CSP headers (`script-src 'self'`) that block third-party CDNs like `cdn.jsdelivr.net`.
-* **Fix (Dual-Shield Approach):**
-  * **Option A (Self-Hosted — Recommended):** Save `altcha.min.js` directly in your frontend app's `public/vendor/altcha.min.js` (or `public/altcha.min.js`). Then load it locally:
-    ```html
-    <script defer src="/vendor/altcha.min.js" type="module"></script>
-    ```
-    Because it loads from `'self'`, CSP will never block it, and it loads with 0ms third-party latency.
-  * **Option B (CSP Whitelist):** In your frontend app's `next.config.js`, `middleware.ts`, or reverse proxy, add `https://cdn.jsdelivr.net` to both `script-src` and `connect-src`.
+async function handleSubmit(event) {
+  submitting.value = true;
+  errorMsg.value = "";
 
-### 5. Network Drop / Proxy Failure: `net::ERR_PROXY_CONNECTION_FAILED`
-* **Cause:** Occurs if the visitor has a broken local proxy/VPN extension, temporary network drop, or if the endpoint domain is unreachable.
-* **Fix (Client-Side Resilient Fallback Pattern):** Always wrap external form submissions in a `try...catch` block. If your app has an internal API or database, fallback to it gracefully so user inquiries are never lost:
-  ```javascript
+  const formData = new FormData(event.target);
+
   try {
-    const res = await fetch("https://YOUR-WORKER.workers.dev/api/submit/YOUR_ENDPOINT_ID", {
+    const res = await fetch(ENDPOINT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: formData,
     });
-    if (!res.ok) throw new Error("External submit returned non-200");
-  } catch (externalErr) {
-    console.warn("External FormForge submit failed, executing internal fallback:", externalErr);
-    // Optional fallback to your app's internal API route:
-    await fetch("/api/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).catch(e => console.error("Internal fallback also failed:", e));
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.message || "Submission failed");
+    success.value = true;
+    event.target.reset();
+  } catch (err) {
+    errorMsg.value = err.message || "Failed to submit.";
+  } finally {
+    submitting.value = false;
   }
+}
+</script>
+
+<template>
+  <form @submit.prevent="handleSubmit" class="contact-form">
+    <input name="name" type="text" required placeholder="Your Name" />
+    <input name="email" type="email" required placeholder="Your Email" />
+    <textarea name="message" required placeholder="Your Message"></textarea>
+    <input name="attachment" type="file" accept=".pdf,.png,.jpg,.jpeg" />
+    
+    <!-- Honeypot -->
+    <input name="website" tabindex="-1" autocomplete="off" style="display:none;" />
+
+    <p v-if="errorMsg" style="color: #f43f5e;">{{ errorMsg }}</p>
+    <p v-if="success" style="color: #10b981;">✓ Form submitted successfully!</p>
+
+    <button type="submit" :disabled="submitting">
+      {{ submitting ? "Sending..." : "Submit" }}
+    </button>
+  </form>
+</template>
+```
+
+---
+
+### Recipe 5: Drop-in 1-Line Floating Widget (`widget.js`)
+*Best for: WordPress, Shopify, Webflow, Squarespace, Ghost, Wix.*
+
+Paste this code right before `</body>` in your website theme:
+
+```html
+<!-- FormForge Floating Feedback & Contact Widget -->
+<script
+  src="https://YOUR-FORMFORGE-DOMAIN.com/widget.js"
+  data-endpoint="https://YOUR-FORMFORGE-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID"
+  data-position="bottom-right"
+  data-color="#0284c7"
+  data-title="Contact Us"
+  data-btn-text="Feedback"
+  defer
+></script>
+```
+
+---
+
+### Recipe 6: Zero-Code Hosted Public Form Page (`/f/[slug]`)
+Every FormForge form includes a standalone, beautifully-designed public hosted URL:
+* **Hosted Link**: `https://YOUR-FORMFORGE-DOMAIN.com/f/YOUR_FORM_SLUG`
+* **Embed via iframe**:
+  ```html
+  <iframe 
+    src="https://YOUR-FORMFORGE-DOMAIN.com/f/YOUR_FORM_SLUG" 
+    width="100%" 
+    height="650px" 
+    frameborder="0"
+    style="border: none; border-radius: 16px;"
+  ></iframe>
   ```
 
 ---
 
-> **FormForge** — Developed by [Sudhir Singh](https://github.com/SudhirDevOps1)  
+### Recipe 7: Python / Node.js Backend API Request (cURL & scripts)
+
+#### cURL (with document upload):
+```bash
+curl -X POST "https://YOUR-FORMFORGE-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID" \
+  -F "name=Jane Doe" \
+  -F "email=jane@company.com" \
+  -F "message=Attached report" \
+  -F "attachment=@/path/to/report.pdf"
+```
+
+#### Python (`requests`):
+```python
+import requests
+
+url = "https://YOUR-FORMFORGE-DOMAIN.com/api/submit/YOUR_ENDPOINT_ID"
+data = {
+    "name": "Jane Doe",
+    "email": "jane@company.com",
+    "message": "Attached report",
+}
+files = {
+    "attachment": open("report.pdf", "rb")
+}
+
+response = requests.post(url, data=data, files=files)
+print(response.json())
+```
+
+---
+
+## 🛡️ Built-in Security Defenses
+
+| Protection | How FormForge Enforces It |
+| :--- | :--- |
+| **Magic Bytes Inspection** | Verifies true binary signatures (%PDF, PNG, JPG). Bypasses/disguised executables (MZ, ELF, shell scripts) are blocked before upload. |
+| **Honeypot Trap** | Submissions with the hidden bot trap field filled are rejected immediately with spam score 100. |
+| **Rate Limiting** | 60 submissions/min per IP with HTTP 429 and `Retry-After` headers. |
+| **Disposable Email Defense** | Automatically blocks 100+ temporary email providers (Mailinator, GuerrillaMail, etc.). |
+| **At-Rest Encryption** | PII fields and submitter records encrypted with AES-256-GCM. |
+| **Zero Server Code Execution** | Attachments stream directly to Backblaze B2, Cloudflare R2, or AWS S3. No local execution is possible. |
+
+---
+
+## ❓ Frequently Encountered Integration Errors & Fixes
+
+### 1. CORS Error: `Response to preflight request doesn't pass access control check`
+* **Cause**: Your website origin is not in the form’s allowed origins list.
+* **Fix**: Go to FormForge Dashboard → Select Form → **Settings** → In **Allowed Origins**, add your website URL (e.g. `https://yourwebsite.com` or `*` for testing) and save.
+
+### 2. File Upload Error: `Upload exceeds attachment limit` or `File type not allowed`
+* **Cause**: The file exceeds `maxAttachmentSizeMb` (default 10MB) or its extension is not in `allowedFileExtensions`.
+* **Fix**: Adjust attachment limits in FormForge Settings or ensure the file extension matches the whitelist.
+
+### 3. Submission Limit Exceeded (`403 LIMIT_REACHED`)
+* **Cause**: The form has a submission quota configured and has reached its cap.
+* **Fix**: Increase the Submission Limit under Form Settings or clear test submissions.
+
+---
+
+> **FormForge v1.0.0 Universal** — Zero-Card Self-Hosted Form Engine  
 > © 2024-2026 Sudhir Singh. All rights reserved.

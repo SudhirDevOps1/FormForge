@@ -282,18 +282,20 @@ https://YOUR-WORKER.workers.dev/f/your-form-slug
 
 Connect any frontend website, mobile/web application, or static site to your FormForge backend in minutes.
 
+> 📖 **Full AI & Framework Guide:** For ready-to-copy code snippets across **React, Next.js, Vue, Nuxt, Svelte, Astro, WordPress, cURL**, and prompt templates you can feed directly to AI coding assistants (Cursor, ChatGPT, Claude, Copilot), read [`INTEGRATION_GUIDE.md`](file:///e:/daily/FormForge/INTEGRATION_GUIDE.md).
+
 ### 📋 Core Integration Rules & Requirements
 
 Before embedding your form, ensure your client setup adheres to these core backend rules:
 
 | Rule | Requirement | Backend Behavior |
 | :--- | :--- | :--- |
-| **Unified Single Endpoint** | `https://YOUR-WORKER.workers.dev/api/submit/{endpointId}` | Handles both `POST` (submission) and `GET` (live ALTCHA PoW challenge) at the exact same URL. |
+| **Unified Single Endpoint** | `https://YOUR-DOMAIN.com/api/submit/{endpointId}` | Handles both `POST` (submission) and `GET` (live ALTCHA PoW challenge) at the exact same URL. |
 | **Allowed Origins (CORS)** | Configure in Dashboard ➔ Form Settings | In production, set to your exact domain (e.g. `https://mywebsite.com`). In dev/test, set to `*`. Unauthorized origins receive `403 Forbidden` (`ORIGIN_BLOCKED`). |
 | **Email Field Validation** | Field name: `name="email"` (or `reply_to`) | If provided, must be syntactically valid (`user@domain.com`) AND pass live DNS MX record checks. Invalid emails or dead domains receive `400 Bad Request`. |
 | **Honeypot Bot Trap** | Field name: `name="website"` (hidden) | Legitimate users leave it blank; spam bots fill it automatically. If filled, the submission receives `+100` spam score and is flagged as spam. |
 | **Spam Blocklist** | Custom keywords in Form Settings | Any submission containing banned words (e.g. `casino, crypto`) is flagged as spam automatically. |
-| **Payload Limit** | Max `64 KB` per submission | Payloads exceeding 64KB receive `413 PAYLOAD_TOO_LARGE`. |
+| **Payload Limit** | Max `64 KB` for JSON; up to `10 MB` (or custom limit) for multipart file uploads | Payloads exceeding limit receive `413 PAYLOAD_TOO_LARGE`. |
 | **Rate Limiting** | Max `60 requests / minute` per IP | Rapid submissions receive `429 RATE_LIMITED` with `Retry-After` header. |
 | **ALTCHA Status** | Form Settings ➔ ALTCHA Toggle | If **ON**, client must submit an `altcha` PoW token. If **OFF**, forms submit instantly without any challenge. |
 
