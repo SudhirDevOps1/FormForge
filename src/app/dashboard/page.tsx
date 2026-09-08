@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { TurnstileAltcha } from "@/components/TurnstileAltcha";
 
@@ -116,12 +116,137 @@ function CodeHighlight({ code, lang }: { code: string; lang: string }) {
   );
 }
 
+/* ─────────────────── Confirmation Modal ─────────────────── */
+
+type ConfirmOptions = {
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  isDestructive?: boolean;
+};
+
+type ConfirmContextType = (options: ConfirmOptions) => Promise<boolean>;
+
+const ConfirmContext = createContext<ConfirmContextType>(async () => false);
+
+function useConfirm() {
+  return useContext(ConfirmContext);
+}
+
+function ConfirmDialogModal({
+  options,
+  onConfirm,
+  onCancel,
+}: {
+  options: ConfirmOptions;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ff-confirm-title"
+      aria-describedby="ff-confirm-desc"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-black/80 backdrop-blur-2xl animate-scale-up text-left"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${
+              options.isDestructive !== false
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-400 shadow-lg shadow-rose-950/40"
+                : "border-sky-500/30 bg-sky-500/10 text-sky-400 shadow-lg shadow-sky-950/40"
+            }`}
+          >
+            {options.isDestructive !== false ? (
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            ) : (
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 id="ff-confirm-title" className="text-lg font-bold text-white tracking-tight">
+              {options.title}
+            </h3>
+            <p id="ff-confirm-desc" className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
+              {options.message}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-3 border-t border-white/5 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-semibold text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+          >
+            {options.cancelText || "Cancel"}
+          </button>
+          <button
+            type="button"
+            autoFocus
+            onClick={onConfirm}
+            className={`rounded-xl px-4 py-2.5 text-xs font-semibold text-white shadow-lg transition-all ${
+              options.isDestructive !== false
+                ? "bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 shadow-rose-900/30"
+                : "bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 shadow-sky-900/30"
+            }`}
+          >
+            {options.confirmText || "Confirm"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────── Root ─────────────────── */
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"forms" | "keys" | "settings">("forms");
+  const [confirmDialog, setConfirmDialog] = useState<(ConfirmOptions & {
+    resolve: (val: boolean) => void;
+  }) | null>(null);
+
+  const confirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setConfirmDialog({
+        ...options,
+        resolve: (val: boolean) => {
+          setConfirmDialog(null);
+          resolve(val);
+        },
+      });
+    });
+  }, []);
 
   const loadMe = useCallback(async () => {
     try {
@@ -142,30 +267,40 @@ export default function DashboardPage() {
   if (!user) return <AuthCard onAuthed={loadMe} />;
 
   return (
-    <div className="min-h-screen">
-      <DashHeader user={user} onLogout={() => setUser(null)} />
-      <main className="mx-auto w-full max-w-7xl px-4 pb-24 sm:px-8">
-        <div role="tablist" aria-label="Dashboard sections" className="mb-6 flex flex-wrap gap-1.5 rounded-xl bg-white/[0.02] border border-white/5 p-1 max-w-max">
-          {(["forms", "keys", "settings"] as const).map((t) => (
-            <button
-              key={t}
-              role="tab"
-              aria-selected={tab === t}
-              aria-controls={`tabpanel-${t}`}
-              onClick={() => setTab(t)}
-              className={`rounded-lg px-5 py-2.5 text-xs font-semibold capitalize tracking-wide transition-all duration-200 ${tab === t ? "bg-sky-500 text-white shadow-md shadow-sky-500/10" : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]"}`}
-            >
-              {t === "keys" ? "API Keys" : t}
-            </button>
-          ))}
-        </div>
-        <div id={`tabpanel-${tab}`} role="tabpanel" aria-label={tab}>
-          {tab === "forms" && <FormsTab />}
-          {tab === "keys" && <KeysTab />}
-          {tab === "settings" && <SettingsTab user={user} />}
-        </div>
-      </main>
-    </div>
+    <ConfirmContext.Provider value={confirm}>
+      <div className="min-h-screen">
+        <DashHeader user={user} onLogout={() => setUser(null)} />
+        <main className="mx-auto w-full max-w-7xl px-4 pb-24 sm:px-8">
+          <div role="tablist" aria-label="Dashboard sections" className="mb-6 flex flex-wrap gap-1.5 rounded-xl bg-white/[0.02] border border-white/5 p-1 max-w-max">
+            {(["forms", "keys", "settings"] as const).map((t) => (
+              <button
+                key={t}
+                role="tab"
+                aria-selected={tab === t}
+                aria-controls={`tabpanel-${t}`}
+                onClick={() => setTab(t)}
+                className={`rounded-lg px-5 py-2.5 text-xs font-semibold capitalize tracking-wide transition-all duration-200 ${tab === t ? "bg-sky-500 text-white shadow-md shadow-sky-500/10" : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]"}`}
+              >
+                {t === "keys" ? "API Keys" : t}
+              </button>
+            ))}
+          </div>
+          <div id={`tabpanel-${tab}`} role="tabpanel" aria-label={tab}>
+            {tab === "forms" && <FormsTab />}
+            {tab === "keys" && <KeysTab />}
+            {tab === "settings" && <SettingsTab user={user} />}
+          </div>
+        </main>
+      </div>
+
+      {confirmDialog && (
+        <ConfirmDialogModal
+          options={confirmDialog}
+          onConfirm={() => confirmDialog.resolve(true)}
+          onCancel={() => confirmDialog.resolve(false)}
+        />
+      )}
+    </ConfirmContext.Provider>
   );
 }
 
@@ -464,6 +599,7 @@ function CreateFormInline({ onCreated }: { onCreated: () => void }) {
 /* ─────────────────── Form Detail ─────────────────── */
 
 function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) {
+  const confirm = useConfirm();
   const [view, setView] = useState<"submissions" | "connect" | "analytics" | "settings">("submissions");
   const [subs, setSubs] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(false);
@@ -521,7 +657,13 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   };
 
   const handleDeleteSub = async (subId: string) => {
-    if (!window.confirm("Are you sure you want to permanently delete this submission?")) return;
+    const ok = await confirm({
+      title: "Delete Submission",
+      message: "Are you sure you want to permanently delete this submission? This action cannot be undone.",
+      confirmText: "Delete Permanently",
+      isDestructive: true,
+    });
+    if (!ok) return;
     setSubs((prev) => prev.filter((s) => s.id !== subId));
     setTotal((t) => Math.max(0, t - 1));
     try {
@@ -534,7 +676,13 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   };
 
   const handleClearSpam = async () => {
-    if (!window.confirm(`Are you sure you want to delete all ${counts.spam} spam submissions?`)) return;
+    const ok = await confirm({
+      title: "Clear All Spam",
+      message: `Are you sure you want to delete all ${counts.spam} spam submissions? This will permanently clean up storage.`,
+      confirmText: `Clear ${counts.spam} Spam`,
+      isDestructive: true,
+    });
+    if (!ok) return;
     setLoading(true);
     try {
       await fetch(`/api/forms/${form.id}/submissions`, {
@@ -577,7 +725,13 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
 
   const handleBulkDelete = async () => {
     if (selectedSubIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to permanently delete ${selectedSubIds.length} selected submissions?`)) return;
+    const ok = await confirm({
+      title: "Delete Selected Submissions",
+      message: `Are you sure you want to permanently delete ${selectedSubIds.length} selected submissions? This will immediately free up space in your database.`,
+      confirmText: `Delete ${selectedSubIds.length} Submissions`,
+      isDestructive: true,
+    });
+    if (!ok) return;
     setLoading(true);
     try {
       await fetch(`/api/forms/${form.id}/submissions`, {
@@ -910,15 +1064,27 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
   }
 
   async function toggleActive() {
-    const confirmation = window.confirm(form.isActive ? "Are you sure you want to pause this form? Submissions will be blocked." : "Resume accepting submissions for this form?");
-    if (!confirmation) return;
+    const ok = await confirm({
+      title: form.isActive ? "Pause Form Submissions" : "Resume Form Submissions",
+      message: form.isActive
+        ? "Are you sure you want to pause this form? Submissions will be blocked until you resume it."
+        : "Resume accepting submissions for this form? Visitors will be able to submit normally.",
+      confirmText: form.isActive ? "Pause Form" : "Resume Form",
+      isDestructive: form.isActive,
+    });
+    if (!ok) return;
     await fetch(`/api/forms/${form.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !form.isActive }) });
     onChanged();
   }
 
   async function deleteForm() {
-    const confirmation = window.confirm("🚨 CRITICAL: Are you sure you want to delete/deactivate this form? This cannot be undone.");
-    if (!confirmation) return;
+    const ok = await confirm({
+      title: "Delete Form Permanently",
+      message: `🚨 CRITICAL: Are you sure you want to permanently delete "${form.name}" and all its configuration? This action cannot be undone.`,
+      confirmText: "Delete Form Permanently",
+      isDestructive: true,
+    });
+    if (!ok) return;
     await fetch(`/api/forms/${form.id}`, { method: "DELETE", credentials: "include" });
     onChanged();
   }
@@ -2760,6 +2926,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /* ─────────────────── API Keys Tab ─────────────────── */
 
 function KeysTab() {
+  const confirm = useConfirm();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [name, setName] = useState("");
   const [expiresInDays, setExpiresInDays] = useState("0");
@@ -2821,8 +2988,13 @@ function KeysTab() {
   }
 
   async function revokeKey(id: string) {
-    const confirmation = window.confirm("Are you sure you want to revoke this API key? Applications using this key will immediately fail.");
-    if (!confirmation) return;
+    const ok = await confirm({
+      title: "Revoke API Key",
+      message: "Are you sure you want to revoke this API key? Applications and services using this key will immediately lose access.",
+      confirmText: "Revoke Key",
+      isDestructive: true,
+    });
+    if (!ok) return;
     await fetch(`/api/api-keys?id=${id}`, { method: "DELETE", credentials: "include" });
     await load();
   }
