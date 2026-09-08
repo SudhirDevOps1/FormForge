@@ -81,6 +81,7 @@ export const forms = sqliteTable(
     autoresponderReplyTo: text("autoresponder_reply_to"),
     maxAttachmentSizeMb: integer("max_attachment_size_mb").default(10),
     allowedFileExtensions: text("allowed_file_extensions").default(""),
+    displayMode: text("display_mode").notNull().default("classic"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
@@ -220,6 +221,29 @@ export const otpCodes = sqliteTable(
   }),
 );
 
+export const webhookLogs = sqliteTable(
+  "webhook_logs",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id")
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    submissionId: text("submission_id").notNull(),
+    url: text("url").notNull(),
+    event: text("event").notNull().default("form.submitted"),
+    statusCode: integer("status_code"),
+    latencyMs: integer("latency_ms"),
+    status: text("status").notNull(),
+    error: text("error"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    formIdx: index("webhook_logs_form_id_idx").on(table.formId),
+    submissionIdx: index("webhook_logs_submission_id_idx").on(table.submissionId),
+    createdIdx: index("webhook_logs_created_at_idx").on(table.createdAt),
+  }),
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Form = typeof forms.$inferSelect;
@@ -228,3 +252,6 @@ export type Submission = typeof submissions.$inferSelect;
 export type NewSubmission = typeof submissions.$inferInsert;
 export type OtpCode = typeof otpCodes.$inferSelect;
 export type NewOtpCode = typeof otpCodes.$inferInsert;
+export type WebhookLog = typeof webhookLogs.$inferSelect;
+export type NewWebhookLog = typeof webhookLogs.$inferInsert;
+

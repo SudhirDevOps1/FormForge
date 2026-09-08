@@ -51,6 +51,7 @@ export async function GET(request: Request, context: RouteContext) {
         altchaEnabled: form.altchaEnabled,
         maxAttachmentSizeMb: form.maxAttachmentSizeMb ?? 10,
         allowedFileExtensions: form.allowedFileExtensions ?? "",
+        displayMode: form.displayMode || "classic",
         isClosed,
       },
     });

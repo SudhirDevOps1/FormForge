@@ -1,5 +1,6 @@
 import { getRuntimeEnv, type AppDb } from "@/db";
-import { notifications, type Form, type Submission } from "@/db/schema";
+import { notifications, webhookLogs, type Form, type Submission } from "@/db/schema";
+import { randomId } from "./crypto";
 import nodemailer from "nodemailer";
 
 async function sendSmtpEmail(
@@ -374,133 +375,12 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   }
 
   if (form.webhookUrl) {
-    try {
-      const { isPrivateUrl } = await import("./url-validation");
-      if (isPrivateUrl(form.webhookUrl)) {
-        results.push({ channel: "webhook", status: "failed", error: "SSRF prevention: Webhook URL resolves to a private or internal IP address." });
-      } else {
-        let bodyPayload = JSON.stringify({ form: { id: form.id, name: form.name }, submission });
-
-        const lowercaseUrl = form.webhookUrl.toLowerCase();
-
-        if (lowercaseUrl.includes("discord.com/api/webhooks") || lowercaseUrl.includes("discordapp.com/api/webhooks")) {
-          const fields = Object.entries(payload).map(([k, v]) => ({
-            name: k,
-            value: String(v).slice(0, 1024) || "(empty)",
-            inline: false,
-          }));
-
-          bodyPayload = JSON.stringify({
-            username: "FormForge",
-            embeds: [
-              {
-                title: `📩 New Submission for ${form.name}`,
-                color: 1629853, // Cyan accent color
-                fields: fields.slice(0, 25),
-                timestamp: new Date(submission.createdAt).toISOString(),
-                footer: {
-                  text: `Form: ${form.name} | Sub ID: ${submission.id}`,
-                },
-              },
-            ],
-          });
-        } else if (lowercaseUrl.includes("hooks.slack.com")) {
-          const fieldsBlocks = Object.entries(payload).map(([k, v]) => ({
-            type: "mrkdwn",
-            text: `*${k}:*\n${String(v).slice(0, 500) || "_(empty)_"}`,
-          }));
-
-          bodyPayload = JSON.stringify({
-            text: `New FormForge submission for ${form.name}`,
-            blocks: [
-              {
-                type: "header",
-                text: {
-                  type: "plain_text",
-                  text: `📝 New Submission: ${form.name}`,
-                },
-              },
-              {
-                type: "section",
-                fields: fieldsBlocks.slice(0, 10),
-              },
-              {
-                type: "context",
-                elements: [
-                  {
-                    type: "mrkdwn",
-                    text: `Submitted at: ${submission.createdAt}`,
-                  },
-                ],
-              },
-            ],
-          });
-        } else if (lowercaseUrl.includes("stoat.chat") || lowercaseUrl.includes("revolt.chat")) {
-          // Stoat/Revolt expects a "content" string for simple messages
-          const lines = Object.entries(payload).map(([k, v]) => `* **${k}**: ${String(v).slice(0, 500)}`);
-          bodyPayload = JSON.stringify({
-            content: `📩 **New Submission for ${form.name}**\n\n${lines.join("\n")}\n\n*Submitted at: ${submission.createdAt}*`
-          });
-        } else if (lowercaseUrl.includes("office.com") || lowercaseUrl.includes("webhook.office") || lowercaseUrl.includes("msteams")) {
-          // MS Teams Office 365 Connector card
-          const facts = Object.entries(payload).map(([k, v]) => ({
-            name: k,
-            value: String(v).slice(0, 500) || "(empty)"
-          }));
-          bodyPayload = JSON.stringify({
-            "@type": "MessageCard",
-            "@context": "http://schema.org/extensions",
-            "themeColor": "0076D7",
-            "summary": `New Submission for ${form.name}`,
-            "title": `📩 New Submission: ${form.name}`,
-            "sections": [
-              {
-                "activityTitle": `Form: ${form.name}`,
-                "activitySubtitle": `Sub ID: ${submission.id} | ${submission.createdAt}`,
-                "facts": facts.slice(0, 15)
-              }
-            ]
-          });
-        } else if (lowercaseUrl.includes("mattermost")) {
-          // Mattermost custom markdown message
-          const lines = Object.entries(payload).map(([k, v]) => `* **${k}**: ${String(v).slice(0, 500)}`);
-          bodyPayload = JSON.stringify({
-            text: `### 📩 New Submission: ${form.name}\n\n${lines.join("\n")}\n\n*Submitted at: ${submission.createdAt}*`
-          });
-        }
-
-        const timestamp = Math.floor(Date.now() / 1000);
-        let signature = "";
-        try {
-          const { hmacSha256 } = await import("./crypto");
-          signature = await hmacSha256(`${timestamp}.${bodyPayload}`, env.AUTH_SECRET || form.id);
-        } catch {
-          // ignore signature calculation error
-        }
-
-        const webhookHeaders: Record<string, string> = {
-          "Content-Type": "application/json",
-          "User-Agent": "FormForge/1.0",
-        };
-        if (signature) {
-          webhookHeaders["X-FormForge-Signature"] = `t=${timestamp},v1=${signature}`;
-        }
-
-        const response = await fetch(form.webhookUrl, {
-          method: "POST",
-          headers: webhookHeaders,
-          body: bodyPayload,
-        });
-
-        results.push(
-          response.ok
-            ? { channel: "webhook", status: "sent" }
-            : { channel: "webhook", status: "failed", error: await response.text() },
-        );
-      }
-    } catch (error) {
-      results.push({ channel: "webhook", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
-    }
+    const whResult = await dispatchWebhook(db, form, submission, form.webhookUrl);
+    results.push(
+      whResult.success
+        ? { channel: "webhook", status: "sent" }
+        : { channel: "webhook", status: "failed", error: whResult.error }
+    );
   } else {
     results.push({ channel: "webhook", status: "skipped" });
   }
@@ -881,3 +761,204 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
 
   return false;
 }
+
+export async function dispatchWebhook(
+  db: AppDb,
+  form: Form,
+  submission: Submission,
+  targetUrl: string,
+  event = "form.submitted"
+): Promise<{ success: boolean; statusCode?: number; latencyMs: number; error?: string }> {
+  const env = getRuntimeEnv();
+  const deliveryId = randomId("whk");
+  const startTime = Date.now();
+
+  try {
+    const { isPrivateUrl } = await import("./url-validation");
+    if (isPrivateUrl(targetUrl)) {
+      const err = "SSRF prevention: Webhook URL resolves to a private or internal IP address.";
+      try {
+        await db.insert(webhookLogs).values({
+          id: deliveryId,
+          formId: form.id,
+          submissionId: submission.id,
+          url: targetUrl,
+          event,
+          statusCode: 400,
+          latencyMs: 0,
+          status: "failed",
+          error: err,
+          createdAt: new Date().toISOString(),
+        });
+      } catch {
+        // safe fallback
+      }
+      return { success: false, statusCode: 400, latencyMs: 0, error: err };
+    }
+
+    const payload = JSON.parse(submission.payload) as Record<string, unknown>;
+    let bodyPayload = JSON.stringify({ form: { id: form.id, name: form.name }, submission });
+    const lowercaseUrl = targetUrl.toLowerCase();
+
+    if (lowercaseUrl.includes("discord.com/api/webhooks") || lowercaseUrl.includes("discordapp.com/api/webhooks")) {
+      const fields = Object.entries(payload).map(([k, v]) => ({
+        name: k,
+        value: String(v).slice(0, 1024) || "(empty)",
+        inline: false,
+      }));
+
+      bodyPayload = JSON.stringify({
+        username: "FormForge",
+        embeds: [
+          {
+            title: `📩 New Submission for ${form.name}`,
+            color: 1629853, // Cyan accent color
+            fields: fields.slice(0, 25),
+            timestamp: new Date(submission.createdAt).toISOString(),
+            footer: {
+              text: `Form: ${form.name} | Sub ID: ${submission.id}`,
+            },
+          },
+        ],
+      });
+    } else if (lowercaseUrl.includes("hooks.slack.com")) {
+      const fieldsBlocks = Object.entries(payload).map(([k, v]) => ({
+        type: "mrkdwn",
+        text: `*${k}:*\n${String(v).slice(0, 500) || "_(empty)_"}`,
+      }));
+
+      bodyPayload = JSON.stringify({
+        text: `New FormForge submission for ${form.name}`,
+        blocks: [
+          {
+            type: "header",
+            text: {
+              type: "plain_text",
+              text: `📝 New Submission: ${form.name}`,
+            },
+          },
+          {
+            type: "section",
+            fields: fieldsBlocks.slice(0, 10),
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `Submitted at: ${submission.createdAt}`,
+              },
+            ],
+          },
+        ],
+      });
+    } else if (lowercaseUrl.includes("stoat.chat") || lowercaseUrl.includes("revolt.chat")) {
+      const lines = Object.entries(payload).map(([k, v]) => `* **${k}**: ${String(v).slice(0, 500)}`);
+      bodyPayload = JSON.stringify({
+        content: `📩 **New Submission for ${form.name}**\n\n${lines.join("\n")}\n\n*Submitted at: ${submission.createdAt}*`
+      });
+    } else if (lowercaseUrl.includes("office.com") || lowercaseUrl.includes("webhook.office") || lowercaseUrl.includes("msteams")) {
+      const facts = Object.entries(payload).map(([k, v]) => ({
+        name: k,
+        value: String(v).slice(0, 500) || "(empty)"
+      }));
+      bodyPayload = JSON.stringify({
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "themeColor": "0076D7",
+        "summary": `New Submission for ${form.name}`,
+        "title": `📩 New Submission: ${form.name}`,
+        "sections": [
+          {
+            "activityTitle": `Form: ${form.name}`,
+            "activitySubtitle": `Sub ID: ${submission.id} | ${submission.createdAt}`,
+            "facts": facts.slice(0, 15)
+          }
+        ]
+      });
+    } else if (lowercaseUrl.includes("mattermost")) {
+      const lines = Object.entries(payload).map(([k, v]) => `* **${k}**: ${String(v).slice(0, 500)}`);
+      bodyPayload = JSON.stringify({
+        text: `### 📩 New Submission: ${form.name}\n\n${lines.join("\n")}\n\n*Submitted at: ${submission.createdAt}*`
+      });
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    let signature = "";
+    try {
+      const { hmacSha256 } = await import("./crypto");
+      signature = await hmacSha256(`${timestamp}.${bodyPayload}`, env.AUTH_SECRET || form.id);
+    } catch {
+      // ignore signature calculation error
+    }
+
+    const webhookHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "User-Agent": "FormForge/1.0",
+      "X-FormForge-Delivery-Id": deliveryId,
+      "X-FormForge-Event": event,
+      "X-FormForge-Timestamp": String(timestamp),
+    };
+    if (signature) {
+      webhookHeaders["X-FormForge-Signature"] = `t=${timestamp},v1=${signature}`;
+    }
+
+    const response = await fetch(targetUrl, {
+      method: "POST",
+      headers: webhookHeaders,
+      body: bodyPayload,
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const latencyMs = Date.now() - startTime;
+    const responseText = response.ok ? "" : (await response.text().catch(() => ""));
+    const errorMsg = response.ok ? null : (responseText.slice(0, 500) || `HTTP ${response.status}`);
+
+    try {
+      await db.insert(webhookLogs).values({
+        id: deliveryId,
+        formId: form.id,
+        submissionId: submission.id,
+        url: targetUrl,
+        event,
+        statusCode: response.status,
+        latencyMs,
+        status: response.ok ? "success" : "failed",
+        error: errorMsg,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // safe fallback
+    }
+
+    return {
+      success: response.ok,
+      statusCode: response.status,
+      latencyMs,
+      error: errorMsg || undefined,
+    };
+  } catch (error) {
+    const latencyMs = Date.now() - startTime;
+    const errMsg = error instanceof Error ? error.message : "Unknown error";
+
+    try {
+      await db.insert(webhookLogs).values({
+        id: deliveryId,
+        formId: form.id,
+        submissionId: submission.id,
+        url: targetUrl,
+        event,
+        statusCode: null,
+        latencyMs,
+        status: "failed",
+        error: errMsg,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // safe fallback
+    }
+
+    return { success: false, latencyMs, error: errMsg };
+  }
+}
+

@@ -3,6 +3,7 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { TurnstileAltcha } from "@/components/TurnstileAltcha";
+import { classifyIntent, getIntentMeta } from "@/lib/intent";
 
 type User = { id: string; email: string; name: string; role: string; totpEnabled?: boolean };
 type Form = {
@@ -42,6 +43,7 @@ type Form = {
   autoresponderReplyTo?: string | null;
   maxAttachmentSizeMb?: number;
   allowedFileExtensions?: string;
+  displayMode?: string;
   createdAt: string;
 };
 type Submission = {
@@ -777,8 +779,11 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
     }
   };
 
+  const [intentFilter, setIntentFilter] = useState<string>("all");
+  const [liveBanner, setLiveBanner] = useState<string | null>(null);
+
   const [snippetTab, setSnippetTab] = useState<"html" | "widget" | "react" | "js" | "python" | "curl">("html");
-  const [connectSubView, setConnectSubView] = useState<"studio" | "docs" | "security">("studio");
+  const [connectSubView, setConnectSubView] = useState<"studio" | "docs" | "security" | "webhooks">("studio");
   const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
   const [apiTestLoading, setApiTestLoading] = useState(false);
   const [apiTestResult, setApiTestResult] = useState<{ status: number; ok: boolean; data: any } | null>(null);
@@ -800,6 +805,35 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
       });
     }
   }, [form.allowedFileExtensions]);
+
+  // Real-Time Live Feed Ingestion Stream (25s background interval)
+  useEffect(() => {
+    let timer: any = null;
+    const checkLiveFeed = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      try {
+        const qParam = searchQuery.trim() ? `&q=${encodeURIComponent(searchQuery.trim())}` : "";
+        const statusParam = subStatus !== "all" ? `&status=${subStatus}` : "";
+        const res = await fetch(`/api/forms/${form.id}/submissions?limit=${limit}&offset=0${statusParam}${qParam}`, { credentials: "include" });
+        const data = await res.json();
+        if (data.ok && data.data.submissions) {
+          const freshSubs: Submission[] = data.data.submissions;
+          if (freshSubs.length > 0 && subs.length > 0 && freshSubs[0].id !== subs[0].id) {
+            setSubs(freshSubs);
+            setTotal(data.data.pagination.total ?? freshSubs.length);
+            if (data.data.counts) setCounts(data.data.counts);
+            setLiveBanner("⚡ New submission received just now!");
+            setTimeout(() => setLiveBanner(null), 5000);
+          }
+        }
+      } catch {
+        // silent fallback
+      }
+    };
+
+    timer = setInterval(checkLiveFeed, 25000);
+    return () => clearInterval(timer);
+  }, [form.id, limit, subStatus, searchQuery, subs]);
 
   const handleToggleSelectAll = () => {
     if (selectedSubIds.length === subs.length) {
@@ -1449,6 +1483,19 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                 <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <span>🛡️ Spam &amp; Security Architecture</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setConnectSubView("webhooks")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                  connectSubView === "webhooks"
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20"
+                    : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <svg className="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span>📡 Webhook Delivery Logs</span>
+                <span className="rounded-full bg-purple-400/20 text-purple-300 text-[10px] px-2 py-0.5 font-mono">HMAC</span>
+              </button>
             </div>
 
             {connectSubView === "studio" && (
@@ -1846,49 +1893,89 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
           form={form}
         />
       )}
+
+      {connectSubView === "webhooks" && (
+        <WebhookLogsView form={form} />
+      )}
     </div>
   )}
 
     {/* Submissions Tab */}
     {view === "submissions" && (
           <div id="view-submissions-panel" role="tabpanel" aria-label="Submissions List">
-            {/* Submissions Toolbar: Search, Status Filter Pills & Export Controls */}
+            {/* Real-time live ingestion banner */}
+            {liveBanner && (
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-xs mb-3 shadow-lg shadow-cyan-500/10 animate-fade-in">
+                <div className="flex items-center gap-2.5 font-bold">
+                  <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span>{liveBanner}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLiveBanner(null)}
+                  className="rounded-lg px-2 py-0.5 text-cyan-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Submissions Toolbar: Search, Status Filter Pills, Intent Triage & Export Controls */}
             <div className="space-y-3 mb-4">
               <div className="flex flex-wrap items-center justify-between gap-2.5">
-                {/* Status Pills */}
-                <div className="flex flex-wrap items-center gap-1.5 bg-white/[0.02] border border-white/10 rounded-xl p-1">
-                  {(
-                    [
-                      { id: "all", label: "All", count: counts.all },
-                      { id: "accepted", label: "Inbox", count: counts.accepted },
-                      { id: "spam", label: "Spam", count: counts.spam },
-                      { id: "pending", label: "Pending", count: counts.pending },
-                    ] as const
-                  ).map((filter) => (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      onClick={() => setSubStatus(filter.id)}
-                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
-                        subStatus === filter.id
-                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                          : "text-slate-400 hover:text-white border border-transparent"
-                      }`}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Status Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5 bg-white/[0.02] border border-white/10 rounded-xl p-1">
+                    {(
+                      [
+                        { id: "all", label: "All", count: counts.all },
+                        { id: "accepted", label: "Inbox", count: counts.accepted },
+                        { id: "spam", label: "Spam", count: counts.spam },
+                        { id: "pending", label: "Pending", count: counts.pending },
+                      ] as const
+                    ).map((filter) => (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        onClick={() => setSubStatus(filter.id)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                          subStatus === filter.id
+                            ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                            : "text-slate-400 hover:text-white border border-transparent"
+                        }`}
+                      >
+                        {filter.label} <span className="text-[10px] opacity-75">({filter.count})</span>
+                      </button>
+                    ))}
+                    {subs.length > 0 && (
+                      <label className="flex items-center gap-1.5 ml-1 px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs text-slate-300 cursor-pointer hover:bg-white/10 transition">
+                        <input
+                          type="checkbox"
+                          checked={subs.length > 0 && selectedSubIds.length === subs.length}
+                          onChange={handleToggleSelectAll}
+                          className="h-3.5 w-3.5 rounded accent-cyan-400 cursor-pointer"
+                        />
+                        <span>Select All</span>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Smart Intent & Urgency Triage Filter */}
+                  <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/10 rounded-xl px-2.5 py-1">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Intent:</span>
+                    <select
+                      value={intentFilter}
+                      onChange={(e) => setIntentFilter(e.target.value)}
+                      className="bg-transparent text-xs text-cyan-300 font-semibold focus:outline-none cursor-pointer"
                     >
-                      {filter.label} <span className="text-[10px] opacity-75">({filter.count})</span>
-                    </button>
-                  ))}
-                  {subs.length > 0 && (
-                    <label className="flex items-center gap-1.5 ml-1 px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs text-slate-300 cursor-pointer hover:bg-white/10 transition">
-                      <input
-                        type="checkbox"
-                        checked={subs.length > 0 && selectedSubIds.length === subs.length}
-                        onChange={handleToggleSelectAll}
-                        className="h-3.5 w-3.5 rounded accent-cyan-400 cursor-pointer"
-                      />
-                      <span>Select All</span>
-                    </label>
-                  )}
+                      <option value="all" className="bg-slate-900 text-white">All Intents</option>
+                      <option value="urgent" className="bg-slate-900 text-rose-300">🚨 Urgent</option>
+                      <option value="sales" className="bg-slate-900 text-emerald-300">💼 Sales Lead</option>
+                      <option value="support" className="bg-slate-900 text-amber-300">🛠️ Support</option>
+                      <option value="feedback" className="bg-slate-900 text-purple-300">💡 Feedback</option>
+                      <option value="general" className="bg-slate-900 text-slate-300">💬 General</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Export & Actions Toolbar */}
@@ -1990,50 +2077,68 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                 )}
               </div>
             </div>
-            {loading ? (
-              <p className="py-6 text-center text-sm text-slate-500">Loading submissions…</p>
-            ) : subs.length === 0 ? (
-              <div className="py-10 text-center text-slate-500">
-                <p className="text-4xl">📭</p>
-                <p className="mt-2 text-sm">{searchQuery || subStatus !== "all" ? "No matching submissions found for this filter." : "No submissions yet. Use the endpoint above to send a test."}</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {subs.map((sub) => (
-                  <SubmissionRow
-                    key={sub.id}
-                    sub={sub}
-                    onToggleStatus={handleToggleStatus}
-                    onDelete={handleDeleteSub}
-                    isSelected={selectedSubIds.includes(sub.id)}
-                    onSelect={() => handleToggleSelectOne(sub.id)}
-                  />
-                ))}
-                
-                {/* Pagination Controls */}
-                {total > limit && (
-                  <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-4">
-                    <button
-                      disabled={offset === 0}
-                      onClick={() => setOffset(Math.max(0, offset - limit))}
-                      className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10 disabled:opacity-50 min-h-[44px]"
-                    >
-                      ← Previous
-                    </button>
-                    <span className="text-xs text-slate-400">
-                      Showing {offset + 1} - {Math.min(offset + limit, total)} of {total}
-                    </span>
-                    <button
-                      disabled={offset + limit >= total}
-                      onClick={() => setOffset(offset + limit)}
-                      className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10 disabled:opacity-50 min-h-[44px]"
-                    >
-                      Next →
-                    </button>
+            {(() => {
+              const displayedSubs = subs.filter((sub) => {
+                if (intentFilter === "all") return true;
+                let p: any = {};
+                try { p = JSON.parse(sub.payload); } catch {}
+                const subIntent = typeof p._intent === "string" ? p._intent : classifyIntent(p);
+                return subIntent === intentFilter;
+              });
+
+              if (loading) {
+                return <p className="py-6 text-center text-sm text-slate-500">Loading submissions…</p>;
+              }
+              if (displayedSubs.length === 0) {
+                return (
+                  <div className="py-10 text-center text-slate-500">
+                    <p className="text-4xl">📭</p>
+                    <p className="mt-2 text-sm">
+                      {searchQuery || subStatus !== "all" || intentFilter !== "all"
+                        ? "No matching submissions found for this filter."
+                        : "No submissions yet. Use the endpoint above to send a test."}
+                    </p>
                   </div>
-                )}
-              </div>
-            )}
+                );
+              }
+              return (
+                <div className="space-y-2">
+                  {displayedSubs.map((sub) => (
+                    <SubmissionRow
+                      key={sub.id}
+                      sub={sub}
+                      onToggleStatus={handleToggleStatus}
+                      onDelete={handleDeleteSub}
+                      isSelected={selectedSubIds.includes(sub.id)}
+                      onSelect={() => handleToggleSelectOne(sub.id)}
+                    />
+                  ))}
+                  
+                  {/* Pagination Controls */}
+                  {total > limit && (
+                    <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-4">
+                      <button
+                        disabled={offset === 0}
+                        onClick={() => setOffset(Math.max(0, offset - limit))}
+                        className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10 disabled:opacity-50 min-h-[44px]"
+                      >
+                        ← Previous
+                      </button>
+                      <span className="text-xs text-slate-400">
+                        Showing {offset + 1} - {Math.min(offset + limit, total)} of {total}
+                      </span>
+                      <button
+                        disabled={offset + limit >= total}
+                        onClick={() => setOffset(offset + limit)}
+                        className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10 disabled:opacity-50 min-h-[44px]"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
         {view === "analytics" && (
@@ -2532,7 +2637,14 @@ function SubmissionRow({
     setTimeout(() => setCopiedJson(false), 2000);
   };
   
-  const preview = Object.entries(payload).slice(0, 3).map(([k, v]) => `${k}: ${String(v).slice(0, 40)}`).join(" · ");
+  const preview = Object.entries(payload)
+    .filter(([k]) => !k.startsWith("_"))
+    .slice(0, 3)
+    .map(([k, v]) => `${k}: ${String(v).slice(0, 40)}`)
+    .join(" · ");
+
+  const intent = typeof payload._intent === "string" ? payload._intent : classifyIntent(payload);
+  const intentMeta = getIntentMeta(intent);
 
   return (
     <div className={`rounded-2xl border transition ${isSelected ? "border-cyan-500/50 bg-cyan-500/[0.07]" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.05]"}`}>
@@ -2553,6 +2665,10 @@ function SubmissionRow({
             <p className="truncate text-sm text-slate-300">{preview || "(empty)"}</p>
             <p className="text-xs text-slate-500">{timeAgo(sub.createdAt)}{sub.email ? ` · ${sub.email}` : ""}{sub.spamScore > 0 ? ` · spam:${sub.spamScore}` : ""}</p>
           </div>
+          <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${intentMeta.bg} ${intentMeta.color} ${intentMeta.border}`}>
+            <span>{intentMeta.icon}</span>
+            <span>{intentMeta.label}</span>
+          </span>
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${sub.status === "spam" ? "bg-amber-400/15 text-amber-200" : "bg-emerald-400/15 text-emerald-200"}`}>{sub.status}</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`shrink-0 text-slate-500 transition ${open ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6" /></svg>
         </button>
@@ -2676,6 +2792,223 @@ function SubmissionRow({
   );
 }
 
+/* ─────────────────── Webhook Delivery Logs ─────────────────── */
+
+function WebhookLogsView({ form }: { form: Form }) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryResult, setRetryResult] = useState<{ id: string; success: boolean; msg: string } | null>(null);
+  const [copiedHmac, setCopiedHmac] = useState(false);
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/forms/${form.id}/webhooks`, { credentials: "include" });
+      const json = await res.json();
+      if (json.ok) {
+        setLogs(json.logs || []);
+      }
+    } catch (e) {
+      console.error("Failed to load webhook logs", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [form.id]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const handleRetry = async (log: any) => {
+    setRetryingId(log.id);
+    setRetryResult(null);
+    try {
+      const res = await fetch(`/api/forms/${form.id}/webhooks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ submissionId: log.submissionId }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setRetryResult({
+          id: log.id,
+          success: true,
+          msg: `✓ Webhook redelivered successfully! Latency: ${json.result?.latencyMs ?? 0}ms`,
+        });
+        fetchLogs();
+      } else {
+        setRetryResult({
+          id: log.id,
+          success: false,
+          msg: `Failed: ${json.message || json.result?.error || "Delivery error"}`,
+        });
+      }
+    } catch (e: any) {
+      setRetryResult({ id: log.id, success: false, msg: `Network error: ${e.message}` });
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4 pt-2">
+      {/* Webhook Status & HMAC Header Card */}
+      <div className="rounded-2xl border border-white/10 bg-black/40 p-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-300">
+              📡
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-white">Webhook Delivery Observability</h3>
+              <p className="text-xs text-slate-400">
+                {form.webhookUrl ? `Active endpoint: ${form.webhookUrl}` : "No webhook URL configured yet. Configure one in Form Settings."}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchLogs()}
+            className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-cyan-300 hover:bg-white/10 transition"
+          >
+            <span>🔄 Refresh Logs</span>
+          </button>
+        </div>
+
+        {/* HMAC Signature Info Banner */}
+        <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-3.5 space-y-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-purple-300 flex items-center gap-1.5">
+              <span>🔐 HMAC SHA-256 Signature Verification</span>
+            </span>
+            <button
+              type="button"
+              onClick={async () => {
+                const code = `// Node.js Webhook Signature Verification
+const crypto = require("crypto");
+const header = req.headers["x-formforge-signature"]; // t=timestamp,v1=signature
+const [tPart, vPart] = header.split(",");
+const timestamp = tPart.split("=")[1];
+const signature = vPart.split("=")[1];
+const expected = crypto.createHmac("sha256", SECRET).update(\`\${timestamp}.\${rawBody}\`).digest("hex");
+const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));`;
+                await navigator.clipboard.writeText(code);
+                setCopiedHmac(true);
+                setTimeout(() => setCopiedHmac(false), 2000);
+              }}
+              className="text-[11px] text-purple-300 hover:underline cursor-pointer"
+            >
+              {copiedHmac ? "✓ Copied Node.js Verifier" : "📋 Copy Verification Code"}
+            </button>
+          </div>
+          <p className="text-slate-400 leading-relaxed text-[11px]">
+            Every webhook outgoing payload carries <code className="text-cyan-300 font-mono">X-FormForge-Signature: t=timestamp,v1=hmac</code>, <code className="text-cyan-300 font-mono">X-FormForge-Delivery-Id</code>, and <code className="text-cyan-300 font-mono">X-FormForge-Timestamp</code>. Verify using constant-time comparison to guard against replay attacks and forgery.
+          </p>
+        </div>
+      </div>
+
+      {/* Logs Table / Cards */}
+      {loading ? (
+        <div className="py-8 text-center text-xs text-slate-500">Loading delivery attempts…</div>
+      ) : logs.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center space-y-2 text-slate-500">
+          <span className="text-2xl">📭</span>
+          <p className="text-xs">No webhook deliveries recorded yet for this form.</p>
+          <p className="text-[11px] text-slate-600">Send a test submission or use API Guide to trigger your first delivery log.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {logs.map((log) => {
+            const isSuccess = log.status === "success";
+            return (
+              <div
+                key={log.id}
+                className={`rounded-2xl border p-4 transition ${
+                  isSuccess
+                    ? "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"
+                    : "border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10"
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold font-mono border ${
+                        isSuccess
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : "border-rose-500/30 bg-rose-500/10 text-rose-400"
+                      }`}
+                    >
+                      <span>{isSuccess ? "✓" : "✗"}</span>
+                      <span>{log.statusCode ? `HTTP ${log.statusCode}` : log.status.toUpperCase()}</span>
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-mono text-cyan-300">
+                      ⚡ {log.latencyMs ?? 0}ms
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono">{log.event}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-500">{timeAgo(log.createdAt)}</span>
+                    <button
+                      type="button"
+                      disabled={retryingId === log.id}
+                      onClick={() => handleRetry(log)}
+                      className="flex items-center gap-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition disabled:opacity-50"
+                    >
+                      {retryingId === log.id ? (
+                        <>
+                          <svg className="animate-spin h-3 w-3 text-cyan-300" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          </svg>
+                          <span>Retrying…</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>⚡</span>
+                          <span>Retry</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2 text-xs text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-slate-500">Target:</span>
+                  <code className="text-slate-300 font-mono text-[11px] truncate max-w-[320px]">{log.url}</code>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-slate-500">Sub ID:</span>
+                  <code className="text-slate-400 font-mono text-[11px]">{log.submissionId}</code>
+                </div>
+
+                {log.error && (
+                  <div className="mt-2 rounded-xl border border-rose-500/20 bg-rose-500/10 p-2 text-[11px] text-rose-300 font-mono break-all">
+                    {log.error}
+                  </div>
+                )}
+
+                {retryResult && retryResult.id === log.id && (
+                  <div
+                    className={`mt-2 rounded-xl p-2 text-[11px] font-mono ${
+                      retryResult.success
+                        ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                        : "border border-rose-500/30 bg-rose-500/10 text-rose-300"
+                    }`}
+                  >
+                    {retryResult.msg}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─────────────────── Form Settings ─────────────────── */
 
 function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void }) {
@@ -2696,6 +3029,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [autoresponderBody, setAutoresponderBody] = useState(form.autoresponderBody ?? "");
   const [maxAttachmentSizeMb, setMaxAttachmentSizeMb] = useState(form.maxAttachmentSizeMb ? String(form.maxAttachmentSizeMb) : "10");
   const [allowedFileExtensions, setAllowedFileExtensions] = useState(form.allowedFileExtensions ?? "");
+  const [displayMode, setDisplayMode] = useState(form.displayMode ?? "classic");
   const [storageStatus, setStorageStatus] = useState<{ configured: boolean; providerName: string; bucketName: string | null } | null>(null);
   const [testingStorage, setTestingStorage] = useState(false);
   const [storageTestResult, setStorageTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -2805,6 +3139,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setAutoresponderBody(form.autoresponderBody ?? "");
     setMaxAttachmentSizeMb(form.maxAttachmentSizeMb ? String(form.maxAttachmentSizeMb) : "10");
     setAllowedFileExtensions(form.allowedFileExtensions ?? "");
+    setDisplayMode(form.displayMode ?? "classic");
     setSpamBlocklist(form.spamBlocklist ?? "");
     setRetentionDays(form.retentionDays ?? 0);
     setStoreIpHash(form.storeIpHash ?? true);
@@ -2852,6 +3187,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           autoresponderBody: autoresponderBody || null,
           maxAttachmentSizeMb: maxAttachmentSizeMb ? Number(maxAttachmentSizeMb) : 10,
           allowedFileExtensions: allowedFileExtensions.trim(),
+          displayMode,
           spamBlocklist: spamBlocklist || null,
           retentionDays: isCustom ? Number(customDays) : Number(retentionDays),
           emailVerificationEnabled,
@@ -2902,6 +3238,62 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
             <code className="text-xs font-mono text-cyan-200 bg-black/40 border border-white/10 px-2.5 py-1.5 rounded-lg flex-1 truncate select-all">
               {typeof window !== "undefined" ? `${window.location.origin}/f/${slug || form.slug}` : `/f/${slug || form.slug}`}
             </code>
+          </div>
+        </div>
+
+        {/* Form Experience / Display Mode Setting */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>✨ Hosted Form Experience Mode (/f/[slug])</span>
+            </span>
+            <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+              2026 Ready
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Choose how submitters experience your public hosted form link:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setDisplayMode("classic")}
+              className={`flex flex-col items-start p-3 rounded-xl border text-left transition ${
+                displayMode === "classic"
+                  ? "border-cyan-400 bg-cyan-500/10 text-white shadow-sm"
+                  : "border-white/10 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-slate-200"
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <span>📄 Classic One-Page</span>
+                </span>
+                {displayMode === "classic" && <span className="text-cyan-400 text-xs">✓ Active</span>}
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Clean traditional one-page form with instant field accessibility. Ideal for quick inquiries and contact cards.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDisplayMode("conversational")}
+              className={`flex flex-col items-start p-3 rounded-xl border text-left transition ${
+                displayMode === "conversational"
+                  ? "border-cyan-400 bg-cyan-500/10 text-white shadow-sm"
+                  : "border-white/10 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-slate-200"
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <span>💬 Conversational Step-by-Step</span>
+                </span>
+                {displayMode === "conversational" && <span className="text-cyan-400 text-xs">✓ Active</span>}
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Typeform &amp; Tally style interactive experience. One question at a time with progress bar and keyboard navigation.
+              </p>
+            </button>
           </div>
         </div>
 

@@ -554,6 +554,11 @@ export async function POST(request: Request, context: RouteContext) {
   delete storagePayload["altcha"];
   delete storagePayload["altcha-response"];
   delete storagePayload["_ff_pow"];
+
+  // Smart Intent & Urgency Triage (zero-cost classification)
+  const { classifyIntent } = await import("@/lib/intent");
+  storagePayload["_intent"] = classifyIntent(storagePayload);
+
   const minifiedPayload = safeStringify(storagePayload);
   
   const submission: NewSubmission = {

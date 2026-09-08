@@ -76,6 +76,7 @@ export async function autoMigrate(db: any): Promise<void> {
         autoresponder_reply_to TEXT,
         max_attachment_size_mb INTEGER DEFAULT 10,
         allowed_file_extensions TEXT DEFAULT '',
+        display_mode TEXT DEFAULT 'classic' NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE CASCADE
@@ -268,8 +269,26 @@ export async function autoMigrate(db: any): Promise<void> {
       );
     `);
 
-    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS otp_codes_form_id_idx ON otp_codes (form_id);`);
-    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS otp_codes_email_idx ON otp_codes (email);`);
+    // 11. Webhook logs table
+    await executeQuery(db, sql`
+      CREATE TABLE IF NOT EXISTS webhook_logs (
+        id TEXT PRIMARY KEY NOT NULL,
+        form_id TEXT NOT NULL,
+        submission_id TEXT NOT NULL,
+        url TEXT NOT NULL,
+        event TEXT DEFAULT 'form.submitted' NOT NULL,
+        status_code INTEGER,
+        latency_ms INTEGER,
+        status TEXT NOT NULL,
+        error TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_form_id_idx ON webhook_logs (form_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_submission_id_idx ON webhook_logs (submission_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_created_at_idx ON webhook_logs (created_at);`);
 
     // Safe column additions for existing databases (SQLite & Postgres compatible)
     const columnsToAdd = [
@@ -297,6 +316,7 @@ export async function autoMigrate(db: any): Promise<void> {
       "ALTER TABLE forms ADD COLUMN autoresponder_reply_to TEXT;",
       "ALTER TABLE forms ADD COLUMN max_attachment_size_mb INTEGER DEFAULT 10;",
       "ALTER TABLE forms ADD COLUMN allowed_file_extensions TEXT DEFAULT '';",
+      "ALTER TABLE forms ADD COLUMN display_mode TEXT DEFAULT 'classic' NOT NULL;",
     ];
 
     for (const ddl of columnsToAdd) {

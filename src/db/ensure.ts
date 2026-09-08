@@ -120,6 +120,21 @@ const SCHEMA_STATEMENTS = [
     reset_at text NOT NULL,
     updated_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
   );`,
+  `CREATE TABLE IF NOT EXISTS webhook_logs (
+    id text PRIMARY KEY NOT NULL,
+    form_id text NOT NULL,
+    submission_id text NOT NULL,
+    url text NOT NULL,
+    event text NOT NULL DEFAULT 'form.submitted',
+    status_code integer,
+    latency_ms integer,
+    status text NOT NULL,
+    error text,
+    created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );`,
+  `CREATE INDEX IF NOT EXISTS webhook_logs_form_id_idx ON webhook_logs (form_id);`,
+  `CREATE INDEX IF NOT EXISTS webhook_logs_submission_id_idx ON webhook_logs (submission_id);`,
+  `CREATE INDEX IF NOT EXISTS webhook_logs_created_at_idx ON webhook_logs (created_at);`,
 ];
 
 type SchemaGuard = { ready: Promise<void> | null };
@@ -149,7 +164,10 @@ export async function ensureSchema(db: AppDb): Promise<void> {
         `ALTER TABLE forms ADD COLUMN smtp_port integer;`,
         `ALTER TABLE forms ADD COLUMN smtp_user text;`,
         `ALTER TABLE forms ADD COLUMN smtp_pass text;`,
-        `ALTER TABLE forms ADD COLUMN smtp_from text;`
+        `ALTER TABLE forms ADD COLUMN smtp_from text;`,
+        `ALTER TABLE forms ADD COLUMN display_mode text NOT NULL DEFAULT 'classic';`,
+        `ALTER TABLE forms ADD COLUMN allowed_file_extensions text DEFAULT '';`,
+        `ALTER TABLE forms ADD COLUMN max_attachment_size_mb integer DEFAULT 10;`,
       ];
       for (const stmt of alterStatements) {
         try {

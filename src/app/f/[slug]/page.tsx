@@ -14,6 +14,7 @@ interface FormPublicData {
   altchaEnabled: boolean;
   maxAttachmentSizeMb: number;
   allowedFileExtensions: string;
+  displayMode?: string;
   isClosed: boolean;
 }
 
@@ -37,6 +38,9 @@ export default function HostedFormPage({
   const [honeypot, setHoneypot] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [altchaPayload, setAltchaPayload] = useState("");
+
+  // Conversational multi-step state
+  const [step, setStep] = useState(0);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -178,7 +182,283 @@ export default function HostedFormPage({
                 <p className="text-xs text-cyan-400 animate-pulse">Redirecting you now…</p>
               )}
             </div>
+          ) : form.displayMode === "conversational" ? (
+            /* Conversational Step-by-Step Mode */
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <input
+                type="text"
+                name="website"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                className="hidden"
+                aria-hidden="true"
+              />
+
+              {/* Progress Bar & Step Indicator */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span className="font-mono text-cyan-400 font-semibold tracking-wider uppercase text-[10px]">
+                    Step {step + 1} of 5
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-500">
+                    {Math.round(((step + 1) / 5) * 100)}% Complete
+                  </span>
+                </div>
+                <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-cyan-400 to-sky-500 h-full transition-all duration-300 ease-out"
+                    style={{ width: `${((step + 1) / 5) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Step 0: Name */}
+              {step === 0 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div>
+                    <label htmlFor="conv-name" className="block text-lg sm:text-xl font-bold text-white mb-1">
+                      What is your name? <span className="text-cyan-400">*</span>
+                    </label>
+                    <p className="text-xs text-slate-400">Please enter your full or preferred name.</p>
+                  </div>
+                  <input
+                    id="conv-name"
+                    required
+                    autoFocus
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && name.trim()) {
+                        e.preventDefault();
+                        setStep(1);
+                      }
+                    }}
+                    placeholder="e.g. Alex Morgan"
+                    className="w-full rounded-2xl border border-white/15 bg-black/40 px-4 py-3.5 text-base text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition"
+                  />
+                </div>
+              )}
+
+              {/* Step 1: Email */}
+              {step === 1 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div>
+                    <label htmlFor="conv-email" className="block text-lg sm:text-xl font-bold text-white mb-1">
+                      What is your email address? <span className="text-cyan-400">*</span>
+                    </label>
+                    <p className="text-xs text-slate-400">We will use this address to respond to you.</p>
+                  </div>
+                  <input
+                    id="conv-email"
+                    type="email"
+                    required
+                    autoFocus
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && email.includes("@")) {
+                        e.preventDefault();
+                        setStep(2);
+                      }
+                    }}
+                    placeholder="alex@example.com"
+                    className="w-full rounded-2xl border border-white/15 bg-black/40 px-4 py-3.5 text-base text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition"
+                  />
+                </div>
+              )}
+
+              {/* Step 2: Subject */}
+              {step === 2 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div>
+                    <label htmlFor="conv-subject" className="block text-lg sm:text-xl font-bold text-white mb-1">
+                      What is this inquiry about?
+                    </label>
+                    <p className="text-xs text-slate-400">Brief summary or topic (optional).</p>
+                  </div>
+                  <input
+                    id="conv-subject"
+                    autoFocus
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setStep(3);
+                      }
+                    }}
+                    placeholder="e.g. Partnership inquiry, project quote…"
+                    className="w-full rounded-2xl border border-white/15 bg-black/40 px-4 py-3.5 text-base text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition"
+                  />
+                </div>
+              )}
+
+              {/* Step 3: Message */}
+              {step === 3 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div>
+                    <label htmlFor="conv-message" className="block text-lg sm:text-xl font-bold text-white mb-1">
+                      How can we help you? <span className="text-cyan-400">*</span>
+                    </label>
+                    <p className="text-xs text-slate-400">Please provide full details or requirements.</p>
+                  </div>
+                  <textarea
+                    id="conv-message"
+                    required
+                    autoFocus
+                    rows={5}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && message.trim()) {
+                        e.preventDefault();
+                        setStep(4);
+                      }
+                    }}
+                    placeholder="Type your message here…"
+                    className="w-full rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition leading-relaxed resize-y"
+                  />
+                  <div className="text-[11px] text-slate-500 text-right">Tip: Press Ctrl + Enter to advance</div>
+                </div>
+              )}
+
+              {/* Step 4: Attachment & Review & Submit */}
+              {step === 4 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-white mb-1">
+                      Almost done! Add attachments &amp; submit
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Upload any supporting files if needed, complete verification, and submit.
+                    </p>
+                  </div>
+
+                  {/* Summary preview */}
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-500">Name:</span>
+                      <span className="font-semibold text-white truncate max-w-[220px]">{name}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-500">Email:</span>
+                      <span className="font-mono text-cyan-300 truncate max-w-[220px]">{email}</span>
+                    </div>
+                    {subject && (
+                      <div className="flex justify-between text-slate-300">
+                        <span className="text-slate-500">Subject:</span>
+                        <span className="text-white truncate max-w-[220px]">{subject}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* File Attachment */}
+                  <div className="relative rounded-2xl border border-dashed border-white/15 bg-black/30 p-4 text-center hover:border-cyan-400/50 hover:bg-cyan-500/5 transition group">
+                    <input
+                      id="conv-file"
+                      type="file"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setFile(e.target.files[0]);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    {file ? (
+                      <div className="flex items-center justify-between text-xs text-slate-200">
+                        <span className="truncate max-w-[240px] font-mono text-cyan-300 font-semibold">{file.name}</span>
+                        <span className="text-slate-400 text-[11px]">
+                          {(file.size / (1024 * 1024)).toFixed(2)} MB
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="text-lg">📁</div>
+                        <div className="text-xs font-medium text-slate-300">
+                          Attach document or file (optional)
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          Max: {form.maxAttachmentSizeMb || 10}MB
+                          {form.allowedFileExtensions ? ` • Allowed: ${form.allowedFileExtensions}` : ""}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ALTCHA */}
+                  {form.altchaEnabled && (
+                    <div className="pt-2">
+                      <TurnstileAltcha
+                        challengeUrl="/api/altcha/challenge"
+                        onVerified={(token: string) => setAltchaPayload(token)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Submit Error */}
+              {submitError && (
+                <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 font-medium">
+                  {submitError}
+                </div>
+              )}
+
+              {/* Conversational Navigation Buttons */}
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep((s) => Math.max(0, s - 1))}
+                  disabled={step === 0 || submitting}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ← Back
+                </button>
+
+                {step < 4 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (step === 0 && !name.trim()) return;
+                      if (step === 1 && !email.includes("@")) return;
+                      if (step === 3 && !message.trim()) return;
+                      setStep((s) => s + 1);
+                    }}
+                    disabled={
+                      (step === 0 && !name.trim()) ||
+                      (step === 1 && !email.includes("@")) ||
+                      (step === 3 && !message.trim())
+                    }
+                    className="rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-cyan-500/20 hover:from-cyan-400 hover:to-sky-400 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <span>Continue</span>
+                    <span>→</span>
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={submitting || !name.trim() || !email.includes("@") || !message.trim()}
+                    className="rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-sky-400 active:scale-[0.99] transition disabled:opacity-60 flex items-center gap-2"
+                  >
+                    {submitting ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        <span>Submitting…</span>
+                      </>
+                    ) : (
+                      <span>Submit Response ✓</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </form>
           ) : (
+            /* Classic One-Page Mode */
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Invisible Honeypot */}
               <input

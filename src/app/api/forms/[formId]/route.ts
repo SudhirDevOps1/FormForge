@@ -129,6 +129,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     autoresponderReplyTo: readString(body.autoresponderReplyTo, result.form.autoresponderReplyTo ?? "") || null,
     maxAttachmentSizeMb: typeof body.maxAttachmentSizeMb === "number" ? body.maxAttachmentSizeMb : (body.maxAttachmentSizeMb ? Number(body.maxAttachmentSizeMb) : (result.form as any).maxAttachmentSizeMb ?? 10),
     allowedFileExtensions: readString(body.allowedFileExtensions, (result.form as any).allowedFileExtensions ?? "") || "",
+    displayMode: body.displayMode === "conversational" ? "conversational" : (body.displayMode === "classic" ? "classic" : ((result.form as any).displayMode || "classic")),
     updatedAt: new Date().toISOString(),
   };
 
