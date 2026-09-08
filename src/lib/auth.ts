@@ -7,7 +7,9 @@ import { hmacSha256, randomId, randomToken } from "./crypto";
 const COOKIE_NAME = "ff_session";
 const SESSION_DAYS = 30;
 
-export type AuthenticatedUser = Pick<User, "id" | "email" | "name" | "role" | "createdAt">;
+export type AuthenticatedUser = Pick<User, "id" | "email" | "name" | "role" | "createdAt"> & {
+  totpEnabled?: boolean;
+};
 
 function parseCookies(header: string | null): Map<string, string> {
   const cookies = new Map<string, string>();
@@ -125,6 +127,7 @@ export async function getCurrentUser(request: Request, db: AppDb): Promise<Authe
       email: users.email,
       name: users.name,
       role: users.role,
+      totpEnabled: users.totpEnabled,
       createdAt: users.createdAt,
       lastSeenAt: sessions.lastSeenAt,
     })
@@ -150,6 +153,7 @@ export async function getCurrentUser(request: Request, db: AppDb): Promise<Authe
     name: row.name,
     role: row.role,
     createdAt: row.createdAt,
+    totpEnabled: Boolean(row.totpEnabled),
   };
 }
 

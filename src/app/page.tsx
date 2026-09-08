@@ -190,7 +190,7 @@ export default function HomePage() {
 
       <footer className="relative border-t border-white/10 px-5 py-10 text-center text-sm text-slate-400 sm:px-8 space-y-3">
         <p>FormForge is open-source, self-hosted, and designed for Cloudflare&apos;s free tier. Read <a className="text-cyan-200 hover:text-white font-semibold" href="/docs.html">docs.html</a> for complete setup.</p>
-        <p className="text-xs text-slate-500">🔒 Secure AES-GCM Encrypted &bull; v2.1 Universal &bull; <a className="text-cyan-300/80 hover:text-cyan-200 transition underline decoration-cyan-300/30" href="/privacypolicy.html">Privacy & Security Policy</a></p>
+        <p className="text-xs text-slate-500">🔒 Secure AES-GCM Encrypted &bull; v1.0.0 Universal &bull; <a className="text-cyan-300/80 hover:text-cyan-200 transition underline decoration-cyan-300/30" href="/privacypolicy.html">Privacy & Security Policy</a></p>
         <p className="text-[10px] text-slate-600 mt-2">&copy; 2026 Sudhir Singh. All Rights Reserved. Self-hosted deployments must maintain original developer credit and attribution links intact.</p>
       </footer>
     </main>

@@ -25,6 +25,8 @@ export async function autoMigrate(db: any): Promise<void> {
         name TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         role TEXT DEFAULT 'owner' NOT NULL,
+        totp_secret TEXT,
+        totp_enabled INTEGER DEFAULT 0 NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
@@ -69,6 +71,9 @@ export async function autoMigrate(db: any): Promise<void> {
         telegram_chat_id TEXT,
         ntfy_topic TEXT,
         otp_enabled INTEGER DEFAULT 0 NOT NULL,
+        submission_limit INTEGER DEFAULT 0,
+        email_subject_template TEXT,
+        autoresponder_reply_to TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE CASCADE
@@ -283,6 +288,11 @@ export async function autoMigrate(db: any): Promise<void> {
       "ALTER TABLE forms ADD COLUMN smtp_user TEXT;",
       "ALTER TABLE forms ADD COLUMN smtp_pass TEXT;",
       "ALTER TABLE forms ADD COLUMN smtp_from TEXT;",
+      "ALTER TABLE users ADD COLUMN totp_secret TEXT;",
+      "ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN submission_limit INTEGER DEFAULT 0;",
+      "ALTER TABLE forms ADD COLUMN email_subject_template TEXT;",
+      "ALTER TABLE forms ADD COLUMN autoresponder_reply_to TEXT;",
     ];
 
     for (const ddl of columnsToAdd) {

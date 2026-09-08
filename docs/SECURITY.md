@@ -20,10 +20,8 @@ release with a coordinated disclosure note.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.2.x   | :white_check_mark: |
-| 2.1.x   | :white_check_mark: |
-| 2.0.x   | :white_check_mark: security fixes only |
-| < 2.0.0 | :x:                |
+| 1.0.x   | :white_check_mark: |
+| < 1.0.0 | :x:                |
 
 Only the latest minor release receives full security support. Deployments
 should track the newest `v*` tag (see `docs/RELEASES.md`).

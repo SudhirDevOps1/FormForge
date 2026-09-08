@@ -21,7 +21,7 @@ This document outlines the architectural limits, security rules (like IP blockin
 
 ## 2. Infrastructure & Multi-Database Engine (Universal Zero-Card Free Tier)
 
-FormForge v2.2 Universal dynamically detects and connects to any of the following databases on boot with zero configuration:
+FormForge v1.0.0 Universal dynamically detects and connects to any of the following databases on boot with zero configuration:
 
 ### 📊 Supported Database Capacity Matrix
 * **Cloudflare D1:** 500MB storage, 5M reads/day, 100k writes/day (No credit card needed). With FormForge's automated transient payload pruning, a single submission takes only ~350–500 bytes, allowing over **1,000,000 submissions** within the 500MB free quota.
@@ -149,7 +149,7 @@ The following custom features have been added to the production codebase:
 
 ### 🔐 Owner-Only Mode
 * **Constraint:** When `ALLOW_REGISTRATION=false`, the registration API is fully blocked. There is no invitation or invite-code system yet.
-* **Next Version:** TOTP-based 2FA and invite codes are planned for v2.0.
+* **Future Roadmap:** TOTP-based 2FA and invite codes are planned for upcoming releases.
 
 ### 📄 OpenAPI Docs
 * **Limitation:** The OpenAPI spec at `/api/openapi.json` is statically defined. It does not auto-discover custom form fields or dynamic endpoints.

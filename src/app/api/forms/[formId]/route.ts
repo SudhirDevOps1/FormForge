@@ -124,6 +124,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     telegramChatId: readString(body.telegramChatId, result.form.telegramChatId ?? "") || null,
     ntfyTopic: readString(body.ntfyTopic, result.form.ntfyTopic ?? "") || null,
     otpEnabled: typeof body.otpEnabled === "boolean" ? body.otpEnabled : result.form.otpEnabled,
+    submissionLimit: typeof body.submissionLimit === "number" ? body.submissionLimit : (body.submissionLimit ? Number(body.submissionLimit) : result.form.submissionLimit ?? 0),
+    emailSubjectTemplate: readString(body.emailSubjectTemplate, result.form.emailSubjectTemplate ?? "") || null,
+    autoresponderReplyTo: readString(body.autoresponderReplyTo, result.form.autoresponderReplyTo ?? "") || null,
     updatedAt: new Date().toISOString(),
   };
 

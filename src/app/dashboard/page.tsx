@@ -4,7 +4,7 @@ import { createContext, useContext, useCallback, useEffect, useRef, useState } f
 import Link from "next/link";
 import { TurnstileAltcha } from "@/components/TurnstileAltcha";
 
-type User = { id: string; email: string; name: string; role: string };
+type User = { id: string; email: string; name: string; role: string; totpEnabled?: boolean };
 type Form = {
   id: string;
   name: string;
@@ -37,6 +37,9 @@ type Form = {
   telegramChatId?: string | null;
   ntfyTopic?: string | null;
   otpEnabled?: boolean;
+  submissionLimit?: number;
+  emailSubjectTemplate?: string | null;
+  autoresponderReplyTo?: string | null;
   createdAt: string;
 };
 type Submission = {
@@ -326,7 +329,7 @@ function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
           <span className="font-bold tracking-tight text-white flex items-center gap-1.5">
             FormForge
             <span className="rounded-md bg-gradient-to-r from-sky-500/20 to-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
-              v2.0 Universal
+              v1.0.0 Universal
             </span>
           </span>
         </Link>
@@ -380,12 +383,14 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
   const [busy, setBusy] = useState(false);
   const [altchaPayload, setAltchaPayload] = useState("");
   const [altchaVerified, setAltchaVerified] = useState(false);
+  const [requires2fa, setRequires2fa] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (!altchaVerified) {
+    if (!requires2fa && !altchaVerified) {
       setError("Please complete human verification below before continuing.");
       return;
     }
@@ -396,12 +401,85 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, password, altcha: altchaPayload }),
+        body: JSON.stringify({ email, name, password, altcha: altchaPayload, totpCode }),
       });
       const data = await res.json();
-      if (!data.ok) { setError(data.message ?? "Something went wrong."); return; }
+      if (!data.ok) {
+        setError(data.message ?? "Something went wrong.");
+        return;
+      }
+      if (data.data?.requires2fa) {
+        setRequires2fa(true);
+        setError("");
+        return;
+      }
       onAuthed();
-    } catch { setError("Network error. Is the Worker deployed and D1 bound?"); } finally { setBusy(false); }
+    } catch {
+      setError("Network error. Is the Worker deployed and D1 bound?");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (requires2fa) {
+    return (
+      <div className="grid min-h-screen place-items-center px-4 py-12">
+        <form onSubmit={submit} className="glass-panel w-full max-w-md rounded-3xl p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <img src="/logo.svg" alt="FormForge Logo" className="h-10 w-10 rounded-xl" />
+            <span className="text-xl font-bold">FormForge</span>
+          </div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300 font-semibold">
+            🛡️ Two-Factor Authentication
+          </div>
+          <h1 className="text-2xl font-black text-white">Enter 6-Digit Code</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Open your authenticator app (Google Authenticator, Apple Passwords, 1Password, or Authy) and enter the code for <strong className="text-slate-200">{email}</strong>.
+          </p>
+
+          <label htmlFor="auth-totp" className="mt-6 block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            Authentication Code
+          </label>
+          <input
+            id="auth-totp"
+            required
+            autoFocus
+            maxLength={6}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={totpCode}
+            onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+            className="ff-input text-center text-2xl tracking-[0.3em] font-mono font-bold mt-2"
+            placeholder="000000"
+          />
+
+          {error && (
+            <div className="mt-4 rounded-xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
+              <p>{error}</p>
+            </div>
+          )}
+
+          <button
+            disabled={busy || totpCode.length !== 6}
+            className="mt-6 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {busy ? "Verifying code…" : "Verify & Sign In"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setRequires2fa(false);
+              setTotpCode("");
+              setError("");
+            }}
+            className="mt-3 w-full text-center text-sm text-slate-400 hover:text-white"
+          >
+            ← Back to password login
+          </button>
+        </form>
+      </div>
+    );
   }
 
   return (
@@ -450,17 +528,15 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
                 <p className="font-semibold">⚠️ AUTH_SECRET not configured</p>
                 <p className="mt-2 text-rose-100/80">Your Worker needs this secret to create accounts.</p>
                 <ol className="mt-2 list-decimal pl-4 text-rose-100/80">
-                  <li>Open <a href="https://dash.cloudflare.com" target="_blank" className="underline text-white">Cloudflare Dashboard</a></li>
-                  <li>Go to <strong>Workers &amp; Pages</strong> → click your Worker name</li>
-                  <li>Go to <strong>Settings</strong> → <strong>Variables &amp; Secrets</strong></li>
-                  <li>Click <strong>Add secret</strong> → Type: <code className="bg-black/30 px-1 rounded">AUTH_SECRET</code></li>
-                  <li>Value: open terminal and run <code className="bg-black/30 px-1 rounded">openssl rand -hex 32</code></li>
-                  <li>Paste the output, click <strong>Save</strong></li>
-                  <li><strong>Redeploy</strong> your Worker (or just reload this page after 30s)</li>
+                  <li>In Cloudflare Dashboard → Workers &amp; Pages → Click your Worker</li>
+                  <li>Go to Settings → Variables and Secrets</li>
+                  <li>Click &quot;Add&quot; → Variable name: <code>AUTH_SECRET</code> (check &quot;Encrypt&quot;)</li>
+                  <li>Value: generate with <code>openssl rand -hex 32</code></li>
+                  <li>Save and redeploy</li>
                 </ol>
               </div>
             ) : (
-              error
+              <p>{error}</p>
             )}
           </div>
         )}
@@ -468,7 +544,7 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
         <button disabled={busy || !altchaVerified} className="mt-5 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed">
           {busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}
         </button>
-        <button type="button" onClick={() => { setMode(mode === "register" ? "login" : "register"); setError(""); setAltchaVerified(false); setAltchaPayload(""); }} className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white">
+        <button type="button" onClick={() => { setMode(mode === "register" ? "login" : "register"); setError(""); setAltchaVerified(false); setAltchaPayload(""); setRequires2fa(false); }} className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white">
           {mode === "register" ? "Already have an account? Sign in →" : "New here? Create an account →"}
         </button>
       </form>
@@ -542,7 +618,7 @@ function FormsTab() {
           <StatCard label="Inactive" value={String(forms.filter((f) => !f.isActive).length)} />
         </div>
         <div className="text-[10px] text-slate-500 text-center border-t border-white/5 pt-3">
-          FormForge Engine v2.1 Universal · D1 • Neon • Turso • DuckDB
+          FormForge Engine v1.0.0 Universal · D1 • Neon • Turso • DuckDB
         </div>
       </aside>
 
@@ -1864,38 +1940,96 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
   if (!data) return <p className="py-6 text-center text-sm text-slate-500">Failed to load analytics data.</p>;
 
   // Prepare timeline dates
-  const timelineDates = Array.from(new Set(data.timeline.map((t: any) => t.date))).slice(-10); // last 10 days
-  const maxVal = Math.max(...data.timeline.map((t: any) => t.count), 1);
+  const timelineDates = Array.from(new Set((data.timeline || []).map((t: any) => t.date))).slice(-14);
+  const maxVal = Math.max(
+    ...((data.timeline || []).map((t: any) => (t.total ?? (t.accepted ?? 0) + (t.spam ?? 0) ?? t.count ?? 1))),
+    1
+  );
+
+  const stats = data.stats || {
+    accepted: 0,
+    spam: 0,
+    total: 0,
+    acceptanceRate: 100,
+    spamRate: 0,
+  };
+
+  const hourlyDistribution: number[] = Array.isArray(data.hourlyDistribution) && data.hourlyDistribution.length === 24
+    ? data.hourlyDistribution
+    : new Array(24).fill(0);
+  const maxHourly = Math.max(...hourlyDistribution, 1);
+  const peakHourIndex = hourlyDistribution.indexOf(Math.max(...hourlyDistribution));
+
+  const deviceBreakdown = Array.isArray(data.deviceBreakdown) ? data.deviceBreakdown : [];
+  const browserBreakdown = Array.isArray(data.browserBreakdown) ? data.browserBreakdown : [];
 
   return (
     <div className="space-y-6">
-      {/* Timeline Chart */}
+      {/* 1. Quick Stats Overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-left">
+          <span className="text-[11px] font-medium text-slate-400">Total Ingested</span>
+          <div className="mt-1 text-2xl font-black text-white">{stats.total}</div>
+          <span className="text-[10px] text-slate-500">Lifetime records</span>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-emerald-500/5 p-4 text-left">
+          <span className="text-[11px] font-medium text-emerald-400">Verified Clean</span>
+          <div className="mt-1 text-2xl font-black text-emerald-300">{stats.accepted}</div>
+          <span className="text-[10px] text-emerald-500/80">{stats.acceptanceRate}% acceptance rate</span>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-amber-500/5 p-4 text-left">
+          <span className="text-[11px] font-medium text-amber-400">Spam Blocked</span>
+          <div className="mt-1 text-2xl font-black text-amber-300">{stats.spam}</div>
+          <span className="text-[10px] text-amber-500/80">{stats.spamRate}% filtered</span>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-sky-500/5 p-4 text-left">
+          <span className="text-[11px] font-medium text-sky-400">Peak Hour (UTC)</span>
+          <div className="mt-1 text-2xl font-black text-sky-300">
+            {peakHourIndex.toString().padStart(2, "0")}:00
+          </div>
+          <span className="text-[10px] text-sky-500/80">Highest traffic time</span>
+        </div>
+      </div>
+
+      {/* 2. Timeline Chart */}
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">Submission Timeline (Last 30 Days)</h3>
-        {data.timeline.length === 0 ? (
-          <p className="text-sm text-slate-500 text-center py-6">No data available for timeline.</p>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-slate-300">Daily Ingestion (Last 14 Active Days)</h3>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="flex items-center gap-1 text-cyan-300">
+              <span className="h-2.5 w-2.5 rounded-full bg-cyan-400" /> Accepted
+            </span>
+            <span className="flex items-center gap-1 text-amber-300">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> Filtered Spam
+            </span>
+          </div>
+        </div>
+
+        {timelineDates.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-6">No submission activity recorded yet.</p>
         ) : (
           <div className="overflow-x-auto pb-2">
-            <div className="flex h-48 items-end gap-3 pt-6 min-w-[500px] md:min-w-full">
+            <div className="flex h-44 items-end gap-3 pt-6 min-w-[480px] md:min-w-full">
               {timelineDates.map((date: any) => {
-                const accepted = data.timeline.find((t: any) => t.date === date && t.status === "accepted")?.count ?? 0;
-                const spam = data.timeline.find((t: any) => t.date === date && t.status === "spam")?.count ?? 0;
-                const total = accepted + spam;
+                const item = (data.timeline || []).find((t: any) => t.date === date);
+                const accepted = item ? (item.accepted ?? (item.status === "accepted" ? item.count : 0)) : 0;
+                const spam = item ? (item.spam ?? (item.status === "spam" ? item.count : 0)) : 0;
                 const acceptedHeight = (accepted / maxVal) * 100;
                 const spamHeight = (spam / maxVal) * 100;
 
                 return (
                   <div key={date} className="group relative flex flex-1 flex-col items-center gap-1">
-                    <div className="relative w-full flex flex-col justify-end h-36 bg-white/[0.03] rounded-t-lg overflow-hidden">
+                    <div className="relative w-full flex flex-col justify-end h-32 bg-white/[0.03] rounded-t-lg overflow-hidden">
                       <div style={{ height: `${acceptedHeight}%` }} className="w-full bg-cyan-400" title={`Accepted: ${accepted}`} />
                       <div style={{ height: `${spamHeight}%` }} className="w-full bg-amber-400" title={`Spam: ${spam}`} />
                     </div>
-                    <span className="text-[10px] text-slate-500 mt-1">{date.slice(5)}</span>
+                    <span className="text-[10px] text-slate-500 mt-1">{String(date).slice(5)}</span>
                     {/* Tooltip */}
-                    <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg bg-slate-950 border border-white/10 p-2 text-xs text-white group-hover:block z-10">
-                      <p className="font-semibold">{date}</p>
+                    <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-xl bg-slate-950 border border-white/10 p-2.5 text-xs text-white group-hover:block z-10 shadow-xl min-w-[120px]">
+                      <p className="font-semibold text-slate-300 border-b border-white/10 pb-1 mb-1">{date}</p>
                       <p className="text-cyan-300">Accepted: {accepted}</p>
                       <p className="text-amber-300">Spam: {spam}</p>
+                      <p className="text-slate-400 font-medium pt-1">Total: {accepted + spam}</p>
                     </div>
                   </div>
                 );
@@ -1905,38 +2039,119 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
         )}
       </div>
 
+      {/* 3. 24-Hour Peak Distribution Heatmap */}
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <span>⏱️ 24-Hour Traffic Distribution</span>
+            <span className="text-[11px] text-slate-500 font-normal">(UTC)</span>
+          </h3>
+          <span className="text-xs text-slate-400">Peak: {peakHourIndex.toString().padStart(2, "0")}:00 UTC</span>
+        </div>
+        <div className="grid grid-cols-12 sm:grid-cols-24 gap-1 pt-2">
+          {hourlyDistribution.map((count, hour) => {
+            const pct = Math.round((count / maxHourly) * 100);
+            return (
+              <div key={hour} className="group relative flex flex-col items-center">
+                <div
+                  className={`w-full h-12 rounded-sm transition ${
+                    count === 0
+                      ? "bg-white/[0.03]"
+                      : count === Math.max(...hourlyDistribution)
+                      ? "bg-sky-400"
+                      : pct > 50
+                      ? "bg-sky-500/70"
+                      : "bg-sky-500/30"
+                  }`}
+                />
+                <span className="text-[9px] text-slate-500 mt-1">{hour % 3 === 0 ? `${hour}h` : ""}</span>
+                <div className="pointer-events-none absolute bottom-full mb-1 hidden rounded-lg bg-slate-950 border border-white/15 px-2 py-1 text-[10px] text-white group-hover:block z-20 whitespace-nowrap">
+                  {hour.toString().padStart(2, "0")}:00 UTC &bull; {count} submissions
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4. Categorical Breakdowns: Referrers, Submitters, Devices, Browsers */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Referrers */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-          <h3 className="text-sm font-semibold text-slate-300 mb-3">Top Referrers</h3>
-          {data.referrers.length === 0 ? (
-            <p className="text-xs text-slate-500 py-2">No referrers detected.</p>
-          ) : (
+          <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+            <span>🌐 Top Referrers</span>
+          </h3>
+          {data.referrers && data.referrers.length > 0 ? (
             <div className="space-y-2">
               {data.referrers.map((ref: any, idx: number) => (
                 <div key={idx} className="flex justify-between items-center text-xs">
                   <span className="truncate text-slate-300 max-w-[200px]" title={ref.referer}>{ref.referer}</span>
-                  <span className="rounded-full bg-cyan-400/10 text-cyan-300 px-2 py-0.5">{ref.count}</span>
+                  <span className="rounded-full bg-cyan-400/10 text-cyan-300 px-2 py-0.5 font-mono">{ref.count}</span>
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="text-xs text-slate-500 py-3">No referrers detected yet.</p>
           )}
         </div>
 
         {/* Submitters */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-          <h3 className="text-sm font-semibold text-slate-300 mb-3">Top Submitters</h3>
-          {data.submitters.length === 0 ? (
-            <p className="text-xs text-slate-500 py-2">No submitters detected.</p>
-          ) : (
+          <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+            <span>👤 Top Submitters</span>
+          </h3>
+          {data.submitters && data.submitters.length > 0 ? (
             <div className="space-y-2">
               {data.submitters.map((sub: any, idx: number) => (
                 <div key={idx} className="flex justify-between items-center text-xs">
                   <span className="truncate text-slate-300 max-w-[200px]" title={sub.email}>{sub.email}</span>
-                  <span className="rounded-full bg-cyan-400/10 text-cyan-300 px-2 py-0.5">{sub.count}</span>
+                  <span className="rounded-full bg-cyan-400/10 text-cyan-300 px-2 py-0.5 font-mono">{sub.count}</span>
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="text-xs text-slate-500 py-3">No submitter emails found in submissions.</p>
+          )}
+        </div>
+
+        {/* Devices */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+            <span>📱 Device Breakdown</span>
+          </h3>
+          {deviceBreakdown.length > 0 ? (
+            <div className="space-y-2">
+              {deviceBreakdown.map((dev: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-xs">
+                  <span className="text-slate-300 flex items-center gap-2">
+                    <span>{dev.name === "Mobile" ? "📱" : dev.name === "Tablet" ? "💻" : dev.name === "Bot" ? "🤖" : "🖥️"}</span>
+                    <span>{dev.name}</span>
+                  </span>
+                  <span className="rounded-full bg-purple-400/10 text-purple-300 px-2 py-0.5 font-mono">{dev.count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 py-3">No device data available.</p>
+          )}
+        </div>
+
+        {/* Browsers */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+            <span>🌐 Client Browsers</span>
+          </h3>
+          {browserBreakdown.length > 0 ? (
+            <div className="space-y-2">
+              {browserBreakdown.map((b: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-xs">
+                  <span className="text-slate-300">{b.name}</span>
+                  <span className="rounded-full bg-emerald-400/10 text-emerald-300 px-2 py-0.5 font-mono">{b.count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 py-3">No browser data available.</p>
           )}
         </div>
       </div>
@@ -2307,11 +2522,14 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [honeypot, setHoneypot] = useState(form.honeypotField);
   const [successMsg, setSuccessMsg] = useState(form.successMessage);
   const [redirectUrl, setRedirectUrl] = useState(form.redirectUrl ?? "");
+  const [submissionLimit, setSubmissionLimit] = useState(form.submissionLimit ? String(form.submissionLimit) : "");
   const [webhookUrl, setWebhookUrl] = useState(form.webhookUrl ?? "");
   const [emailTo, setEmailTo] = useState(form.emailTo ?? "");
+  const [emailSubjectTemplate, setEmailSubjectTemplate] = useState(form.emailSubjectTemplate ?? "");
   const [notifyEmail, setNotifyEmail] = useState(form.notifyEmail);
   const [altchaEnabled, setAltchaEnabled] = useState(form.altchaEnabled ?? false);
   const [autoresponderSubject, setAutoresponderSubject] = useState(form.autoresponderSubject ?? "");
+  const [autoresponderReplyTo, setAutoresponderReplyTo] = useState(form.autoresponderReplyTo ?? "");
   const [autoresponderBody, setAutoresponderBody] = useState(form.autoresponderBody ?? "");
   const [spamBlocklist, setSpamBlocklist] = useState(form.spamBlocklist ?? "");
   const [retentionDays, setRetentionDays] = useState(form.retentionDays ?? 0);
@@ -2383,11 +2601,14 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setHoneypot(form.honeypotField);
     setSuccessMsg(form.successMessage);
     setRedirectUrl(form.redirectUrl ?? "");
+    setSubmissionLimit(form.submissionLimit ? String(form.submissionLimit) : "");
     setWebhookUrl(form.webhookUrl ?? "");
     setEmailTo(form.emailTo ?? "");
+    setEmailSubjectTemplate(form.emailSubjectTemplate ?? "");
     setNotifyEmail(form.notifyEmail);
     setAltchaEnabled(form.altchaEnabled ?? false);
     setAutoresponderSubject(form.autoresponderSubject ?? "");
+    setAutoresponderReplyTo(form.autoresponderReplyTo ?? "");
     setAutoresponderBody(form.autoresponderBody ?? "");
     setSpamBlocklist(form.spamBlocklist ?? "");
     setRetentionDays(form.retentionDays ?? 0);
@@ -2425,11 +2646,14 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           honeypotField: honeypot,
           successMessage: successMsg,
           redirectUrl: redirectUrl || null,
+          submissionLimit: submissionLimit ? Number(submissionLimit) : null,
           webhookUrl: webhookUrl || null,
           emailTo: emailTo || null,
+          emailSubjectTemplate: emailSubjectTemplate || null,
           notifyEmail,
           altchaEnabled,
           autoresponderSubject: autoresponderSubject || null,
+          autoresponderReplyTo: autoresponderReplyTo || null,
           autoresponderBody: autoresponderBody || null,
           spamBlocklist: spamBlocklist || null,
           retentionDays: isCustom ? Number(customDays) : Number(retentionDays),
@@ -2477,6 +2701,24 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         <div>
           <label htmlFor="settings-redirect" className="mb-1 block text-xs text-slate-400">Redirect URL after submit (optional)</label>
           <input id="settings-redirect" value={redirectUrl} onChange={(e) => setRedirectUrl(e.target.value)} className="ff-input text-sm" placeholder="https://mysite.com/thanks" />
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor="settings-limit" className="block text-xs text-slate-400">Submission Quota / Cap (Auto-close after N entries)</label>
+            <span className="text-[10px] text-slate-500 font-mono">Current: {form.submissionsCount} received</span>
+          </div>
+          <input
+            id="settings-limit"
+            type="number"
+            min="0"
+            value={submissionLimit}
+            onChange={(e) => setSubmissionLimit(e.target.value)}
+            className="ff-input text-sm"
+            placeholder="e.g. 100 (leave empty for unlimited)"
+          />
+          <p className="text-[10px] text-slate-500 mt-1">
+            Automatically stops accepting new submissions when total count reaches this limit. Ideal for limited event RSVPs, waitlists, or beta signups.
+          </p>
         </div>
         {/* Database Storage & Retention Policy */}
         <div className="border-t border-white/5 pt-4 space-y-3">
@@ -2656,6 +2898,19 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           <label htmlFor="settings-email" className="mb-1 block text-xs text-slate-400">Email notification address (optional)</label>
           <input id="settings-email" type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="ff-input text-sm" placeholder="notify@example.com" />
         </div>
+        <div>
+          <label htmlFor="settings-email-subject" className="mb-1 block text-xs text-slate-400">Custom Notification Subject (Optional)</label>
+          <input
+            id="settings-email-subject"
+            value={emailSubjectTemplate}
+            onChange={(e) => setEmailSubjectTemplate(e.target.value)}
+            className="ff-input text-sm"
+            placeholder="New lead: {name} ({email})"
+          />
+          <p className="text-[10px] text-slate-500 mt-1">
+            Supports template placeholders like &#123;name&#125;, &#123;email&#125; or any custom form field key.
+          </p>
+        </div>
         <label className="flex items-center gap-2 text-xs text-slate-300">
           <input type="checkbox" checked={notifyEmail} onChange={() => setNotifyEmail(!notifyEmail)} className="h-4 w-4 rounded" />
           Enable email alerts (requires RESEND_API_KEY config or SMTP below)
@@ -2740,6 +2995,20 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         <div>
           <label htmlFor="settings-auto-subject" className="mb-1 block text-xs text-slate-400">Email Subject</label>
           <input id="settings-auto-subject" value={autoresponderSubject} onChange={(e) => setAutoresponderSubject(e.target.value)} className="ff-input text-sm" placeholder="Thank you for contacting us!" />
+        </div>
+        <div>
+          <label htmlFor="settings-auto-replyto" className="mb-1 block text-xs text-slate-400">Reply-To Address (Optional)</label>
+          <input
+            id="settings-auto-replyto"
+            type="email"
+            value={autoresponderReplyTo}
+            onChange={(e) => setAutoresponderReplyTo(e.target.value)}
+            className="ff-input text-sm"
+            placeholder="support@yourdomain.com"
+          />
+          <p className="text-[10px] text-slate-500 mt-1">
+            When submitters reply to the confirmation email, responses will be delivered here.
+          </p>
         </div>
         <div>
           <label htmlFor="settings-auto-body" className="mb-1 block text-xs text-slate-400">Email Message (Use {`{field}`} e.g. {`{name}`} to customize body text)</label>
@@ -3724,31 +3993,308 @@ function SecurityArchitectureView({
 /* ─────────────────── Settings Tab ─────────────────── */
 
 function SettingsTab({ user }: { user: User }) {
+  const [totpActive, setTotpActive] = useState(Boolean(user.totpEnabled));
+  const [setupData, setSetupData] = useState<{ secret: string; formattedSecret: string; otpauthUri: string } | null>(null);
+  const [setupCode, setSetupCode] = useState("");
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupError, setSetupError] = useState("");
+  const [setupSuccess, setSetupSuccess] = useState("");
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [showDisableDialog, setShowDisableDialog] = useState(false);
+  const [disablePassword, setDisablePassword] = useState("");
+  const [disableCode, setDisableCode] = useState("");
+  const [disableBusy, setDisableBusy] = useState(false);
+  const [disableError, setDisableError] = useState("");
+
+  const handleStartSetup = async () => {
+    setSetupBusy(true);
+    setSetupError("");
+    setSetupSuccess("");
+    try {
+      const res = await fetch("/api/auth/2fa/setup", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSetupData(data.data);
+      } else {
+        setSetupError(data.message || "Failed to initialize 2FA setup.");
+      }
+    } catch {
+      setSetupError("Network error. Please try again.");
+    } finally {
+      setSetupBusy(false);
+    }
+  };
+
+  const handleVerifySetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (setupCode.length !== 6) return;
+    setSetupBusy(true);
+    setSetupError("");
+    try {
+      const res = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: setupCode }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTotpActive(true);
+        setSetupData(null);
+        setSetupCode("");
+        setSetupSuccess("✓ Two-Factor Authentication is now enabled on your account!");
+        setTimeout(() => setSetupSuccess(""), 5000);
+      } else {
+        setSetupError(data.message || "Invalid code. Please check your authenticator app.");
+      }
+    } catch {
+      setSetupError("Network error. Please try again.");
+    } finally {
+      setSetupBusy(false);
+    }
+  };
+
+  const handleDisable2Fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDisableBusy(true);
+    setDisableError("");
+    try {
+      const res = await fetch("/api/auth/2fa/disable", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: disablePassword, code: disableCode }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTotpActive(false);
+        setShowDisableDialog(false);
+        setDisablePassword("");
+        setDisableCode("");
+      } else {
+        setDisableError(data.message || "Confirmation failed. Please verify your password or 6-digit code.");
+      }
+    } catch {
+      setDisableError("Network error. Please try again.");
+    } finally {
+      setDisableBusy(false);
+    }
+  };
+
   return (
-    <section className="glass-panel rounded-3xl p-5 sm:p-6">
-      <h2 className="text-xl font-bold text-white">Account</h2>
-      <div className="mt-4 space-y-3">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-          <p className="text-sm text-slate-400">Email</p>
-          <p className="font-semibold text-white">{user.email}</p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-          <p className="text-sm text-slate-400">Name</p>
-          <p className="font-semibold text-white">{user.name}</p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-          <p className="text-sm text-slate-400">Role</p>
-          <p className="font-semibold text-white capitalize">{user.role}</p>
+    <section className="glass-panel rounded-3xl p-5 sm:p-6 space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-white">Account Profile</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <p className="text-xs text-slate-400">Email</p>
+            <p className="font-semibold text-white truncate" title={user.email}>{user.email}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <p className="text-xs text-slate-400">Name</p>
+            <p className="font-semibold text-white">{user.name}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <p className="text-xs text-slate-400">Role</p>
+            <p className="font-semibold text-white capitalize">{user.role}</p>
+          </div>
         </div>
       </div>
-      <h2 className="mt-8 text-xl font-bold text-white">Quick links</h2>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <a href="/docs.html" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">📚 Full Documentation</a>
-        <a href="/guide.html" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">📖 Step-by-Step Deploy Guide</a>
-        <a href="https://github.com/SudhirDevOps1/FormForge" target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">💻 GitHub Repository (Sudhir)</a>
-        <a href="/api/health" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">🏥 Health Check API</a>
-        <a href="https://github.com/SudhirDevOps1" target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10 col-span-1 sm:col-span-2 text-center font-bold">👤 Developer Profile: Sudhir</a>
+
+      {/* 2FA Security Card */}
+      <div className="rounded-3xl border border-cyan-500/20 bg-cyan-950/20 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 items-center justify-center rounded-2xl text-lg border ${
+              totpActive ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+            }`}>
+              🛡️
+            </span>
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                Two-Factor Authentication (2FA)
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                  totpActive ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                }`}>
+                  {totpActive ? "Enforced & Active" : "Disabled"}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                {totpActive
+                  ? "Your account is secured with RFC 6238 Time-Based One-Time Passwords (TOTP)."
+                  : "Add an extra layer of protection using Google Authenticator, Apple Passwords, 1Password, or Authy."}
+              </p>
+            </div>
+          </div>
+
+          {!totpActive && !setupData && (
+            <button
+              type="button"
+              onClick={handleStartSetup}
+              disabled={setupBusy}
+              className="rounded-xl bg-cyan-300 hover:bg-cyan-200 text-slate-950 px-4 py-2.5 text-xs font-bold transition shadow-md shadow-cyan-950/30 disabled:opacity-50"
+            >
+              {setupBusy ? "Initializing…" : "🔐 Enable 2FA"}
+            </button>
+          )}
+
+          {totpActive && (
+            <button
+              type="button"
+              onClick={() => setShowDisableDialog(true)}
+              className="rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 px-3.5 py-2 text-xs font-semibold transition"
+            >
+              Disable 2FA
+            </button>
+          )}
+        </div>
+
+        {setupSuccess && (
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/15 p-4 text-xs font-semibold text-emerald-200">
+            {setupSuccess}
+          </div>
+        )}
+
+        {/* 2FA Setup Flow Panel */}
+        {setupData && (
+          <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-5 space-y-5 animate-slide-up">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h4 className="text-sm font-bold text-white">Set up Two-Factor Authentication</h4>
+              <button
+                type="button"
+                onClick={() => setSetupData(null)}
+                className="text-xs text-slate-400 hover:text-white"
+              >
+                ✕ Cancel
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-slate-300 font-semibold">
+                Step 1: Add this secret key into your authenticator app (Google Authenticator, Apple Passwords, 1Password, Authy):
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3.5 py-2 text-xs font-mono text-cyan-300 tracking-wider select-all">
+                  {setupData.formattedSecret}
+                </code>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(setupData.secret);
+                    setCopiedKey(true);
+                    setTimeout(() => setCopiedKey(false), 2000);
+                  }}
+                  className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white px-3 py-2 text-xs font-medium transition"
+                >
+                  {copiedKey ? "✓ Copied Key" : "📋 Copy Key"}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Or paste this URI: <code className="text-slate-400 select-all">{setupData.otpauthUri}</code>
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifySetup} className="space-y-3 border-t border-white/10 pt-4">
+              <label htmlFor="setup-totp-code" className="block text-xs text-slate-300 font-semibold">
+                Step 2: Enter the 6-digit code shown in your authenticator app to activate:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="setup-totp-code"
+                  type="text"
+                  maxLength={6}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  required
+                  autoFocus
+                  placeholder="000000"
+                  value={setupCode}
+                  onChange={(e) => setSetupCode(e.target.value.replace(/\D/g, ""))}
+                  className="ff-input text-center text-lg font-mono font-bold tracking-[0.2em] max-w-[160px]"
+                />
+                <button
+                  type="submit"
+                  disabled={setupBusy || setupCode.length !== 6}
+                  className="rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 px-5 py-2 text-xs font-bold transition disabled:opacity-50"
+                >
+                  {setupBusy ? "Verifying…" : "✓ Verify & Activate"}
+                </button>
+              </div>
+              {setupError && <p className="text-xs text-rose-300">{setupError}</p>}
+            </form>
+          </div>
+        )}
+
+        {/* Disable 2FA Modal */}
+        {showDisableDialog && (
+          <div className="rounded-2xl border border-rose-500/30 bg-slate-950/90 p-5 space-y-4 animate-slide-up">
+            <h4 className="text-sm font-bold text-rose-300">Disable Two-Factor Authentication</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Disabling 2FA will reduce the security of your FormForge dashboard. To confirm, enter your current password OR a 6-digit code from your authenticator app.
+            </p>
+            <form onSubmit={handleDisable2Fa} className="space-y-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Account Password:</label>
+                <input
+                  type="password"
+                  placeholder="Your account password"
+                  value={disablePassword}
+                  onChange={(e) => setDisablePassword(e.target.value)}
+                  className="ff-input text-xs"
+                />
+              </div>
+              <div className="text-center text-xs text-slate-500">— OR —</div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">6-Digit Authenticator Code:</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  inputMode="numeric"
+                  placeholder="000000"
+                  value={disableCode}
+                  onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ""))}
+                  className="ff-input text-xs font-mono tracking-widest text-center"
+                />
+              </div>
+              {disableError && <p className="text-xs text-rose-300">{disableError}</p>}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={disableBusy || (!disablePassword && disableCode.length !== 6)}
+                  className="rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold px-4 py-2 text-xs transition disabled:opacity-50"
+                >
+                  {disableBusy ? "Disabling…" : "Confirm Disable 2FA"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDisableDialog(false);
+                    setDisableError("");
+                  }}
+                  className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 px-4 py-2 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
+
+      <div>
+        <h2 className="text-xl font-bold text-white">Quick links &amp; Documentation</h2>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <a href="/docs.html" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">📚 Full Documentation</a>
+          <a href="/guide.html" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">📖 Step-by-Step Deploy Guide</a>
+          <a href="https://github.com/SudhirDevOps1/FormForge" target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">💻 GitHub Repository (Sudhir)</a>
+          <a href="/api/health" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10">🏥 Health Check API</a>
+          <a href="https://github.com/SudhirDevOps1" target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-cyan-200 hover:bg-white/10 col-span-1 sm:col-span-2 text-center font-bold">👤 Developer Profile: Sudhir</a>
+        </div>
+      </div>
+
       <div className="mt-8 text-center text-xs text-slate-500 border-t border-white/5 pt-4">
         <p>&copy; 2026 Sudhir Singh. All Rights Reserved.</p>
         <p className="mt-1 text-[10px] text-slate-600">Self-hosted deployments must maintain original author credit and attribution links intact under the MIT License.</p>

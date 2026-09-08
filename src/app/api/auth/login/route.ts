@@ -65,13 +65,39 @@ export async function POST(request: Request) {
       return jsonError("INVALID_CREDENTIALS", "Email or password is incorrect.", 401);
     }
 
+    // Check if Two-Factor Authentication (2FA) is enabled for this account
+    if (user.totpEnabled && user.totpSecret) {
+      const totpCode = readString(body.totpCode ?? body.code);
+      if (!totpCode) {
+        return jsonOk({
+          requires2fa: true,
+          email: user.email,
+          message: "Two-factor authentication code required.",
+        });
+      }
+
+      const { verifyTotpCode } = await import("@/lib/totp");
+      const isValidTotp = await verifyTotpCode(user.totpSecret, totpCode, 1);
+      if (!isValidTotp) {
+        return jsonError("INVALID_2FA_CODE", "Invalid two-factor authentication code. Please check your authenticator app and try again.", 401);
+      }
+    }
+
     const session = await createSession(db, user.id, request);
     if (!session) {
       return jsonError("AUTH_SECRET_MISSING", "Set AUTH_SECRET before creating sessions.", 503);
     }
 
     return jsonOk(
-      { user: { id: user.id, email: user.email, name: user.name, role: user.role } },
+      {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          totpEnabled: Boolean(user.totpEnabled),
+        },
+      },
       { headers: { "Set-Cookie": session.cookie } },
     );
   } catch (error) {

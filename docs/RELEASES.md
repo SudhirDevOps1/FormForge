@@ -19,8 +19,8 @@ Semantic versioning (`MAJOR.MINOR.PATCH`), Keep-a-Changelog discipline:
 3. Commit on `main`, then tag and push:
 
 ```bash
-git tag -a v2.2.0 -m "FormForge v2.2.0"
-git push origin main v2.2.0
+git tag -a v1.0.0 -m "FormForge v1.0.0"
+git push origin main v1.0.0
 ```
 
 ## Tag release workflow (`release.yml`)
@@ -37,7 +37,7 @@ Pushing a `v*` tag automatically:
 
 ```bash
 # Roll back production to a previous release:
-git checkout v2.1.0
+git checkout v1.0.0
 npm ci && npm run typecheck && npm run test:security
 npm run deploy
 ```

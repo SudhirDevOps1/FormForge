@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     openapi: "3.0.3",
     info: {
       title: "FormForge API",
-      version: "1.2.0",
+      version: "1.0.0",
       description: "Privacy-first serverless form backend by Sudhir Singh. Deployed on Cloudflare Workers + D1.",
       contact: {
         name: "Sudhir Singh",
@@ -63,15 +63,77 @@ export async function GET(request: Request) {
                   properties: {
                     email: { type: "string", format: "email" },
                     password: { type: "string" },
+                    totpCode: { type: "string", description: "6-digit TOTP code if 2FA is enabled" },
                   },
                 },
               },
             },
           },
           responses: {
-            "200": { description: "Login successful, session cookie set" },
-            "401": { description: "Invalid credentials" },
+            "200": { description: "Login successful or requires2fa challenge" },
+            "401": { description: "Invalid credentials or TOTP code" },
             "429": { description: "Rate limited" },
+          },
+        },
+      },
+      "/api/auth/2fa/setup": {
+        post: {
+          summary: "Generate TOTP 2FA secret and setup URI",
+          tags: ["Authentication"],
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": { description: "Returns secret, formatted key, and otpauth URI" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+      "/api/auth/2fa/verify": {
+        post: {
+          summary: "Verify TOTP code and enable 2FA",
+          tags: ["Authentication"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["code"],
+                  properties: { code: { type: "string" } },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "2FA activated successfully" },
+            "400": { description: "Invalid or expired 6-digit code" },
+            "401": { description: "Not authenticated" },
+          },
+        },
+      },
+      "/api/auth/2fa/disable": {
+        post: {
+          summary: "Disable 2FA with password or current TOTP code",
+          tags: ["Authentication"],
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    password: { type: "string" },
+                    code: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "2FA disabled successfully" },
+            "400": { description: "Verification failed" },
+            "401": { description: "Not authenticated" },
           },
         },
       },

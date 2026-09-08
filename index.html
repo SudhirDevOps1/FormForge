@@ -38,9 +38,9 @@
     "license": "https://opensource.org/licenses/MIT",
     "url": "https://sudhirdevops1.github.io/FormForge/",
     "downloadUrl": "https://github.com/SudhirDevOps1/FormForge",
-    "dateModified": "2026-07-13",
-    "softwareVersion": "1.2.0",
-    "featureList": "Form submissions, Email verification, Discord webhooks, Slack webhooks, CSV export, JSON export, ALTCHA PoW Anti-Spam, Honeypot trap, SMTP encryption, R2 file uploads, S3 file uploads, OpenAPI docs, Owner-only mode",
+    "dateModified": "2026-09-08",
+    "softwareVersion": "1.0.0",
+    "featureList": "Form submissions, Email verification, Discord webhooks, Slack webhooks, CSV export, JSON export, ALTCHA PoW Anti-Spam, Honeypot trap, SMTP encryption, R2 file uploads, S3 file uploads, OpenAPI docs, In-App Modals, Interactive API Hub, Owner-only mode",
     "author": {
       "@type": "Person",
       "name": "Sudhir Singh",
@@ -1580,7 +1580,7 @@
 
     <!-- HERO -->
     <section class="hero">
-      <span class="badge">Developed by Sudhir Singh</span>
+      <span class="badge">v1.0.0 Universal · Developed by Sudhir Singh</span>
       <h1>Self-Hosted Form Backend by <span>Sudhir Singh</span></h1>
       <p>A privacy-first open-source form backend for static websites, developed by Sudhir Singh. Deploy in seconds on Cloudflare's free tier with unlimited forms, built-in analytics, automated Discord/Slack notifications, autoresponder emails, and much more.</p>
       <div>
@@ -1736,9 +1736,9 @@
             <h3>Full-Stack Review</h3>
             <div class="insight-list">
               <div class="insight-pill">⚡ Runtime: OpenNext on Cloudflare Workers</div>
-              <div class="insight-pill">🗄️ Data: Cloudflare D1 + Drizzle ORM</div>
-              <div class="insight-pill">🔐 Security: HMAC sessions, PBKDF2 hashes, ALTCHA PoW, rate limits</div>
-              <div class="insight-pill">📦 Product: Dashboard, analytics, CSV/JSON/TXT export, API keys</div>
+              <div class="insight-pill">🗄️ Data: Cloudflare D1 + Drizzle ORM (Universal SQL)</div>
+              <div class="insight-pill">🔐 Security: TOTP 2FA (RFC 6238), HMAC sessions, PBKDF2 hashes, ALTCHA PoW</div>
+              <div class="insight-pill">📦 Product: Dashboard, universal analytics &amp; DuckDB, submission quotas, CSV/JSON/TXT export</div>
             </div>
           </div>
         </div>
@@ -1982,6 +1982,18 @@
         </div>
       </div>
       <div class="grid grid-2">
+        <div class="card">
+          <h3>🔐 Native TOTP 2FA (RFC 6238)</h3>
+          <p style="color: var(--text-secondary); font-size: 15px;">Zero-dependency Two-Factor Authentication running natively on Cloudflare Edge via WebCrypto. Compatible with Google Authenticator, Authy, and 1Password with constant-time verification.</p>
+        </div>
+        <div class="card">
+          <h3>🦆 Client-Side DuckDB &amp; Analytics</h3>
+          <p style="color: var(--text-secondary); font-size: 15px;">Execute fast, zero-server-cost SQL queries directly in the browser via DuckDB-Wasm, combined with automated 24-hour UTC traffic heatmaps, device categorization, and client browser breakdown.</p>
+        </div>
+        <div class="card">
+          <h3>🎯 Form Submission Quotas</h3>
+          <p style="color: var(--text-secondary); font-size: 15px;">Set maximum submission caps per form. FormForge automatically closes intake and returns HTTP 429 once the quota is reached — perfect for limited RSVPs, event tickets, and beta registrations.</p>
+        </div>
         <div class="card">
           <h3>🚫 Custom Spam Blocklist</h3>
           <p style="color: var(--text-secondary); font-size: 15px;">Filter incoming payloads against a blacklist of forbidden keywords (e.g., <code class="inline-code">crypto</code>, <code class="inline-code">casino</code>, <code class="inline-code">free money</code>). Any submission containing these words is flagged with +100 spam score and blocked.</p>
@@ -2488,7 +2500,7 @@ npx wrangler secret put AUTH_SECRET
     <!-- FOOTER -->
     <footer>
       <p style="margin-bottom: 10px;">© 2026 FormForge. Proudly maintained and deployed by <a href="https://github.com/SudhirDevOps1" target="_blank">Sudhir</a>.</p>
-      <p style="font-size: 14px;">Running on <strong style="color: var(--accent);">Cloudflare Workers</strong> &amp; <strong style="color: var(--purple);">D1</strong> · <a href="https://github.com/SudhirDevOps1/FormForge" target="_blank">GitHub</a> · <a href="/privacypolicy.html" style="color: var(--accent); text-decoration: underline;">Privacy & Security Policy</a> · MIT License</p>
+      <p style="font-size: 14px;">🔒 Secure AES-GCM Encrypted · <strong style="color: var(--accent);">v1.0.0 Universal</strong> · Running on <strong style="color: var(--accent);">Cloudflare Workers</strong> &amp; <strong style="color: var(--purple);">D1</strong> · <a href="https://github.com/SudhirDevOps1/FormForge" target="_blank">GitHub</a> · <a href="/privacypolicy.html" style="color: var(--accent); text-decoration: underline;">Privacy & Security Policy</a> · MIT License</p>
       <p style="font-size: 10px; color: var(--text-muted); margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">© 2026 Sudhir Singh. All Rights Reserved. Self-hosted deployments must maintain original author credit and attribution links intact.</p>
       <div class="tech-badges" style="justify-content: center; margin-top: 20px;">
         <span class="tech-badge">Next.js 16</span>

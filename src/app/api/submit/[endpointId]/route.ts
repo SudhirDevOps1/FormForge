@@ -390,6 +390,18 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
+  // Quota enforcement: check if form has reached its configured submission limit
+  if (form.submissionLimit && form.submissionLimit > 0 && form.submissionsCount >= form.submissionLimit) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: "LIMIT_REACHED",
+      message: "This form has reached its maximum response submission limit and is no longer accepting new responses.",
+    }), {
+      status: 403,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
   if (origin && !allowedOrigin) {
     return new Response(JSON.stringify({ ok: false, code: "ORIGIN_BLOCKED", message: "Origin is not allowed." }), {
       status: 403,

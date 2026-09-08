@@ -1,4 +1,4 @@
-<h1 align="center">FormForge v2.2 Universal</h1>
+<h1 align="center">FormForge v1.0.0 Universal</h1>
 
 <div align="center">
   A forever-free, open-source, universal form backend & analytics engine for static sites.
@@ -9,7 +9,7 @@
   <br /><br />
   🔓 <em>No paid database required.</em> 📀 <em>Own your data.</em> ⚡️ <em>Zero-card forever free.</em>
   <br /><br />
-  <img src="https://img.shields.io/badge/Version-2.2.0%20Universal-blue?style=for-the-badge" alt="Version 2.2.0" />
+  <img src="https://img.shields.io/badge/Version-1.0.0%20Universal-blue?style=for-the-badge" alt="Version 1.0.0" />
   <img src="https://img.shields.io/badge/Platforms-Cloudflare%20%7C%20Vercel%20%7C%20Netlify-success?style=for-the-badge&logo=cloudflare&color=f38020" alt="Platforms: Cloudflare | Vercel | Netlify" />
   <img src="https://img.shields.io/badge/Databases-D1%20%7C%20Neon%20%7C%20Turso%20%7C%20SQLite-blueviolet?style=for-the-badge" alt="Databases: D1 | Neon | Turso | SQLite" />
   <img src="https://img.shields.io/badge/Security%20Tests-53%2F53%20Passed-brightgreen?style=for-the-badge" alt="Security Tests: 53/53 Passed" />
@@ -17,7 +17,7 @@
 
 <br />
 
-> 🚀 **v2.2 Universal Status:** Fully tested on Cloudflare Workers (`*.workers.dev`), Cloudflare Pages (`*.pages.dev`), Vercel, Netlify, and local development. Key capabilities include:
+> 🚀 **v1.0.0 Universal Status:** Fully tested on Cloudflare Workers (`*.workers.dev`), Cloudflare Pages (`*.pages.dev`), Vercel, Netlify, and local development. Key capabilities include:
 > - **In-Dashboard Interactive API Documentation & Live Sandbox Tester** (direct browser API testing with response time latency counter).
 > - **100% Native In-App Confirmation Modals** (sleek dark glassmorphic dialogs replacing all browser alert popups).
 > - **Submissions Lifecycle & Bulk Management** (per-row selection, floating bulk delete bar, and 1-click spam purging).
