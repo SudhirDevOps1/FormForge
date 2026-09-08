@@ -390,6 +390,17 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
   const [requires2fa, setRequires2fa] = useState(false);
   const [totpCode, setTotpCode] = useState("");
 
+  // Forgot password states
+  const [forgotMode, setForgotMode] = useState<null | "request" | "reset">(null);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [reset2fa, setReset2fa] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState("");
+  const [forgotError, setForgotError] = useState("");
+  const [forgotBusy, setForgotBusy] = useState(false);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -405,7 +416,13 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, password, altcha: altchaPayload, totpCode }),
+        body: JSON.stringify({
+          email,
+          name,
+          password,
+          altcha: requires2fa ? undefined : altchaPayload,
+          totpCode: requires2fa ? totpCode : undefined,
+        }),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -414,6 +431,8 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
       }
       if (data.data?.requires2fa) {
         setRequires2fa(true);
+        setAltchaPayload("");
+        setAltchaVerified(false);
         setError("");
         return;
       }
@@ -423,6 +442,248 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleForgotPasswordRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotError("");
+    setForgotSuccess("");
+
+    if (!altchaVerified) {
+      setForgotError("Please complete human verification below before continuing.");
+      return;
+    }
+
+    setForgotBusy(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail, altcha: altchaPayload }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setForgotError(data.error || data.message || "Failed to send reset code.");
+        return;
+      }
+      setForgotMode("reset");
+      setForgotSuccess("A 6-digit recovery code has been sent to your email (via Google Apps Script or SMTP).");
+      setAltchaPayload("");
+      setAltchaVerified(false);
+    } catch {
+      setForgotError("Network error. Could not request password reset.");
+    } finally {
+      setForgotBusy(false);
+    }
+  }
+
+  async function handleResetPasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotError("");
+
+    if (newPassword.length < 10) {
+      setForgotError("New password must be at least 10 characters long.");
+      return;
+    }
+
+    setForgotBusy(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: forgotEmail,
+          code: resetCode.trim(),
+          newPassword,
+          reset2fa,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setForgotError(data.error || data.message || "Failed to reset password.");
+        return;
+      }
+      setForgotMode(null);
+      setMode("login");
+      setEmail(forgotEmail);
+      setPassword("");
+      setForgotSuccess("Password reset successfully! You can now sign in with your new password.");
+    } catch {
+      setForgotError("Network error. Could not reset password.");
+    } finally {
+      setForgotBusy(false);
+    }
+  }
+
+  if (forgotMode === "request") {
+    return (
+      <div className="grid min-h-screen place-items-center px-4 py-12">
+        <form onSubmit={handleForgotPasswordRequest} className="glass-panel w-full max-w-md rounded-3xl p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <img src="/logo.svg" alt="FormForge Logo" className="h-10 w-10 rounded-xl" />
+            <span className="text-xl font-bold">FormForge</span>
+          </div>
+          <h1 className="text-2xl font-black text-white">Reset Password</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Enter your account email. We will send you a 6-digit recovery code via Google Apps Script (GAS) or SMTP.
+          </p>
+
+          <label htmlFor="forgot-email" className="mt-5 block text-sm text-slate-300">Email Address</label>
+          <input
+            id="forgot-email"
+            required
+            type="email"
+            value={forgotEmail}
+            onChange={(e) => setForgotEmail(e.target.value)}
+            className="ff-input"
+            placeholder="you@example.com"
+          />
+
+          <div className="mt-4">
+            <TurnstileAltcha
+              key="forgot-request"
+              challengeUrl="/api/altcha/challenge?maxnumber=20000"
+              onVerified={(payload) => {
+                setAltchaPayload(payload);
+                setAltchaVerified(true);
+                setForgotError("");
+              }}
+            />
+          </div>
+
+          {forgotError && (
+            <div className="mt-4 rounded-xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
+              <p>{forgotError}</p>
+            </div>
+          )}
+
+          <button
+            disabled={forgotBusy || !altchaVerified || !forgotEmail.includes("@")}
+            className="mt-5 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {forgotBusy ? "Sending recovery code…" : "Send Recovery Code"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setForgotMode(null);
+              setForgotError("");
+              setForgotSuccess("");
+              setAltchaVerified(false);
+              setAltchaPayload("");
+            }}
+            className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white"
+          >
+            ← Back to Sign In
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  if (forgotMode === "reset") {
+    return (
+      <div className="grid min-h-screen place-items-center px-4 py-12">
+        <form onSubmit={handleResetPasswordSubmit} className="glass-panel w-full max-w-md rounded-3xl p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <img src="/logo.svg" alt="FormForge Logo" className="h-10 w-10 rounded-xl" />
+            <span className="text-xl font-bold">FormForge</span>
+          </div>
+          <h1 className="text-2xl font-black text-white">Enter Recovery Code</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Check your inbox for the 6-digit code sent to <strong className="text-slate-200">{forgotEmail}</strong>.
+          </p>
+
+          {forgotSuccess && (
+            <div className="mt-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 text-xs text-emerald-300">
+              <p>{forgotSuccess}</p>
+            </div>
+          )}
+
+          <label htmlFor="reset-code" className="mt-5 block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            6-Digit Reset Code
+          </label>
+          <input
+            id="reset-code"
+            required
+            autoFocus
+            maxLength={6}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={resetCode}
+            onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ""))}
+            className="ff-input text-center text-2xl tracking-[0.3em] font-mono font-bold mt-1"
+            placeholder="000000"
+          />
+
+          <label htmlFor="reset-new-password" className="mt-4 block text-sm text-slate-300">
+            New Password (min 10 chars)
+          </label>
+          <div className="relative">
+            <input
+              id="reset-new-password"
+              required
+              minLength={10}
+              type={showNewPw ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="ff-input pr-12"
+              placeholder="••••••••••"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPw(!showNewPw)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+            >
+              {showNewPw ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+            <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-300">
+              <input
+                type="checkbox"
+                checked={reset2fa}
+                onChange={(e) => setReset2fa(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black text-cyan-400 focus:ring-0 cursor-pointer"
+              />
+              <span>
+                <strong>Disable 2FA on my account</strong> (Check this if you are locked out of your authenticator app)
+              </span>
+            </label>
+          </div>
+
+          {forgotError && (
+            <div className="mt-4 rounded-xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
+              <p>{forgotError}</p>
+            </div>
+          )}
+
+          <button
+            disabled={forgotBusy || resetCode.length !== 6 || newPassword.length < 10}
+            className="mt-5 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {forgotBusy ? "Resetting password…" : "Reset Password & Continue"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setForgotMode(null);
+              setForgotError("");
+              setForgotSuccess("");
+              setResetCode("");
+              setNewPassword("");
+            }}
+            className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white"
+          >
+            ← Back to Sign In
+          </button>
+        </form>
+      </div>
+    );
   }
 
   if (requires2fa) {
@@ -496,6 +757,12 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
         <h1 className="text-2xl font-black text-white">{mode === "register" ? "Create your account" : "Welcome back"}</h1>
         <p className="mt-1 text-sm text-slate-400">Data stays in your own Cloudflare D1 — nobody else can see it.</p>
 
+        {forgotSuccess && (
+          <div className="mt-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 text-xs text-emerald-300">
+            <p>{forgotSuccess}</p>
+          </div>
+        )}
+
         <label htmlFor="auth-email" className="mt-5 block text-sm text-slate-300">Email</label>
         <input id="auth-email" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="ff-input" placeholder="you@example.com" />
 
@@ -506,7 +773,26 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
           </>
         )}
 
-        <label htmlFor="auth-password" className="mt-3 block text-sm text-slate-300">Password (min 10 chars)</label>
+        <div className="mt-3 flex items-center justify-between">
+          <label htmlFor="auth-password" className="block text-sm text-slate-300">Password (min 10 chars)</label>
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={() => {
+                setForgotMode("request");
+                setForgotEmail(email);
+                setError("");
+                setForgotError("");
+                setForgotSuccess("");
+                setAltchaVerified(false);
+                setAltchaPayload("");
+              }}
+              className="text-xs text-cyan-400 hover:underline"
+            >
+              Forgot password?
+            </button>
+          )}
+        </div>
         <div className="relative">
           <input id="auth-password" required minLength={10} type={showPw ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="ff-input pr-12" placeholder="••••••••••" />
           <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white" aria-live="polite">{showPw ? "Hide" : "Show"}</button>
@@ -548,7 +834,7 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
         <button disabled={busy || !altchaVerified} className="mt-5 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed">
           {busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}
         </button>
-        <button type="button" onClick={() => { setMode(mode === "register" ? "login" : "register"); setError(""); setAltchaVerified(false); setAltchaPayload(""); setRequires2fa(false); }} className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white">
+        <button type="button" onClick={() => { setMode(mode === "register" ? "login" : "register"); setError(""); setForgotSuccess(""); setAltchaVerified(false); setAltchaPayload(""); setRequires2fa(false); }} className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white">
           {mode === "register" ? "Already have an account? Sign in →" : "New here? Create an account →"}
         </button>
       </form>
@@ -3763,19 +4049,22 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
 {`function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    var recipient = data.emailTo || data.to || data.recipient;
+    var subject = data.subject || ("New FormForge Notification: " + (data.form ? data.form.name : "Alert"));
+    var body = data.body || (data.code ? ("Your verification code is: " + data.code) : JSON.stringify(data.payload, null, 2));
     
     // 1. Send free email via Gmail (500-1500/day free)
-    if (data.emailTo) {
+    if (recipient) {
       MailApp.sendEmail({
-        to: data.emailTo,
-        subject: "New FormForge Submission: " + (data.form ? data.form.name : "Form"),
-        body: JSON.stringify(data.payload, null, 2)
+        to: recipient,
+        subject: subject,
+        body: body
       });
     }
     
     // 2. Append to Google Sheet (optional)
     var sheet = SpreadsheetApp.getActiveSpreadsheet();
-    if (sheet) {
+    if (sheet && data.payload) {
       var row = [new Date(), data.form ? data.form.name : "", data.submission ? data.submission.id : ""];
       for (var key in data.payload) { row.push(data.payload[key]); }
       sheet.getActiveSheet().appendRow(row);

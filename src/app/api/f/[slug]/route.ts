@@ -49,6 +49,7 @@ export async function GET(request: Request, context: RouteContext) {
         successMessage: form.successMessage,
         redirectUrl: form.redirectUrl,
         altchaEnabled: form.altchaEnabled,
+        otpEnabled: Boolean(form.otpEnabled),
         maxAttachmentSizeMb: form.maxAttachmentSizeMb ?? 10,
         allowedFileExtensions: form.allowedFileExtensions ?? "",
         displayMode: form.displayMode || "classic",

@@ -80,19 +80,22 @@ Google Apps Script gives you **1,500 free emails/day** (Google Workspace) or **5
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    var recipient = data.emailTo || data.to || data.recipient;
+    var subject = data.subject || ("New FormForge Notification: " + (data.form ? data.form.name : "Alert"));
+    var body = data.body || (data.code ? ("Your verification code is: " + data.code) : JSON.stringify(data.payload, null, 2));
     
     // 1. Send free email via your personal Gmail
-    if (data.emailTo) {
+    if (recipient) {
       MailApp.sendEmail({
-        to: data.emailTo,
-        subject: "New FormForge Submission: " + (data.form ? data.form.name : "Form"),
-        body: JSON.stringify(data.payload, null, 2)
+        to: recipient,
+        subject: subject,
+        body: body
       });
     }
     
     // 2. Append row to active Google Sheet (optional)
     var sheet = SpreadsheetApp.getActiveSpreadsheet();
-    if (sheet) {
+    if (sheet && data.payload) {
       var row = [new Date(), data.form ? data.form.name : "", data.submission ? data.submission.id : ""];
       for (var key in data.payload) {
         row.push(data.payload[key]);

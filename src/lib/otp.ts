@@ -1,6 +1,6 @@
 import type { AppDb } from "@/db";
 import { otpCodes } from "@/db/schema";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull } from "drizzle-orm";
 
 async function sha256Hex(str: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -99,3 +99,43 @@ export async function verifyOtp(
 
   return { success: true };
 }
+
+export async function isEmailVerifiedForForm(
+  db: AppDb,
+  formId: string,
+  email: string
+): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+  const records = await db
+    .select()
+    .from(otpCodes)
+    .where(
+      and(
+        eq(otpCodes.formId, formId),
+        eq(otpCodes.email, normalizedEmail),
+        isNotNull(otpCodes.verifiedAt),
+        gte(otpCodes.verifiedAt, fifteenMinutesAgo)
+      )
+    )
+    .limit(1);
+
+  return records.length > 0;
+}
+
+export async function createPasswordResetOtp(
+  db: AppDb,
+  email: string
+): Promise<{ code: string; expiresAt: string }> {
+  return createOtp(db, "__password_reset__", email);
+}
+
+export async function verifyPasswordResetOtp(
+  db: AppDb,
+  email: string,
+  code: string
+): Promise<{ success: boolean; error?: string }> {
+  return verifyOtp(db, "__password_reset__", email, code);
+}
+

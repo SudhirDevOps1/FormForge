@@ -544,16 +544,53 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
+  // 6-Digit Email OTP Verification Enforcement
+  let otpVerified = false;
+  if (form.otpEnabled && email) {
+    const { verifyOtp, isEmailVerifiedForForm } = await import("@/lib/otp");
+    const submittedOtp = payload.otpCode || payload.code || payload._otp;
+    if (submittedOtp && typeof submittedOtp === "string") {
+      const otpRes = await verifyOtp(db, form.id, email, submittedOtp);
+      if (otpRes.success) {
+        otpVerified = true;
+      } else {
+        return new Response(JSON.stringify({
+          ok: false,
+          code: "INVALID_OTP",
+          message: otpRes.error || "The 6-digit verification code is invalid or has expired."
+        }), {
+          status: 400,
+          headers: { ...cors, "Content-Type": "application/json" }
+        });
+      }
+    } else {
+      otpVerified = await isEmailVerifiedForForm(db, form.id, email);
+      if (!otpVerified) {
+        return new Response(JSON.stringify({
+          ok: false,
+          code: "OTP_REQUIRED",
+          message: "Email verification is required. Please verify your email with the 6-digit code before submitting."
+        }), {
+          status: 400,
+          headers: { ...cors, "Content-Type": "application/json" }
+        });
+      }
+    }
+  }
+
   const { score, reasons, serialized } = await calculateSpamScore(form, payload, request, altchaResult);
-  const isPendingVerification = (form.emailVerificationEnabled || form.otpEnabled) && email;
+  const isPendingVerification = (form.emailVerificationEnabled && !otpVerified) && email;
   const status = score >= 80 ? "spam" : isPendingVerification ? "pending" : "accepted";
   
-  // Storage optimization: prune transient/internal fields (honeypot, large verified altcha token) to save D1 space
+  // Storage optimization: prune transient/internal fields (honeypot, large verified altcha token, otp tokens) to save D1 space
   const storagePayload: ParsedSubmission = { ...payload };
   delete storagePayload[form.honeypotField];
   delete storagePayload["altcha"];
   delete storagePayload["altcha-response"];
   delete storagePayload["_ff_pow"];
+  delete storagePayload["otpCode"];
+  delete storagePayload["code"];
+  delete storagePayload["_otp"];
 
   // Smart Intent & Urgency Triage (zero-cost classification)
   const { classifyIntent } = await import("@/lib/intent");
@@ -604,19 +641,9 @@ export async function POST(request: Request, context: RouteContext) {
       } catch {
         await deliverNotifications(db, form, submission as typeof submissions.$inferSelect, appUrl);
       }
-    } else if (status === "pending") {
-      if (form.otpEnabled && email) {
-        try {
-          const { createOtp } = await import("@/lib/otp");
-          const { sendOtpEmail } = await import("@/lib/notifications");
-          const { code } = await createOtp(db, form.id, email);
-          await sendOtpEmail(form, email, code);
-        } catch (otpErr) {
-          console.error("Failed to generate and send OTP:", otpErr);
-        }
-      } else {
-        const { sendVerificationEmail } = await import("@/lib/notifications");
-        const appUrl = new URL(request.url).origin;
+    } else if (status === "pending" && form.emailVerificationEnabled) {
+      const { sendVerificationEmail } = await import("@/lib/notifications");
+      const appUrl = new URL(request.url).origin;
         try {
           const { getCloudflareContext } = await import("@opennextjs/cloudflare");
           const ctx = getCloudflareContext().ctx;
@@ -628,7 +655,6 @@ export async function POST(request: Request, context: RouteContext) {
         } catch {
           await sendVerificationEmail(db, form, submission as typeof submissions.$inferSelect, appUrl);
         }
-      }
     }
 
     const dynamicRedirect = typeof payload._next === "string" ? payload._next :

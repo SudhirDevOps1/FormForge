@@ -46,8 +46,11 @@ export async function POST(request: Request) {
     return jsonError("INVALID_CREDENTIALS", "Invalid request parameters.", 400);
   }
 
+  const totpCode = readString(body.totpCode ?? body.code);
   const altchaPayload = readString(body.altcha);
-  if (altchaPayload) {
+  
+  // Only verify ALTCHA on initial password check, NOT when submitting the 2FA TOTP code!
+  if (altchaPayload && !totpCode) {
     const { verifyAltchaSolution } = await import("@/lib/altcha");
     const { getAuthSecret } = await import("@/lib/auth");
     const hmacKey = getAuthSecret() || "formforge_altcha_secret_fallback_key";
@@ -67,7 +70,6 @@ export async function POST(request: Request) {
 
     // Check if Two-Factor Authentication (2FA) is enabled for this account
     if (user.totpEnabled && user.totpSecret) {
-      const totpCode = readString(body.totpCode ?? body.code);
       if (!totpCode) {
         return jsonOk({
           requires2fa: true,

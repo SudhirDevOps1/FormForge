@@ -12,6 +12,7 @@ interface FormPublicData {
   successMessage: string;
   redirectUrl: string | null;
   altchaEnabled: boolean;
+  otpEnabled?: boolean;
   maxAttachmentSizeMb: number;
   allowedFileExtensions: string;
   displayMode?: string;
@@ -38,6 +39,82 @@ export default function HostedFormPage({
   const [honeypot, setHoneypot] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [altchaPayload, setAltchaPayload] = useState("");
+
+  // OTP Verification states
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+
+  const handleEmailChange = (newEmail: string) => {
+    setEmail(newEmail);
+    if (otpVerified || otpSent || otpCode) {
+      setOtpVerified(false);
+      setOtpSent(false);
+      setOtpCode("");
+      setOtpSuccess(null);
+      setOtpError(null);
+    }
+  };
+
+  async function handleSendOtp() {
+    if (!form || !email.includes("@")) {
+      setOtpError("Please enter a valid email address first.");
+      return;
+    }
+    setOtpSending(true);
+    setOtpError(null);
+    setOtpSuccess(null);
+    try {
+      const res = await fetch(`/api/submit/${form.endpointId}/otp/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setOtpSent(true);
+        setOtpSuccess("6-digit verification code sent to " + email.trim() + "!");
+      } else {
+        setOtpError(data.error || data.message || "Failed to send verification code. Please try again.");
+      }
+    } catch {
+      setOtpError("Network error sending OTP code. Please try again.");
+    } finally {
+      setOtpSending(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (!form || !email.includes("@") || otpCode.trim().length !== 6) {
+      setOtpError("Please enter the complete 6-digit code.");
+      return;
+    }
+    setOtpVerifying(true);
+    setOtpError(null);
+    setOtpSuccess(null);
+    try {
+      const res = await fetch(`/api/submit/${form.endpointId}/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), code: otpCode.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok && data.verified) {
+        setOtpVerified(true);
+        setOtpSuccess("Email verified successfully! ✓");
+      } else {
+        setOtpError(data.error || data.message || "Invalid or expired OTP code.");
+      }
+    } catch {
+      setOtpError("Network error verifying OTP code.");
+    } finally {
+      setOtpVerifying(false);
+    }
+  }
 
   // Conversational multi-step state
   const [step, setStep] = useState(0);
@@ -69,6 +146,11 @@ export default function HostedFormPage({
     e.preventDefault();
     if (!form || submitting) return;
 
+    if (form.otpEnabled && !otpVerified) {
+      setSubmitError("Email verification is required. Please verify your email with the 6-digit code before submitting.");
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
 
@@ -81,6 +163,7 @@ export default function HostedFormPage({
       if (honeypot) formData.append("website", honeypot);
       if (file) formData.append("attachment", file);
       if (altchaPayload) formData.append("altcha", altchaPayload);
+      if (otpCode) formData.append("otpCode", otpCode);
 
       const res = await fetch(`/api/submit/${form.endpointId}`, {
         method: "POST",
@@ -97,7 +180,7 @@ export default function HostedFormPage({
           }, 1500);
         }
       } else {
-        setSubmitError(data?.message || "Submission failed. Please try again.");
+        setSubmitError(data?.message || data?.error || "Submission failed. Please try again.");
       }
     } catch (err: any) {
       setSubmitError(err.message || "Network error. Please try again.");
@@ -248,7 +331,11 @@ export default function HostedFormPage({
                     <label htmlFor="conv-email" className="block text-lg sm:text-xl font-bold text-white mb-1">
                       What is your email address? <span className="text-cyan-400">*</span>
                     </label>
-                    <p className="text-xs text-slate-400">We will use this address to respond to you.</p>
+                    <p className="text-xs text-slate-400">
+                      {form.otpEnabled
+                        ? "Enter your email address and verify with the 6-digit OTP code."
+                        : "We will use this address to respond to you."}
+                    </p>
                   </div>
                   <input
                     id="conv-email"
@@ -256,9 +343,9 @@ export default function HostedFormPage({
                     required
                     autoFocus
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleEmailChange(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && email.includes("@")) {
+                      if (e.key === "Enter" && email.includes("@") && (!form.otpEnabled || otpVerified)) {
                         e.preventDefault();
                         setStep(2);
                       }
@@ -266,6 +353,91 @@ export default function HostedFormPage({
                     placeholder="alex@example.com"
                     className="w-full rounded-2xl border border-white/15 bg-black/40 px-4 py-3.5 text-base text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition"
                   />
+
+                  {/* If OTP is enabled on this form */}
+                  {form.otpEnabled && (
+                    <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
+                          <span>🔒</span> 6-Digit Email Verification Required
+                        </span>
+                        {otpVerified && (
+                          <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                            ✓ Verified
+                          </span>
+                        )}
+                      </div>
+
+                      {otpVerified ? (
+                        <p className="text-xs text-emerald-400 font-medium">
+                          ✓ Email successfully verified! You can proceed to the next step.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-[11px] text-slate-400">
+                            We will send a 6-digit one-time passcode to <strong className="text-white">{email || "your email"}</strong>.
+                          </p>
+                          <div className="flex gap-2">
+                            {!otpSent ? (
+                              <button
+                                type="button"
+                                disabled={otpSending || !email.includes("@")}
+                                onClick={handleSendOtp}
+                                className="rounded-xl bg-cyan-500/20 border border-cyan-500/40 px-3.5 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 transition disabled:opacity-50"
+                              >
+                                {otpSending ? "Sending OTP…" : "Send Verification Code"}
+                              </button>
+                            ) : (
+                              <div className="w-full space-y-2">
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    maxLength={6}
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    placeholder="Enter 6-digit OTP"
+                                    value={otpCode}
+                                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                                    className="w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-sm text-center font-mono tracking-widest text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none"
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={otpVerifying || otpCode.length !== 6}
+                                    onClick={handleVerifyOtp}
+                                    className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition disabled:opacity-50 shrink-0"
+                                  >
+                                    {otpVerifying ? "Checking…" : "Verify"}
+                                  </button>
+                                </div>
+                                <div className="flex justify-between items-center text-[11px]">
+                                  <span className="text-slate-400">Didn&apos;t get the code?</span>
+                                  <button
+                                    type="button"
+                                    disabled={otpSending}
+                                    onClick={handleSendOtp}
+                                    className="text-cyan-400 hover:underline"
+                                  >
+                                    {otpSending ? "Resending…" : "Resend Code"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {otpError && (
+                        <div className="rounded-lg bg-rose-500/15 border border-rose-500/30 p-2 text-xs text-rose-300">
+                          {otpError}
+                        </div>
+                      )}
+                      {otpSuccess && !otpVerified && (
+                        <div className="rounded-lg bg-emerald-500/15 border border-emerald-500/30 p-2 text-xs text-emerald-300">
+                          {otpSuccess}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -422,24 +594,24 @@ export default function HostedFormPage({
                     type="button"
                     onClick={() => {
                       if (step === 0 && !name.trim()) return;
-                      if (step === 1 && !email.includes("@")) return;
+                      if (step === 1 && (!email.includes("@") || (form.otpEnabled && !otpVerified))) return;
                       if (step === 3 && !message.trim()) return;
                       setStep((s) => s + 1);
                     }}
                     disabled={
                       (step === 0 && !name.trim()) ||
-                      (step === 1 && !email.includes("@")) ||
+                      (step === 1 && (!email.includes("@") || (form.otpEnabled && !otpVerified))) ||
                       (step === 3 && !message.trim())
                     }
                     className="rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-cyan-500/20 hover:from-cyan-400 hover:to-sky-400 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
-                    <span>Continue</span>
+                    <span>{step === 1 && form.otpEnabled && !otpVerified ? "Verify OTP to Continue" : "Continue"}</span>
                     <span>→</span>
                   </button>
                 ) : (
                   <button
                     type="submit"
-                    disabled={submitting || !name.trim() || !email.includes("@") || !message.trim()}
+                    disabled={submitting || !name.trim() || !email.includes("@") || !message.trim() || (form.otpEnabled && !otpVerified)}
                     className="rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-sky-400 active:scale-[0.99] transition disabled:opacity-60 flex items-center gap-2"
                   >
                     {submitting ? (
@@ -496,12 +668,97 @@ export default function HostedFormPage({
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleEmailChange(e.target.value)}
                     placeholder="alex@example.com"
                     className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition"
                   />
                 </div>
               </div>
+
+              {/* Form Submitter Email OTP Verification Card */}
+              {form.otpEnabled && (
+                <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
+                      <span>🔒</span> 6-Digit Email Verification Required
+                    </span>
+                    {otpVerified && (
+                      <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                        ✓ Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {otpVerified ? (
+                    <p className="text-xs text-emerald-400 font-medium">
+                      ✓ Email successfully verified ({email})! You can now submit this form.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-slate-400">
+                        To prevent spam and verify authenticity, please verify <strong className="text-white">{email || "your email address"}</strong> with a 6-digit passcode.
+                      </p>
+                      <div className="flex gap-2">
+                        {!otpSent ? (
+                          <button
+                            type="button"
+                            disabled={otpSending || !email.includes("@")}
+                            onClick={handleSendOtp}
+                            className="rounded-xl bg-cyan-500/20 border border-cyan-500/40 px-3.5 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 transition disabled:opacity-50"
+                          >
+                            {otpSending ? "Sending OTP…" : "Send Verification Code"}
+                          </button>
+                        ) : (
+                          <div className="w-full space-y-2">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                maxLength={6}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder="Enter 6-digit OTP"
+                                value={otpCode}
+                                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                                className="w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-sm text-center font-mono tracking-widest text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                disabled={otpVerifying || otpCode.length !== 6}
+                                onClick={handleVerifyOtp}
+                                className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition disabled:opacity-50 shrink-0"
+                              >
+                                {otpVerifying ? "Checking…" : "Verify"}
+                              </button>
+                            </div>
+                            <div className="flex justify-between items-center text-[11px]">
+                              <span className="text-slate-400">Didn&apos;t get the code?</span>
+                              <button
+                                type="button"
+                                disabled={otpSending}
+                                onClick={handleSendOtp}
+                                className="text-cyan-400 hover:underline"
+                              >
+                                {otpSending ? "Resending…" : "Resend Code"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {otpError && (
+                    <div className="rounded-lg bg-rose-500/15 border border-rose-500/30 p-2 text-xs text-rose-300">
+                      {otpError}
+                    </div>
+                  )}
+                  {otpSuccess && !otpVerified && (
+                    <div className="rounded-lg bg-emerald-500/15 border border-emerald-500/30 p-2 text-xs text-emerald-300">
+                      {otpSuccess}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Subject */}
               <div>
@@ -591,7 +848,7 @@ export default function HostedFormPage({
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || (form.otpEnabled && !otpVerified)}
                 className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 py-3.5 px-6 font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-sky-400 active:scale-[0.99] transition disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submitting ? (

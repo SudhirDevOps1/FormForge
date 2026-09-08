@@ -691,11 +691,14 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           event: "send_email",
+          emailTo: toEmail,
           to: toEmail,
+          recipient: toEmail,
           subject,
           text,
           html,
           code,
+          payload: { verification_code: code },
         }),
       });
       if (response.ok) return true;
@@ -960,5 +963,162 @@ export async function dispatchWebhook(
 
     return { success: false, latencyMs, error: errMsg };
   }
+}
+
+export async function sendPasswordResetEmail(toEmail: string, code: string): Promise<boolean> {
+  const env = getRuntimeEnv();
+  const subject = `🔐 FormForge Password Reset Code: ${code}`;
+  const text = `Your 6-digit FormForge password reset code is:\n\n${code}\n\nThis code will expire in 15 minutes. If you did not request a password reset, you can safely ignore this email.`;
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #030712; padding: 40px 10px; text-align: center;">
+  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden;">
+    <tr>
+      <td style="padding: 32px 24px; text-align: center;">
+        <h2 style="font-size: 22px; font-weight: 800; color: #ffffff; margin: 0 0 12px;">Admin Password Reset</h2>
+        <p style="font-size: 14px; color: #94a3b8; margin: 0 0 24px;">Enter this 6-digit code to reset your FormForge owner account password:</p>
+        <div style="background-color: #1e293b; border: 1px dashed #38bdf8; border-radius: 12px; padding: 18px 24px; display: inline-block; margin-bottom: 24px;">
+          <span style="font-family: monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #38bdf8;">${code}</span>
+        </div>
+        <p style="font-size: 13px; color: #64748b; margin: 0;">Expires in 15 minutes &bull; Do not share this code.</p>
+      </td>
+    </tr>
+  </table>
+</div>
+  `;
+
+  // 1. Google Apps Script Relay (Zero-card Free)
+  const gasUrl = env.GAS_URL || env.GAS_WEBHOOK_URL;
+  if (gasUrl) {
+    try {
+      const response = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "password_reset",
+          emailTo: toEmail,
+          to: toEmail,
+          recipient: toEmail,
+          subject,
+          text,
+          html,
+          code,
+          payload: { reset_code: code, expires_in: "15 minutes" },
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("GAS password reset relay failed, trying other providers:", e);
+    }
+  }
+
+  // 2. Global SMTP
+  const smtpEnabled = env.SMTP_ENABLED === "true" || env.SMTP_ENABLED === "1";
+  const smtpHost = env.SMTP_HOST;
+  const smtpPort = env.SMTP_PORT ? Number(env.SMTP_PORT) : 587;
+  const smtpUser = env.SMTP_USER;
+  const smtpPass = env.SMTP_PASS;
+  const smtpFrom = env.SMTP_FROM || smtpUser;
+
+  if (smtpEnabled && smtpHost && smtpUser && smtpPass && smtpFrom) {
+    try {
+      const res = await sendSmtpEmail(smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, toEmail, subject, text, html);
+      if (res.success) return true;
+    } catch (e) {
+      console.warn("SMTP password reset delivery failed:", e);
+    }
+  }
+
+  // 3. Direct Email APIs
+  if (env.RESEND_API_KEY && env.RESEND_FROM) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM,
+          to: toEmail,
+          subject,
+          text,
+          html,
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Resend password reset failed:", e);
+    }
+  }
+
+  if (env.BREVO_API_KEY && env.BREVO_FROM) {
+    try {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { email: env.BREVO_FROM, name: "FormForge Security" },
+          to: [{ email: toEmail }],
+          subject,
+          textContent: text,
+          htmlContent: html,
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Brevo password reset failed:", e);
+    }
+  }
+
+  if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
+    try {
+      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: toEmail }] }],
+          from: { email: env.SENDGRID_FROM, name: "FormForge Security" },
+          subject,
+          content: [
+            { type: "text/plain", value: text },
+            { type: "text/html", value: html }
+          ],
+        }),
+      });
+      if (response.status === 202) return true;
+    } catch (e) {
+      console.warn("SendGrid password reset failed:", e);
+    }
+  }
+
+  if (env.MAILGUN_API_KEY && env.MAILGUN_DOMAIN && env.MAILGUN_FROM) {
+    try {
+      const formData = new FormData();
+      formData.append("from", env.MAILGUN_FROM);
+      formData.append("to", toEmail);
+      formData.append("subject", subject);
+      formData.append("text", text);
+      formData.append("html", html);
+
+      const response = await fetch(`https://api.mailgun.net/v3/${env.MAILGUN_DOMAIN}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(`api:${env.MAILGUN_API_KEY}`)}`,
+        },
+        body: formData,
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Mailgun password reset failed:", e);
+    }
+  }
+
+  return false;
 }
 
