@@ -48,12 +48,21 @@ export async function POST(request: Request) {
       return jsonError("SSRF_BLOCKED", "Internal network URLs are forbidden.", 403);
     }
 
+    let gasSecret: string | undefined;
+    try {
+      const u = new URL(gasUrl);
+      gasSecret = u.searchParams.get("secret") || u.searchParams.get("token") || undefined;
+    } catch {
+      // ignore
+    }
+
     try {
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         redirect: "follow",
         body: JSON.stringify({
+          ...(gasSecret ? { secret: gasSecret } : {}),
           ...samplePayload,
           emailTo: user.email,
           to: user.email,
@@ -65,12 +74,23 @@ export async function POST(request: Request) {
         }),
       });
 
+      let gasData: any = null;
+      try {
+        gasData = await response.json();
+      } catch {
+        // Not JSON response
+      }
+
+      if (gasData && gasData.success === false) {
+        return jsonError("GAS_REJECTED", `Google Apps Script returned an error: "${gasData.error || 'Failed'}"`, 400);
+      }
+
       const isSuccess = response.ok || response.status === 302 || response.type === "opaqueredirect";
       return jsonOk({
         success: isSuccess,
         status: response.status,
         message: isSuccess
-          ? "✓ Universal Google Apps Script test passed! Connected successfully."
+          ? (gasData?.message ? `✓ GAS: ${gasData.message}` : "✓ Universal Google Apps Script test passed! Connected successfully.")
           : `GAS endpoint returned HTTP ${response.status}`,
       });
     } catch (err) {

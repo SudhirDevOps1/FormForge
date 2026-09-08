@@ -4,6 +4,16 @@ import { notifications, users, webhookLogs, type Form, type Submission } from "@
 import { randomId } from "./crypto";
 import nodemailer from "nodemailer";
 
+function extractGasSecret(gasUrl?: string | null): string | undefined {
+  if (!gasUrl) return undefined;
+  try {
+    const u = new URL(gasUrl);
+    return u.searchParams.get("secret") || u.searchParams.get("token") || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function sendSmtpEmail(
   host: string,
   port: number,
@@ -443,11 +453,13 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   const gasUrl = form.gasUrl || (ownerUser?.notifyOnSubmission !== false ? ownerUser?.globalGasUrl : undefined) || env.GAS_URL;
   if (gasUrl) {
     try {
+      const gasSecret = extractGasSecret(gasUrl);
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         redirect: "follow",
         body: JSON.stringify({
+          ...(gasSecret ? { secret: gasSecret } : {}),
           event: "form_submission",
           form: { id: form.id, name: form.name, slug: form.slug },
           submission: { id: submission.id, email: submission.email, createdAt: submission.createdAt },
@@ -748,11 +760,13 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
   const gasUrl = form.gasUrl || env.GAS_URL;
   if (gasUrl) {
     try {
+      const gasSecret = extractGasSecret(gasUrl);
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         redirect: "follow",
         body: JSON.stringify({
+          ...(gasSecret ? { secret: gasSecret } : {}),
           event: "send_email",
           emailTo: toEmail,
           to: toEmail,
@@ -760,6 +774,7 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
           subject,
           text,
           html,
+          htmlBody: html,
           code,
           payload: { verification_code: code },
         }),
@@ -1062,11 +1077,13 @@ ${magicLink ? `Or click this 1-click Magic Link to reset your password immediate
   const gasUrl = env.GAS_URL || env.GAS_WEBHOOK_URL;
   if (gasUrl) {
     try {
+      const gasSecret = extractGasSecret(gasUrl);
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         redirect: "follow",
         body: JSON.stringify({
+          ...(gasSecret ? { secret: gasSecret } : {}),
           event: "password_reset",
           emailTo: toEmail,
           to: toEmail,
@@ -1074,6 +1091,7 @@ ${magicLink ? `Or click this 1-click Magic Link to reset your password immediate
           subject,
           text,
           html,
+          htmlBody: html,
           code,
           magicLink,
           magic_link: magicLink,
@@ -1225,11 +1243,13 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
   const gasUrl = env.GAS_URL || env.GAS_WEBHOOK_URL;
   if (gasUrl) {
     try {
+      const gasSecret = extractGasSecret(gasUrl);
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         redirect: "follow",
         body: JSON.stringify({
+          ...(gasSecret ? { secret: gasSecret } : {}),
           event: "magic_login",
           emailTo: toEmail,
           to: toEmail,
@@ -1237,6 +1257,7 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
           subject,
           text,
           html,
+          htmlBody: html,
           magicLink,
           magic_link: magicLink,
           login_link: magicLink,
@@ -1386,11 +1407,13 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
   const gasUrl = user.globalGasUrl || env.GAS_URL;
   if (gasUrl) {
     try {
+      const gasSecret = extractGasSecret(gasUrl);
       await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         redirect: "follow",
         body: JSON.stringify({
+          ...(gasSecret ? { secret: gasSecret } : {}),
           event: "admin_login",
           emailTo: user.email,
           to: user.email,
