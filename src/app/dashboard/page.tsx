@@ -782,12 +782,24 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
   const [apiTestLoading, setApiTestLoading] = useState(false);
   const [apiTestResult, setApiTestResult] = useState<{ status: number; ok: boolean; data: any } | null>(null);
-  const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "glass" | "minimal" | "card" | "newsletter" | "feedback">("plain");
+  const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "document" | "glass" | "minimal" | "card" | "newsletter" | "feedback">("plain");
   const [formColor, setFormColor] = useState<"cyan" | "indigo" | "emerald" | "amber" | "rose">("cyan");
   const [widgetPosition, setWidgetPosition] = useState<"bottom-right" | "bottom-left">("bottom-right");
   const [widgetBtnText, setWidgetBtnText] = useState("Feedback");
   const [snippetFields, setSnippetFields] = useState<string[]>(["email", "message"]);
   const [newFieldName, setNewFieldName] = useState("");
+
+  // Automatically adapt snippets to include document/attachment field when attachments are configured in Form Settings
+  useEffect(() => {
+    if (form.allowedFileExtensions && form.allowedFileExtensions.trim().length > 0) {
+      setSnippetFields(prev => {
+        if (!prev.some(f => ["attachment", "file", "document", "upload", "resume"].includes(f))) {
+          return [...prev, "attachment"];
+        }
+        return prev;
+      });
+    }
+  }, [form.allowedFileExtensions]);
 
   const handleToggleSelectAll = () => {
     if (selectedSubIds.length === subs.length) {
@@ -865,8 +877,18 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
     setSnippetFields(snippetFields.filter(f => f !== field));
   };
 
-  const hasAttachment = snippetFields.some(f => ["attachment", "file", "image", "upload"].includes(f));
-  const enctype = hasAttachment ? ' enctype="multipart/form-data"' : "";
+  const hasAttachment = snippetFields.some(f => ["attachment", "file", "image", "upload", "document", "resume"].includes(f));
+  const acceptAttr = form.allowedFileExtensions
+    ? ` accept="${form.allowedFileExtensions
+        .split(",")
+        .map((e: string) => {
+          const s = e.trim().toLowerCase();
+          return s.startsWith(".") ? s : "." + s;
+        })
+        .filter(Boolean)
+        .join(",")}"`
+    : "";
+  const enctype = (hasAttachment || formTemplate === "document") ? ' enctype="multipart/form-data"' : "";
 
   // Color mapping definitions for Tailwind classes
   const colorMap = {
@@ -889,13 +911,54 @@ ${snippetFields.map(f => {
   if (["message", "comments", "description"].includes(f)) {
     return `  <textarea name="${f}" required placeholder="Your ${f}"></textarea>`;
   }
-  if (["attachment", "file", "image", "upload"].includes(f)) {
-    return `  <input name="${f}" type="file" required />`;
+  if (["attachment", "file", "image", "upload", "document", "resume"].includes(f)) {
+    return `  <input name="${f}" type="file"${acceptAttr} required />`;
   }
   return `  <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Your ${f}" />`;
 }).join("\n")}
   <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
   <button type="submit">Send</button>
+</form>`
+    : formTemplate === "document"
+    ? `<!-- FormForge Secure Document & Attachment Upload Form (Tailwind CSS) -->
+<form method="POST" action="${endpoint}" enctype="multipart/form-data" class="max-w-md mx-auto p-6 bg-slate-900 border border-slate-800 rounded-3xl space-y-4 shadow-2xl text-left">
+  <div class="space-y-1">
+    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-${formColor}-500/10 text-${formColor}-400 border border-${formColor}-500/20">
+      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Secure File Upload
+    </div>
+    <h3 class="text-xl font-bold text-white">Upload Documents</h3>
+    <p class="text-xs text-slate-400">Please provide your details along with the required document.</p>
+  </div>
+${snippetFields.filter(f => !["attachment", "file", "document", "upload", "resume"].includes(f)).map(f => {
+  const label = f.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  if (["message", "comments", "description", "notes"].includes(f)) {
+    return `  <div>
+    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
+    <textarea name="${f}" placeholder="Add any notes or context..." rows="3" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition text-sm"></textarea>
+  </div>`;
+  }
+  return `  <div>
+    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
+    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${label.toLowerCase()}" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition text-sm" />
+  </div>`;
+}).join("\n")}
+  <!-- Document / Attachment Dropzone -->
+  <div class="space-y-1.5">
+    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Upload File / Document</label>
+    <div class="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-700 hover:border-${formColor}-500 rounded-2xl bg-slate-950/60 transition group cursor-pointer text-center">
+      <svg class="w-8 h-8 text-slate-400 group-hover:text-${formColor}-400 mb-2 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <input name="attachment" type="file"${acceptAttr} required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+      <span class="text-sm font-medium text-slate-200 group-hover:text-white">Click or drag & drop document here</span>
+      <span class="text-[11px] text-slate-500 mt-1 font-mono">Max size: ${form.maxAttachmentSizeMb || 10}MB ${form.allowedFileExtensions ? `• Allowed: ${form.allowedFileExtensions}` : "• PDF, DOCX, Images"}</span>
+    </div>
+  </div>
+  <!-- Honeypot Bot Trap -->
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+  <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r ${theme.fromTo} text-white font-bold rounded-xl ${theme.hoverFromTo} shadow-lg shadow-${formColor}-500/20 transition-all flex items-center justify-center gap-2">
+    <span>Submit Document</span>
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+  </button>
 </form>`
     : formTemplate === "contact"
     ? `<!-- FormForge Contact Form (Tailwind CSS) -->
@@ -908,10 +971,10 @@ ${snippetFields.map(f => {
     <textarea name="${f}" required placeholder="Type your ${f} here..." rows="4" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition"></textarea>
   </div>`;
   }
-  if (["attachment", "file", "image", "upload"].includes(f)) {
+  if (["attachment", "file", "image", "upload", "document", "resume"].includes(f)) {
     return `  <div>
     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${label}</label>
-    <input name="${f}" type="file" required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white ${theme.fileBg} focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition" />
+    <input name="${f}" type="file"${acceptAttr} required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white ${theme.fileBg} focus:outline-none focus:border-${formColor}-500 focus:ring-1 focus:ring-${formColor}-500 transition" />
   </div>`;
   }
   return `  <div>
@@ -961,8 +1024,8 @@ ${snippetFields.map(f => {
   if (["message", "comments", "description"].includes(f)) {
     return `  <div>\n    <label>${label}</label>\n    <textarea name="${f}" required rows="4" placeholder="Your message..."></textarea>\n  </div>`;
   }
-  if (["attachment", "file", "image", "upload"].includes(f)) {
-    return `  <div>\n    <label>${label}</label>\n    <input name="${f}" type="file" required />\n  </div>`;
+  if (["attachment", "file", "image", "upload", "document", "resume"].includes(f)) {
+    return `  <div>\n    <label>${label}</label>\n    <input name="${f}" type="file"${acceptAttr} required />\n  </div>`;
   }
   return `  <div>\n    <label>${label}</label>\n    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${label.toLowerCase()}" />\n  </div>`;
 }).join("\n")}
@@ -991,8 +1054,8 @@ ${snippetFields.map(f => {
   if (["message", "comments", "description"].includes(f)) {
     return `  <div class="ff-group">\n    <label>${label}</label>\n    <textarea name="${f}" required rows="3" placeholder="Write your message..."></textarea>\n  </div>`;
   }
-  if (["attachment", "file", "image", "upload"].includes(f)) {
-    return `  <div class="ff-group">\n    <label>${label}</label>\n    <input name="${f}" type="file" required />\n  </div>`;
+  if (["attachment", "file", "image", "upload", "document", "resume"].includes(f)) {
+    return `  <div class="ff-group">\n    <label>${label}</label>\n    <input name="${f}" type="file"${acceptAttr} required />\n  </div>`;
   }
   return `  <div class="ff-group">\n    <label>${label}</label>\n    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="${label}" />\n  </div>`;
 }).join("\n")}
@@ -1014,8 +1077,8 @@ ${snippetFields.map(f => {
   if (["message", "comments", "description"].includes(f)) {
     return `    <div>\n      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem;">${label}</label>\n      <textarea name="${f}" required rows="4" placeholder="Your message..." style="width: 100%; padding: 0.65rem 0.85rem; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; color: #fff; font-size: 0.85rem; box-sizing: border-box; outline: none;"></textarea>\n    </div>`;
   }
-  if (["attachment", "file", "image", "upload"].includes(f)) {
-    return `    <div>\n      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem;">${label}</label>\n      <input name="${f}" type="file" required style="width: 100%; padding: 0.65rem 0.85rem; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; color: #fff; font-size: 0.85rem; box-sizing: border-box;" />\n    </div>`;
+  if (["attachment", "file", "image", "upload", "document", "resume"].includes(f)) {
+    return `    <div>\n      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem;">${label}</label>\n      <input name="${f}" type="file"${acceptAttr} required style="width: 100%; padding: 0.65rem 0.85rem; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; color: #fff; font-size: 0.85rem; box-sizing: border-box;" />\n    </div>`;
   }
   return `    <div>\n      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem;">${label}</label>\n      <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${label.toLowerCase()}" style="width: 100%; padding: 0.65rem 0.85rem; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; color: #fff; font-size: 0.85rem; box-sizing: border-box; outline: none;" />\n    </div>`;
 }).join("\n")}
@@ -1065,7 +1128,22 @@ ${snippetFields.map(f => {
   <button type="submit">Submit Feedback</button>
 </form>`;
 
-  const jsSnippet = `fetch("${endpoint}", {
+  const jsSnippet = hasAttachment
+    ? `// Forms with attachments use FormData (browser automatically handles multipart boundary)
+const form = document.querySelector("#myForm");
+const formData = new FormData(form);
+
+// Or append fields manually:
+// const formData = new FormData();
+${snippetFields.map(f => ["attachment", "file", "document", "upload", "resume"].includes(f) ? `// formData.append("${f}", fileInput.files[0]);` : `// formData.append("${f}", "your_${f}_value");`).join("\n")}
+
+fetch("${endpoint}", {
+  method: "POST",
+  body: formData
+})
+  .then(r => r.json())
+  .then(console.log);`
+    : `fetch("${endpoint}", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -1075,7 +1153,7 @@ ${snippetFields.map(f => `    ${f}: "your_${f}_value"`).join(",\n")}
 
   const reactSnippet = `import { useState } from "react";
 
-export default function ContactForm() {
+export default function ${formTemplate === "document" ? "DocumentUploadForm" : "ContactForm"}() {
   const [status, setStatus] = useState("");
 
   const handleSubmit = async (e) => {
@@ -1092,22 +1170,46 @@ export default function ContactForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
 ${snippetFields.map(f => {
-  if (["message", "comments", "description"].includes(f)) {
+  if (["message", "comments", "description", "notes"].includes(f)) {
     return `      <textarea name="${f}" required placeholder="${f}" className="border p-2 rounded w-full bg-slate-900 text-white" />`;
   }
-  if (["attachment", "file", "image", "upload"].includes(f)) {
-    return `      <input type="file" name="${f}" required className="border p-2 rounded w-full bg-slate-900 text-white" />`;
+  if (["attachment", "file", "image", "upload", "document", "resume"].includes(f)) {
+    return `      <div>
+        <label className="block text-xs font-semibold text-slate-400 mb-1">${f.toUpperCase()}</label>
+        <input type="file" name="${f}"${acceptAttr} required className="border p-2 rounded w-full bg-slate-900 text-white" />
+        <span className="text-[10px] text-slate-500 block mt-1">Max: ${form.maxAttachmentSizeMb || 10}MB${form.allowedFileExtensions ? ` • Allowed: ${form.allowedFileExtensions}` : ""}</span>
+      </div>`;
   }
   return `      <input type="${f === "email" ? "email" : "text"}" name="${f}" required placeholder="${f}" className="border p-2 rounded w-full bg-slate-900 text-white" />`;
 }).join("\n")}
-${form.altchaEnabled ? `      {/* ALTCHA Free Anti-Spam Widget */}\n      <altcha-widget challengeurl="${endpoint}"></altcha-widget>\n` : ""}      <button type="submit" className="bg-sky-500 px-4 py-2 text-white font-bold rounded">Send</button>
-      {status === "success" && <p className="text-emerald-400 mt-2">Sent successfully!</p>}
-      {status === "failed" && <p className="text-rose-400 mt-2">Submission failed.</p>}
+      {/* Honeypot Bot Trap */}
+      <input name="${form.honeypotField}" tabIndex={-1} autoComplete="off" style={{ display: "none" }} />
+${form.altchaEnabled ? `      {/* ALTCHA Free Anti-Spam Widget */}\n      <altcha-widget challengeurl="${endpoint}"></altcha-widget>\n` : ""}      <button type="submit" className="bg-sky-500 hover:bg-sky-400 px-4 py-2 text-white font-bold rounded">
+        ${hasAttachment ? "Submit & Upload" : "Send"}
+      </button>
+      {status === "success" && <p className="text-emerald-400 mt-2 font-medium">✓ Sent successfully!</p>}
+      {status === "failed" && <p className="text-rose-400 mt-2 font-medium">✕ Submission failed.</p>}
     </form>
   );
 }`;
 
-  const pythonSnippet = `import requests
+  const pythonSnippet = hasAttachment
+    ? `import requests
+
+url = "${endpoint}"
+
+data = {
+${snippetFields.filter(f => !["attachment", "file", "document", "upload", "resume"].includes(f)).map(f => `    "${f}": "value_here"`).join(",\n")}
+}
+
+# Attach document/file (multipart/form-data)
+files = {
+${snippetFields.filter(f => ["attachment", "file", "document", "upload", "resume"].includes(f)).map(f => `    "${f}": open("sample.pdf", "rb")`).join(",\n")}
+}
+
+response = requests.post(url, data=data, files=files)
+print(response.json())`
+    : `import requests
 
 url = "${endpoint}"
 data = {
@@ -1129,7 +1231,10 @@ print(response.json())`;
   defer
 ></script>`;
 
-  const curlSnippet = `curl -X POST "${endpoint}" \\
+  const curlSnippet = hasAttachment
+    ? `curl -X POST "${endpoint}" \\
+${snippetFields.map(f => ["attachment", "file", "document", "upload", "resume"].includes(f) ? `  -F "${f}=@/path/to/document.pdf"` : `  -F "${f}=test_${f}_value"`).join(" \\\n")}`
+    : `curl -X POST "${endpoint}" \\
   -H "Content-Type: application/json" \\
   -d '{
 ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
@@ -1348,6 +1453,35 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
 
             {connectSubView === "studio" && (
               <>
+                {/* Auto-detected File Attachments Banner */}
+                {form.allowedFileExtensions && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-xs mt-3">
+                    <div className="flex items-center gap-2.5 text-cyan-300">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400">
+                        📁
+                      </span>
+                      <div>
+                        <span className="font-bold text-white block">File Attachments Configured</span>
+                        <span className="text-[11px] text-slate-300">
+                          Max: <strong>{form.maxAttachmentSizeMb || 10}MB</strong> • Allowed: <code className="font-mono text-cyan-300">{form.allowedFileExtensions}</code> • Snippets automatically use <code className="font-mono text-cyan-300">multipart/form-data</code>
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormTemplate("document");
+                        if (!snippetFields.some(f => ["attachment", "file", "document", "upload", "resume"].includes(f))) {
+                          setSnippetFields([...snippetFields, "attachment"]);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 transition shadow-sm text-xs flex items-center gap-1.5"
+                    >
+                      <span>📄 Apply Document Upload Preset</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Dynamic Fields Embed Generator Selector */}
                 <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1366,11 +1500,12 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                 { name: "name", label: "👤 Name" },
                 { name: "email", label: "📧 Email" },
                 { name: "phone", label: "📞 Phone" },
+                { name: "attachment", label: "📎 Attachment/File" },
+                { name: "document", label: "📄 Document" },
                 { name: "message", label: "💬 Message" },
                 { name: "subject", label: "📌 Subject" },
                 { name: "company", label: "🏢 Company" },
                 { name: "website", label: "🌐 Website" },
-                { name: "attachment", label: "📎 Attachment/File" },
                 { name: "rating", label: "⭐ Rating" },
                 { name: "country", label: "🌍 Country" },
                 { name: "terms", label: "☑️ Terms Checkbox" },
@@ -1471,7 +1606,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
 
           {snippetTab === "html" && (
             <div className="flex flex-wrap gap-1 bg-black/25 p-1 rounded-xl w-fit border border-white/5">
-              {(["plain", "contact", "glass", "minimal", "card", "newsletter", "feedback"] as const).map((tpl) => (
+              {(["plain", "contact", "document", "glass", "minimal", "card", "newsletter", "feedback"] as const).map((tpl) => (
                 <button
                   key={tpl}
                   type="button"
@@ -1483,6 +1618,9 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                   )}
                   {tpl === "contact" && (
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  )}
+                  {tpl === "document" && (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                   )}
                   {tpl === "glass" && (
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
@@ -1499,7 +1637,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                   {tpl === "feedback" && (
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                   )}
-                  <span>{tpl === "plain" ? "Plain HTML" : tpl === "contact" ? "Contact Form" : tpl === "glass" ? "Cyber Glass" : tpl === "minimal" ? "Minimal Line" : tpl === "card" ? "SaaS Card" : tpl === "newsletter" ? "Newsletter" : "Feedback"}</span>
+                  <span>{tpl === "plain" ? "Plain HTML" : tpl === "contact" ? "Contact Form" : tpl === "document" ? "Document Upload" : tpl === "glass" ? "Cyber Glass" : tpl === "minimal" ? "Minimal Line" : tpl === "card" ? "SaaS Card" : tpl === "newsletter" ? "Newsletter" : "Feedback"}</span>
                 </button>
               ))}
             </div>
