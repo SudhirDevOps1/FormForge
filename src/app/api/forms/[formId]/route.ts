@@ -66,11 +66,12 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const body = await readJson(request);
   
-  const webhookUrlVal = readString(body.webhookUrl, result.form.webhookUrl ?? "") || null;
+  let webhookUrlVal = readString(body.webhookUrl, result.form.webhookUrl ?? "") || null;
   const redirectUrlVal = readString(body.redirectUrl, result.form.redirectUrl ?? "") || null;
 
   if (webhookUrlVal) {
-    const { isPrivateUrl } = await import("@/lib/url-validation");
+    const { isPrivateUrl, normalizeWebhookUrl } = await import("@/lib/url-validation");
+    webhookUrlVal = normalizeWebhookUrl(webhookUrlVal);
     if (isPrivateUrl(webhookUrlVal)) {
       return jsonError("INVALID_WEBHOOK_URL", "SSRF Block: Private/Internal IP addresses are not allowed for webhooks.", 400);
     }

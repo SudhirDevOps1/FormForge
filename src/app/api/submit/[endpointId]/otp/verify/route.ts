@@ -27,7 +27,7 @@ export async function POST(
 
     const form = formRows[0];
     const body = (await request.json().catch(() => ({}))) as { email?: string; code?: string };
-    const email = body.email?.trim();
+    const email = body.email?.trim()?.toLowerCase();
     const code = body.code?.trim();
 
     if (!email || !code) {

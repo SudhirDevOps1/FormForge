@@ -81,7 +81,7 @@ export async function verifyOtp(
       .update(otpCodes)
       .set({ attempts: records[0].attempts + 1 })
       .where(eq(otpCodes.id, records[0].id));
-    return { success: false, error: "Invalid verification code or link. Please try again." };
+    return { success: false, error: "Incorrect verification code. Please check your latest email or click 'Resend Code'." };
   }
 
   if (new Date(matched.expiresAt).getTime() < Date.now()) {

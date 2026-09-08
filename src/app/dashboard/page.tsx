@@ -3553,24 +3553,31 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         }),
       });
       const data = await res.json();
-      if (data.ok) {
+      const isSuccess = data.ok && data.data && data.data.ok === true && data.data.status >= 200 && data.data.status < 300;
+      if (isSuccess) {
         setTestResults((prev) => ({
           ...prev,
           [target]: {
             ok: true,
-            message: `✓ Delivered (${data.data.status || 200}, ${data.data.elapsedMs}ms)`,
+            message: `✓ Delivered (HTTP ${data.data.status || 200}, ${data.data.elapsedMs}ms)`,
           },
         }));
       } else {
+        const status = data.data?.status;
+        const preview = data.data?.responsePreview ? ` - ${data.data.responsePreview.slice(0, 80)}` : "";
+        const errMsg = data.message || (status ? `HTTP ${status}` : "Delivery failed");
         setTestResults((prev) => ({
           ...prev,
-          [target]: { ok: false, message: `❌ ${data.message || "Failed"}` },
+          [target]: {
+            ok: false,
+            message: `✗ Failed (${errMsg})${preview}`,
+          },
         }));
       }
     } catch (err) {
       setTestResults((prev) => ({
         ...prev,
-        [target]: { ok: false, message: `❌ ${err instanceof Error ? err.message : String(err)}` },
+        [target]: { ok: false, message: `✗ Connection Error: ${err instanceof Error ? err.message : String(err)}` },
       }));
     } finally {
       setTestingTarget(null);
@@ -4033,7 +4040,19 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
               {testingTarget === "webhook" ? "⚡ Testing..." : "⚡ Test Webhook"}
             </button>
           </div>
-          <input id="settings-webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="ff-input text-sm" placeholder="https://hooks.slack.com/... or discord.com/api/webhooks/..." />
+          <input
+            id="settings-webhook"
+            value={webhookUrl}
+            onChange={(e) => {
+              let val = e.target.value;
+              // Auto-fix Stoat & Revolt front domains to API endpoints
+              val = val.replace(/^https?:\/\/(?:www\.)?stoat\.chat\/webhooks\//i, "https://api.stoat.chat/webhooks/");
+              val = val.replace(/^https?:\/\/(?:www\.|app\.)?revolt\.chat\/webhooks\//i, "https://api.revolt.chat/webhooks/");
+              setWebhookUrl(val);
+            }}
+            className="ff-input text-sm"
+            placeholder="https://hooks.slack.com/... or discord.com/api/webhooks/... or api.stoat.chat/webhooks/..."
+          />
           {testResults.webhook && (
             <p className={`text-[11px] mt-1.5 font-medium ${testResults.webhook.ok ? "text-emerald-400" : "text-rose-400"}`}>
               {testResults.webhook.message}

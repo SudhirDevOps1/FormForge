@@ -48,11 +48,12 @@ export async function POST(request: Request) {
   const slug = slugify(readString(body.slug, name));
   const endpoint = endpointId();
 
-  const webhookUrlVal = readString(body.webhookUrl) || null;
+  let webhookUrlVal = readString(body.webhookUrl) || null;
   const redirectUrlVal = readString(body.redirectUrl) || null;
 
   if (webhookUrlVal) {
-    const { isPrivateUrl } = await import("@/lib/url-validation");
+    const { isPrivateUrl, normalizeWebhookUrl } = await import("@/lib/url-validation");
+    webhookUrlVal = normalizeWebhookUrl(webhookUrlVal);
     if (isPrivateUrl(webhookUrlVal)) {
       return jsonError("INVALID_WEBHOOK_URL", "SSRF Block: Private/Internal IP addresses are not allowed for webhooks.", 400);
     }

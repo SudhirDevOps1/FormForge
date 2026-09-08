@@ -777,15 +777,16 @@ export async function dispatchWebhook(
   const startTime = Date.now();
 
   try {
-    const { isPrivateUrl } = await import("./url-validation");
-    if (isPrivateUrl(targetUrl)) {
+    const { isPrivateUrl, normalizeWebhookUrl } = await import("./url-validation");
+    const normalizedUrl = normalizeWebhookUrl(targetUrl);
+    if (isPrivateUrl(normalizedUrl)) {
       const err = "SSRF prevention: Webhook URL resolves to a private or internal IP address.";
       try {
         await db.insert(webhookLogs).values({
           id: deliveryId,
           formId: form.id,
           submissionId: submission.id,
-          url: targetUrl,
+          url: normalizedUrl,
           event,
           statusCode: 400,
           latencyMs: 0,
@@ -801,7 +802,7 @@ export async function dispatchWebhook(
 
     const payload = JSON.parse(submission.payload) as Record<string, unknown>;
     let bodyPayload = JSON.stringify({ form: { id: form.id, name: form.name }, submission });
-    const lowercaseUrl = targetUrl.toLowerCase();
+    const lowercaseUrl = normalizedUrl.toLowerCase();
 
     if (lowercaseUrl.includes("discord.com/api/webhooks") || lowercaseUrl.includes("discordapp.com/api/webhooks")) {
       const fields = Object.entries(payload).map(([k, v]) => ({
@@ -906,7 +907,7 @@ export async function dispatchWebhook(
       webhookHeaders["X-FormForge-Signature"] = `t=${timestamp},v1=${signature}`;
     }
 
-    const response = await fetch(targetUrl, {
+    const response = await fetch(normalizedUrl, {
       method: "POST",
       headers: webhookHeaders,
       body: bodyPayload,
@@ -922,7 +923,7 @@ export async function dispatchWebhook(
         id: deliveryId,
         formId: form.id,
         submissionId: submission.id,
-        url: targetUrl,
+        url: normalizedUrl,
         event,
         statusCode: response.status,
         latencyMs,

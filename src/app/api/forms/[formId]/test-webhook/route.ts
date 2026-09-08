@@ -63,10 +63,13 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     if (target === "webhook") {
-      const targetUrl = customUrl || form.webhookUrl;
-      if (!targetUrl) {
+      const rawUrl = customUrl || form.webhookUrl;
+      if (!rawUrl) {
         return jsonError("MISSING_URL", "No webhook URL configured or provided.", 400);
       }
+
+      const { normalizeWebhookUrl } = await import("@/lib/url-validation");
+      const targetUrl = normalizeWebhookUrl(rawUrl);
 
       let parsed: URL;
       try {
@@ -83,7 +86,56 @@ export async function POST(request: Request, context: RouteContext) {
         return jsonError("SSRF_BLOCKED", "Private or loopback IPs are disallowed.", 400);
       }
 
-      const bodyText = JSON.stringify(testPayload);
+      const lowercaseUrl = targetUrl.toLowerCase();
+      let bodyText = "";
+
+      if (lowercaseUrl.includes("discord.com/api/webhooks") || lowercaseUrl.includes("discordapp.com/api/webhooks")) {
+        bodyText = JSON.stringify({
+          username: "FormForge",
+          embeds: [
+            {
+              title: `⚡ FormForge Live Test: ${form.name}`,
+              description: "Your webhook is connected and working successfully! 🎉",
+              color: 1629853,
+              fields: [
+                { name: "Status", value: "Verified & Connected ✅", inline: true },
+                { name: "Sender", value: user.name || user.email, inline: true },
+                { name: "Engine", value: "Zero-Card Free Tier Active", inline: false },
+              ],
+              timestamp: new Date().toISOString(),
+              footer: { text: "FormForge Notifications" },
+            },
+          ],
+        });
+      } else if (lowercaseUrl.includes("hooks.slack.com")) {
+        bodyText = JSON.stringify({
+          text: `⚡ *FormForge Live Test: ${form.name}*\nConnected Successfully ✅ Real-time notifications are active and verified!`,
+        });
+      } else if (lowercaseUrl.includes("stoat.chat") || lowercaseUrl.includes("revolt.chat")) {
+        bodyText = JSON.stringify({
+          content: `⚡ **FormForge Live Test: ${form.name}**\n\nConnected Successfully ✅ Real-time notifications are active and verified!\n• **Sender**: ${user.name || user.email}\n• **Engine**: Zero-Card Free Tier Active\n• **Timestamp**: ${new Date().toISOString()}`,
+        });
+      } else if (lowercaseUrl.includes("office.com") || lowercaseUrl.includes("webhook.office") || lowercaseUrl.includes("msteams")) {
+        bodyText = JSON.stringify({
+          "@type": "MessageCard",
+          "@context": "http://schema.org/extensions",
+          themeColor: "0076D7",
+          summary: `FormForge Test: ${form.name}`,
+          title: `⚡ FormForge Test: ${form.name}`,
+          text: "Connected Successfully ✅ Real-time notifications are active and verified!",
+        });
+      } else if (lowercaseUrl.includes("mattermost")) {
+        bodyText = JSON.stringify({
+          text: `### ⚡ FormForge Test: ${form.name}\nConnected Successfully ✅ Real-time notifications are active and verified!`,
+        });
+      } else {
+        bodyText = JSON.stringify({
+          content: `⚡ FormForge Live Test: ${form.name} connected successfully! ✅`,
+          text: `⚡ FormForge Live Test: ${form.name} connected successfully! ✅`,
+          ...testPayload,
+        });
+      }
+
       const timestamp = Math.floor(Date.now() / 1000);
       let signature = "";
       try {
