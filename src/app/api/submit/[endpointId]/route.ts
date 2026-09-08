@@ -548,33 +548,38 @@ export async function POST(request: Request, context: RouteContext) {
   let otpVerified = false;
   if (form.otpEnabled && email) {
     const { verifyOtp, isEmailVerifiedForForm } = await import("@/lib/otp");
-    const submittedOtp = payload.otpCode || payload.code || payload._otp;
-    if (submittedOtp && typeof submittedOtp === "string") {
-      const otpRes = await verifyOtp(db, form.id, email, submittedOtp);
-      if (otpRes.success) {
-        otpVerified = true;
-      } else {
-        return new Response(JSON.stringify({
-          ok: false,
-          code: "INVALID_OTP",
-          message: otpRes.error || "The 6-digit verification code is invalid or has expired."
-        }), {
-          status: 400,
-          headers: { ...cors, "Content-Type": "application/json" }
-        });
+    // 1. Check if email was already verified during this session (within 15 min window)
+    otpVerified = await isEmailVerifiedForForm(db, form.id, email);
+
+    // 2. If not already verified, verify the submitted code directly
+    if (!otpVerified) {
+      const submittedOtp = payload.otpCode || payload.code || payload._otp;
+      if (submittedOtp && typeof submittedOtp === "string") {
+        const otpRes = await verifyOtp(db, form.id, email, submittedOtp);
+        if (otpRes.success) {
+          otpVerified = true;
+        } else {
+          return new Response(JSON.stringify({
+            ok: false,
+            code: "INVALID_OTP",
+            message: otpRes.error || "The 6-digit verification code is invalid or has expired."
+          }), {
+            status: 400,
+            headers: { ...cors, "Content-Type": "application/json" }
+          });
+        }
       }
-    } else {
-      otpVerified = await isEmailVerifiedForForm(db, form.id, email);
-      if (!otpVerified) {
-        return new Response(JSON.stringify({
-          ok: false,
-          code: "OTP_REQUIRED",
-          message: "Email verification is required. Please verify your email with the 6-digit code before submitting."
-        }), {
-          status: 400,
-          headers: { ...cors, "Content-Type": "application/json" }
-        });
-      }
+    }
+
+    if (!otpVerified) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: "OTP_REQUIRED",
+        message: "Email verification is required. Please verify your email with the 6-digit code before submitting."
+      }), {
+        status: 400,
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
     }
   }
 

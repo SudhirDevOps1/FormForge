@@ -54,7 +54,29 @@ export async function verifyOtp(
   const trimmed = codeOrToken.trim();
   const nowIso = new Date().toISOString();
 
-  // Find unverified OTP / token records for this form and email
+  const expectedHash = await sha256Hex(`${formId}:${normalizedEmail}:${trimmed}`);
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+  // 1. Check if this exact code was already verified recently (within 15 min window) - idempotent success
+  const alreadyVerified = await db
+    .select()
+    .from(otpCodes)
+    .where(
+      and(
+        eq(otpCodes.formId, formId),
+        eq(otpCodes.email, normalizedEmail),
+        eq(otpCodes.codeHash, expectedHash),
+        isNotNull(otpCodes.verifiedAt),
+        gte(otpCodes.verifiedAt, fifteenMinutesAgo)
+      )
+    )
+    .limit(1);
+
+  if (alreadyVerified.length > 0) {
+    return { success: true };
+  }
+
+  // 2. Find unverified OTP / token records for this form and email
   const records = await db
     .select()
     .from(otpCodes)
@@ -71,8 +93,6 @@ export async function verifyOtp(
   if (!records.length) {
     return { success: false, error: "No active verification code or link found for this email." };
   }
-
-  const expectedHash = await sha256Hex(`${formId}:${normalizedEmail}:${trimmed}`);
   const matched = records.find((r) => r.codeHash === expectedHash);
 
   if (!matched) {

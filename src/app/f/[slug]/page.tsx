@@ -156,10 +156,10 @@ export default function HostedFormPage({
 
     try {
       const formData = new FormData();
-      formData.append("name", name);
-      formData.append("email", email);
-      if (subject) formData.append("subject", subject);
-      formData.append("message", message);
+      formData.append("name", name.trim());
+      formData.append("email", email.trim().toLowerCase());
+      if (subject) formData.append("subject", subject.trim());
+      formData.append("message", message.trim());
       if (honeypot) formData.append("website", honeypot);
       if (file) formData.append("attachment", file);
       if (altchaPayload) formData.append("altcha", altchaPayload);
