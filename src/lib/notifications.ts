@@ -1,5 +1,6 @@
+import { eq } from "drizzle-orm";
 import { getRuntimeEnv, type AppDb } from "@/db";
-import { notifications, webhookLogs, type Form, type Submission } from "@/db/schema";
+import { notifications, users, webhookLogs, type Form, type Submission } from "@/db/schema";
 import { randomId } from "./crypto";
 import nodemailer from "nodemailer";
 
@@ -12,7 +13,8 @@ async function sendSmtpEmail(
   to: string,
   subject: string,
   text: string,
-  html?: string
+  html?: string,
+  replyTo?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const transporter = nodemailer.createTransport({
@@ -32,6 +34,7 @@ async function sendSmtpEmail(
       subject,
       text,
       html,
+      replyTo,
     });
     return { success: !!info.messageId };
   } catch (error) {
@@ -84,7 +87,19 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   const payload = JSON.parse(submission.payload) as Record<string, unknown>;
   const dashboardUrl = appUrl ? `${appUrl}/dashboard` : (env.APP_URL ? `${env.APP_URL}/dashboard` : "/dashboard");
 
-  if (form.notifyEmail && form.emailTo) {
+  let targetEmail = form.emailTo;
+  if (form.notifyEmail && !targetEmail && form.userId) {
+    try {
+      const owner = await db.select({ email: users.email }).from(users).where(eq(users.id, form.userId)).limit(1);
+      if (owner.length > 0 && owner[0].email) {
+        targetEmail = owner[0].email;
+      }
+    } catch {
+      // Ignore error
+    }
+  }
+
+  if (form.notifyEmail && targetEmail) {
     const tableRows = Object.entries(payload)
       .map(([k, v]) => `
         <tr>
@@ -94,7 +109,13 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       `).join("");
 
     const text = `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`;
-    const subject = `📩 New submission for ${form.name}`;
+    let subject = form.emailSubjectTemplate || `📩 New submission for ${form.name}`;
+    subject = subject.replace(/\{form_name\}/g, form.name);
+    subject = subject.replace(/\{name\}/g, (payload.name as string) || (payload.fullName as string) || form.name);
+    subject = subject.replace(/\{email\}/g, (submission.email || (payload.email as string)) || "");
+    Object.entries(payload).forEach(([k, v]) => {
+      subject = subject.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+    });
 
     const html = `
 <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #0B0F19; color: #F1F5F9; padding: 40px 20px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
@@ -150,7 +171,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           smtp.user!,
           decryptedPass,
           smtp.from!,
-          form.emailTo,
+          targetEmail,
           subject,
           text,
           html
@@ -173,7 +194,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           },
           body: JSON.stringify({
             from: env.RESEND_FROM,
-            to: form.emailTo,
+            to: targetEmail,
             subject,
             text,
             html,
@@ -198,7 +219,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           },
           body: JSON.stringify({
             sender: { email: env.BREVO_FROM, name: "FormForge Alert" },
-            to: [{ email: form.emailTo }],
+            to: [{ email: targetEmail }],
             subject,
             textContent: text,
             htmlContent: html,
@@ -221,7 +242,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            personalizations: [{ to: [{ email: form.emailTo }] }],
+            personalizations: [{ to: [{ email: targetEmail }] }],
             from: { email: env.SENDGRID_FROM, name: "FormForge Alert" },
             subject,
             content: [
@@ -242,7 +263,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       try {
         const formData = new FormData();
         formData.append("from", env.MAILGUN_FROM);
-        formData.append("to", form.emailTo ?? "");
+        formData.append("to", targetEmail ?? "");
         formData.append("subject", subject);
         formData.append("text", text);
         formData.append("html", html);
@@ -272,9 +293,16 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   // Autoresponder to Submitter
   if (submission.email && form.autoresponderSubject && form.autoresponderBody) {
     let bodyText = form.autoresponderBody;
+    let autoresponderSub = form.autoresponderSubject;
     Object.entries(payload).forEach(([k, v]) => {
       bodyText = bodyText.replace(new RegExp(`{${k}}`, "g"), String(v));
+      autoresponderSub = autoresponderSub.replace(new RegExp(`{${k}}`, "g"), String(v));
     });
+    autoresponderSub = autoresponderSub.replace(/\{name\}/g, (payload.name as string) || (payload.fullName as string) || "Customer");
+    autoresponderSub = autoresponderSub.replace(/\{form_name\}/g, form.name);
+    autoresponderSub = autoresponderSub.replace(/\{email\}/g, submission.email);
+
+    const autoresponderReplyTo = form.autoresponderReplyTo || targetEmail || undefined;
 
     const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
     if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
@@ -293,8 +321,10 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           decryptedPass,
           smtp.from!,
           submission.email,
-          form.autoresponderSubject,
-          bodyText
+          autoresponderSub,
+          bodyText,
+          undefined,
+          autoresponderReplyTo
         );
       } catch (error) {
         console.error("Autoresponder SMTP delivery failed:", error);
@@ -310,7 +340,8 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           body: JSON.stringify({
             from: env.RESEND_FROM,
             to: submission.email,
-            subject: form.autoresponderSubject,
+            reply_to: autoresponderReplyTo,
+            subject: autoresponderSub,
             text: bodyText,
           }),
         });
@@ -328,7 +359,8 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           body: JSON.stringify({
             sender: { email: env.BREVO_FROM, name: "FormForge" },
             to: [{ email: submission.email }],
-            subject: form.autoresponderSubject,
+            replyTo: autoresponderReplyTo ? { email: autoresponderReplyTo } : undefined,
+            subject: autoresponderSub,
             textContent: bodyText,
           }),
         });
@@ -346,7 +378,8 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           body: JSON.stringify({
             personalizations: [{ to: [{ email: submission.email }] }],
             from: { email: env.SENDGRID_FROM, name: "FormForge" },
-            subject: form.autoresponderSubject,
+            reply_to: autoresponderReplyTo ? { email: autoresponderReplyTo } : undefined,
+            subject: autoresponderSub,
             content: [{ type: "text/plain", value: bodyText }],
           }),
         });
@@ -358,7 +391,10 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
         const formData = new FormData();
         formData.append("from", env.MAILGUN_FROM);
         formData.append("to", submission.email);
-        formData.append("subject", form.autoresponderSubject);
+        if (autoresponderReplyTo) {
+          formData.append("h:Reply-To", autoresponderReplyTo);
+        }
+        formData.append("subject", autoresponderSub);
         formData.append("text", bodyText);
 
         await fetch(`https://api.mailgun.net/v3/${env.MAILGUN_DOMAIN}/messages`, {
@@ -392,16 +428,18 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        redirect: "follow",
         body: JSON.stringify({
           event: "form_submission",
           form: { id: form.id, name: form.name, slug: form.slug },
           submission: { id: submission.id, email: submission.email, createdAt: submission.createdAt },
           payload,
-          emailTo: form.emailTo,
+          emailTo: targetEmail,
         }),
       });
+      const isSuccess = response.ok || response.status === 302 || response.type === "opaqueredirect";
       results.push(
-        response.ok
+        isSuccess
           ? { channel: "gas", status: "sent" }
           : { channel: "gas", status: "failed", error: `GAS response: ${response.status}` }
       );
@@ -689,6 +727,7 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        redirect: "follow",
         body: JSON.stringify({
           event: "send_email",
           emailTo: toEmail,
@@ -701,7 +740,7 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
           payload: { verification_code: code },
         }),
       });
-      if (response.ok) return true;
+      if (response.ok || response.status === 302 || response.type === "opaqueredirect") return true;
     } catch (e) {
       console.warn("GAS OTP relay failed, trying other providers:", e);
     }
@@ -1002,6 +1041,7 @@ ${magicLink ? `Or click this 1-click Magic Link to reset your password immediate
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        redirect: "follow",
         body: JSON.stringify({
           event: "password_reset",
           emailTo: toEmail,
@@ -1017,7 +1057,7 @@ ${magicLink ? `Or click this 1-click Magic Link to reset your password immediate
           payload: { reset_code: code, magic_link: magicLink, expires_in: "15 minutes" },
         }),
       });
-      if (response.ok) return true;
+      if (response.ok || response.status === 302 || response.type === "opaqueredirect") return true;
     } catch (e) {
       console.warn("GAS password reset relay failed, trying other providers:", e);
     }
@@ -1164,6 +1204,7 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        redirect: "follow",
         body: JSON.stringify({
           event: "magic_login",
           emailTo: toEmail,
@@ -1178,7 +1219,7 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
           payload: { magic_link: magicLink, expires_in: "15 minutes" },
         }),
       });
-      if (response.ok) return true;
+      if (response.ok || response.status === 302 || response.type === "opaqueredirect") return true;
     } catch (e) {
       console.warn("GAS magic login relay failed, trying other providers:", e);
     }

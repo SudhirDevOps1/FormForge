@@ -77,11 +77,12 @@ export async function GET(request: Request, context: RouteContext) {
       // Trigger notifications
       const updatedSub = { ...sub, status: "accepted" };
       try {
+        const appUrl = new URL(request.url).origin;
         const ctx = getCloudflareContext().ctx;
         if (ctx && typeof ctx.waitUntil === "function") {
-          ctx.waitUntil(deliverNotifications(db, form, updatedSub));
+          ctx.waitUntil(deliverNotifications(db, form, updatedSub, appUrl));
         } else {
-          await deliverNotifications(db, form, updatedSub);
+          await deliverNotifications(db, form, updatedSub, appUrl);
         }
       } catch (err) {
         console.error("Failed to deliver notifications after verification:", err);

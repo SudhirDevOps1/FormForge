@@ -611,7 +611,7 @@ export default function HostedFormPage({
                 ) : (
                   <button
                     type="submit"
-                    disabled={submitting || !name.trim() || !email.includes("@") || !message.trim() || (form.otpEnabled && !otpVerified)}
+                    disabled={submitting || !name.trim() || !email.includes("@") || !message.trim() || (form.otpEnabled && !otpVerified) || (form.altchaEnabled && !altchaPayload)}
                     className="rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-sky-400 active:scale-[0.99] transition disabled:opacity-60 flex items-center gap-2"
                   >
                     {submitting ? (
@@ -848,7 +848,7 @@ export default function HostedFormPage({
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={submitting || (form.otpEnabled && !otpVerified)}
+                disabled={submitting || (form.otpEnabled && !otpVerified) || (form.altchaEnabled && !altchaPayload)}
                 className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 py-3.5 px-6 font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-sky-400 active:scale-[0.99] transition disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submitting ? (
