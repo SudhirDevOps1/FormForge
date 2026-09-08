@@ -274,7 +274,7 @@ Every form created in FormForge automatically generates an instant, beautiful, a
 https://YOUR-WORKER.workers.dev/f/your-form-slug
 ```
 * **No website required:** Share the URL directly in email signatures, Twitter/LinkedIn bios, Notion documents, or Discord channels.
-* **Full capabilities:** Built-in ALTCHA proof-of-work spam defense, honeypot bot trap, file upload dropzone (with B2/R2 storage integration), and quota auto-close.
+* **Full capabilities:** Built-in ALTCHA proof-of-work spam defense, honeypot bot trap, file upload dropzone (with B2/R2 storage integration), quota auto-close, and **Conversational Step-by-Step Experience Mode**.
 
 ---
 

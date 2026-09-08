@@ -108,6 +108,23 @@ This document tracks FormForge's current features, security posture, and zero-ca
 | 6-Digit Cryptographic OTP | ✅ One-time passcode email verification |
 | OpenAPI/Swagger Docs | ✅ `/api/openapi.json` endpoint |
 
+### ✅ Two-Factor Authentication (RFC 6238 TOTP 2FA) (Complete)
+| Feature | Status | Details |
+|---|---|---|
+| Native WebCrypto TOTP | ✅ Done | Zero external dependencies, RFC 6238 HMAC-SHA1 constant-time verification |
+| 2FA Setup & QR Ready URI | ✅ Done | `POST /api/auth/2fa/setup` with `otpauth://` URI generator for Google Authenticator |
+| 2FA Verification & Enforce | ✅ Done | `POST /api/auth/2fa/verify` activates 2FA; login challenges with `{ requires2fa: true }` |
+| Disable 2FA with Password/Code | ✅ Done | `POST /api/auth/2fa/disable` securely deactivates 2FA |
+
+### ✅ 2026 Modernization Suite (Complete)
+| Feature | Status | Details |
+|---|---|---|
+| Webhook Observability & HMAC Logs | ✅ Done | Dedicated `webhook_logs` table, latency tracking, HMAC-SHA256 headers, 1-click redelivery |
+| Smart Intent & Urgency Triage | ✅ Done | Zero-cost synchronous heuristic classifier (🚨 Urgent, 💼 Sales, 🛠️ Support, 💡 Feedback, 💬 General) |
+| Conversational Multi-Step Form Mode | ✅ Done | Switch between Classic and Step-by-Step (`/f/[slug]`) with progress bar and keyboard navigation |
+| Real-Time Live Feed Ingestion Stream | ✅ Done | 25s background polling stream with glowing live toast alerts and instant table updates |
+| AI Integration Ready (`INTEGRATION_GUIDE.md`)| ✅ Done | One-shot prompt for Cursor, ChatGPT, Claude, Copilot with complete multi-framework recipes |
+
 ---
 
 ## 🔒 Security Score: 100/100 (53/53 Automated Tests Passed)
@@ -123,7 +140,10 @@ This document tracks FormForge's current features, security posture, and zero-ca
 | Free Notifications | ✅ GAS (Gmail+Sheets), Telegram, ntfy | ❌ | ❌ | ❌ (Paid tier) |
 | DuckDB Studio | ✅ In-browser Live SQL | ❌ | ❌ | ❌ |
 | Floating Embed Widget | ✅ Zero-dependency `<3KB` script | ❌ | ❌ | ❌ (Paid add-on) |
-| Webhooks | ✅ Discord, Slack, Teams, Custom HMAC | ❌ | ✅ Custom only | ✅ Paid plans |
+| Webhooks & Logs | ✅ Discord, Slack, Teams, HMAC Logs & Retry | ❌ | ✅ Custom only | ✅ Paid plans |
+| Smart Intent Triage | ✅ Zero-cost heuristic classifier | ❌ | ❌ | ❌ Paid AI tier |
+| Conversational Mode | ✅ Typeform-style step-by-step | ❌ | ❌ | ✅ Paid plans |
+| Live Ingestion Feed | ✅ Real-time stream with toast alerts | ❌ | ❌ | ❌ |
 | Email Providers | ✅ 4 APIs + 10+ SMTP Relays | Resend only | Resend, SendGrid | Limited free tier |
 | ALTCHA PoW (100% Free) | ✅ Built-in | ❌ | ❌ | ❌ |
 | Submission Search & Filter | ✅ Real-time search + status pills | ❌ | ❌ | ✅ Paid plans |
@@ -133,23 +153,3 @@ This document tracks FormForge's current features, security posture, and zero-ca
 | Privacy & Encryption | ✅ Best-in-class AES-GCM + SHA-256 | ❌ | ❌ | ❌ Vendor stored |
 
 > **निष्कर्ष:** FormForge v1.0.0 Universal अब Formspree, FormRoute, और FormZero तीनों से काफ़ी आगे है।
-
----
-
-## 🤖 Future Roadmap AI Prompt
-
-```text
-Please upgrade FormForge (Next.js 15.1.3 on Cloudflare Workers edge, Drizzle ORM, D1) to implement:
-
-1. **Dashboard 2FA/MFA:**
-   - Add 'totp_secret' and 'totp_enabled' columns to 'users' table.
-   - TOTP setup flow with QR Code in Settings tab.
-   - Require 6-digit code on login if MFA enabled.
-
-2. **Zero-Knowledge Submission Encryption:**
-   - Checkbox in form settings: "Enable Zero-Knowledge Encryption".
-   - Encrypt payload with AES-GCM before D1 write.
-   - Dashboard prompts passphrase and decrypts client-side.
-
-Maintain: Next.js 15.1.3 stability, Cloudflare Edge compatibility, D1 self-healing schema, dark glassmorphic UI aesthetics.
-```

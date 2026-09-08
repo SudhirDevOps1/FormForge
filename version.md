@@ -23,5 +23,11 @@ This file tracks the versions, release dates, features added, removed, and bug f
 * **Custom SMTP Server Integration:** Fully supports custom SMTP servers enabling support for 10+ major email engines (Gmail, Yahoo, Outlook, Resend SMTP, Mailjet, Brevo, SMTP2GO, SendGrid, Amazon SES, Mailgun, and Postmark).
 * **Military-Grade AES-GCM Cryptographic Encryption:** Integrated Web Crypto API to automatically encrypt SMTP Passwords and secrets at rest in SQLite D1.
 * **Submission Lifecycle Management:** Endpoints supporting real-time search (`?q=...`), status filtering (`all`, `inbox`, `spam`), bulk deletion, single deletion, and 1-click "Clear All Spam".
-* **Interactive Timeline Analytics & Submissions Export:** Real-time analytics charts and multi-format exports in CSV, structured JSON, raw TXT reports, and PDF print formats.
+* **Multi-Format Submissions Export:** Direct 1-click exports in CSV, structured JSON, raw TXT reports, and PDF print formats.
+* **Modern Kinetic F SVG Brand Assets:** Redesigned `logo.svg` and `favicon.svg` with modern obsidian squircle, cyber shield watermark, and high-contrast kinetic F monogram.
 * **OpenAPI v3 Documentation:** Full interactive API specification published at `/api/openapi.json`.
+* **Webhook Observability & Delivery Logs:** Dedicated `webhook_logs` table tracking latency (ms), HTTP status codes, HMAC-SHA256 headers (`X-FormForge-Signature`), and authenticated 1-click redelivery.
+* **Smart Intent & Urgency Triage:** Zero-cost synchronous heuristic classifier tagging submissions into 🚨 Urgent, 💼 Sales, 🛠️ Support, 💡 Feedback, and 💬 General.
+* **Conversational Multi-Step Form Mode:** Standalone `/f/[slug]` support for interactive step-by-step questions with progress bar and keyboard shortcuts.
+* **Real-Time Live Feed Ingestion Stream:** Background polling stream in the dashboard with glowing alerts and instant table updates.
+* **AI-Ready Integration Architecture:** Comprehensive `INTEGRATION_GUIDE.md` with one-shot prompt for Cursor, ChatGPT, Claude, Copilot, v0, and multi-framework drop-in code.

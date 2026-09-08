@@ -25,6 +25,13 @@ extracts the section matching each `v*` tag to build the GitHub Release notes.
 - **Multi-Format Submissions Export** — Direct 1-click exports in CSV, structured JSON, raw TXT reports, and PDF print formats.
 - **Modern Kinetic F SVG Brand Assets** — Redesigned `logo.svg` and `favicon.svg` with modern obsidian squircle, cyber shield watermark, and high-contrast kinetic F monogram.
 - **OpenAPI v3 Documentation** — Full interactive API specification published at `/api/openapi.json`.
+- **Native RFC 6238 TOTP Two-Factor Authentication (2FA)** — Zero-dependency WebCrypto implementation with QR-ready `otpauth://` URI generator and constant-time HMAC-SHA1 verification.
+- **Backblaze B2 & S3 Object Storage Integration** — 10GB free permanent storage on Backblaze B2 or Cloudflare R2 with binary magic-bytes signature verification to block disguised executables.
+- **Webhook Observability & HMAC Delivery Logs** — Dedicated `webhook_logs` table, latency tracking (ms), HMAC-SHA256 headers (`X-FormForge-Signature`), and authenticated 1-click redelivery.
+- **Smart Intent & Urgency Triage** — Zero-cost synchronous heuristic classifier automatically tagging submissions into 🚨 Urgent, 💼 Sales, 🛠️ Support, 💡 Feedback, and 💬 General.
+- **Conversational Multi-Step Form Mode** — Standalone `/f/[slug]` support for interactive step-by-step questions with progress bar and keyboard shortcuts.
+- **Real-Time Live Feed Ingestion Stream** — 25-second background polling stream in the dashboard with glowing live alerts and instant table updates.
+- **AI-Ready Integration Architecture (`INTEGRATION_GUIDE.md`)** — One-shot prompt and complete recipes for Cursor, ChatGPT, Claude, Copilot, v0 across Next.js, React, Vue, Svelte, Astro, and HTML.
 
 ---
 

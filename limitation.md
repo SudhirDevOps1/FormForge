@@ -137,22 +137,24 @@ The following custom features have been added to the production codebase:
 
 ---
 
-## v1.2.0 New Limitations
+## 5. Storage, File Uploads & Security Specifications
 
-### 📁 File Upload Size Limits
-* **Cloudflare Workers:** Maximum request body size is **100 MB** (Free plan). Files larger than this will be rejected.
-* **R2/S3 Storage:** Limited by the provider's free tier (e.g. R2: 10 GB, Backblaze B2: 10 GB, Storj: 25 GB).
+### 📁 File Upload Size & Validation Limits
+* **Cloudflare Workers / OpenNext:** Maximum request body size is **100 MB** on Cloudflare Workers.
+* **Storage Providers:** Backblaze B2 (10 GB free permanent storage), Cloudflare R2 (10 GB free), AWS S3, Wasabi, Storj, MinIO.
+* **Per-Form Configurable Quotas:** Max attachment size can be customized between 1 MB and 50 MB per form (default 10 MB).
+* **Magic Bytes Defense:** All uploads undergo binary header inspection. Windows PE executables (`MZ`), Linux binaries (`ELF`), shell scripts (`#!`), and Mach-O binaries are blocked regardless of file extension.
+
+### 🔐 Two-Factor Authentication (RFC 6238 TOTP)
+* **Zero External Dependencies:** Native WebCrypto implementation generating standard 20-byte secrets and QR-ready `otpauth://` URIs.
+* **Compatibility:** 100% compatible with Google Authenticator, Microsoft Authenticator, Authy, 1Password, and Bitwarden.
+* **Constant-Time Verification:** Timing-safe HMAC-SHA1 verification across a \$\pm 1\$ 30-second window.
 
 ### 📧 Email Provider Fallback Chain
-* **Priority Order:** Per-form SMTP → Resend API → Brevo API → SendGrid API → Mailgun API → Global SMTP env vars.
-* **Limitation:** Only the first available provider in the chain is used. There is no retry across providers if one fails.
-
-### 🔐 Owner-Only Mode
-* **Constraint:** When `ALLOW_REGISTRATION=false`, the registration API is fully blocked. There is no invitation or invite-code system yet.
-* **Future Roadmap:** TOTP-based 2FA and invite codes are planned for upcoming releases.
+* **Priority Order:** Per-form SMTP (AES-256-GCM encrypted) → Resend API → Brevo API → SendGrid API → Mailgun API → Global SMTP env vars.
 
 ### 📄 OpenAPI Docs
-* **Limitation:** The OpenAPI spec at `/api/openapi.json` is statically defined. It does not auto-discover custom form fields or dynamic endpoints.
+* **Endpoint:** Published at `/api/openapi.json` with interactive endpoint definitions.
 
 ---
 
