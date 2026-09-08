@@ -1400,9 +1400,16 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
   // 2. Universal / Global Webhook (Stoat, Slack, Discord, Custom)
   if (user.globalWebhookUrl) {
     try {
-      const isStoat = user.globalWebhookUrl.includes("stoat.chat");
-      const isDiscord = user.globalWebhookUrl.includes("discord.com");
-      const isSlack = user.globalWebhookUrl.includes("slack.com");
+      const { normalizeWebhookUrl, isPrivateUrl } = await import("./url-validation");
+      const targetUrl = normalizeWebhookUrl(user.globalWebhookUrl);
+      if (isPrivateUrl(targetUrl)) {
+        console.warn("Global webhook blocked by SSRF check:", targetUrl);
+        return;
+      }
+
+      const isStoat = targetUrl.includes("stoat.chat");
+      const isDiscord = targetUrl.includes("discord.com");
+      const isSlack = targetUrl.includes("slack.com");
 
       let bodyPayload: Record<string, unknown>;
       if (isStoat) {
@@ -1427,9 +1434,12 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
         };
       }
 
-      await fetch(user.globalWebhookUrl, {
+      await fetch(targetUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "FormForge/1.0",
+        },
         body: JSON.stringify(bodyPayload),
       });
     } catch (e) {

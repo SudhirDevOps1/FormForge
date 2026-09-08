@@ -83,10 +83,8 @@ export async function POST(request: Request) {
       return jsonError("MISSING_URL", "Provide a Webhook URL to test.", 400);
     }
 
-    // Auto-normalize Stoat Chat URLs
-    if (webhookUrl.includes("stoat.chat/webhooks/")) {
-      webhookUrl = webhookUrl.replace("https://stoat.chat/webhooks/", "https://api.stoat.chat/webhooks/");
-    }
+    const { normalizeWebhookUrl } = await import("@/lib/url-validation");
+    webhookUrl = normalizeWebhookUrl(webhookUrl);
 
     if (isPrivateUrl(webhookUrl)) {
       return jsonError("SSRF_BLOCKED", "Internal network URLs are forbidden.", 403);

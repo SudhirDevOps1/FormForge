@@ -113,11 +113,13 @@ export function isSafeRedirectUrl(urlStr: string): boolean {
 
 export function normalizeWebhookUrl(urlStr: string): string {
   let trimmed = urlStr.trim();
-  // Auto-fix Stoat webhook URLs:
-  // e.g. https://stoat.chat/webhooks/<id>/<token> -> https://api.stoat.chat/webhooks/<id>/<token>
-  trimmed = trimmed.replace(/^https?:\/\/(?:www\.)?stoat\.chat\/webhooks\//i, "https://api.stoat.chat/webhooks/");
+  // Auto-normalize Stoat webhook URLs to the official https://stoat.chat/api/webhooks/
+  if (trimmed.includes("stoat.chat")) {
+    trimmed = trimmed
+      .replace(/^https?:\/\/api\.stoat\.chat\/webhooks\//i, "https://stoat.chat/api/webhooks/")
+      .replace(/^https?:\/\/(?:www\.)?stoat\.chat\/webhooks\//i, "https://stoat.chat/api/webhooks/");
+  }
   // Auto-fix Revolt webhook URLs:
-  // e.g. https://revolt.chat/webhooks/<id>/<token> or app.revolt.chat -> https://api.revolt.chat/webhooks/<id>/<token>
   trimmed = trimmed.replace(/^https?:\/\/(?:www\.|app\.)?revolt\.chat\/webhooks\//i, "https://api.revolt.chat/webhooks/");
   return trimmed;
 }

@@ -292,10 +292,16 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
-          <div id={`tabpanel-${tab}`} role="tabpanel" aria-label={tab}>
-            {tab === "forms" && <FormsTab />}
-            {tab === "keys" && <KeysTab />}
-            {tab === "settings" && <SettingsTab user={user} />}
+          <div>
+            <div id="tabpanel-forms" role="tabpanel" aria-label="forms" className={tab === "forms" ? "block animate-fade-in" : "hidden"}>
+              <FormsTab />
+            </div>
+            <div id="tabpanel-keys" role="tabpanel" aria-label="keys" className={tab === "keys" ? "block animate-fade-in" : "hidden"}>
+              {tab === "keys" && <KeysTab />}
+            </div>
+            <div id="tabpanel-settings" role="tabpanel" aria-label="settings" className={tab === "settings" ? "block animate-fade-in" : "hidden"}>
+              <SettingsTab user={user} />
+            </div>
           </div>
         </main>
       </div>
@@ -1019,27 +1025,32 @@ function FormsTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [loading, setLoading] = useState(true);
   const initialLoad = useRef(true);
 
   const loadForms = useCallback(async () => {
-    const res = await fetch("/api/forms", { credentials: "include" });
-    const data = await res.json();
-    if (data.ok) {
-      setForms(data.data.forms);
-      const formsList = data.data.forms;
-      if (initialLoad.current && formsList.length > 0) {
-        setSelectedId(formsList[0].id);
-        initialLoad.current = false;
-      } else if (formsList.length > 0) {
-        setSelectedId((current) => {
-          if (current && formsList.some((f: Form) => f.id === current)) {
-            return current;
-          }
-          return formsList[0].id;
-        });
-      } else {
-        setSelectedId(null);
+    try {
+      const res = await fetch("/api/forms", { credentials: "include" });
+      const data = await res.json();
+      if (data.ok) {
+        setForms(data.data.forms);
+        const formsList = data.data.forms;
+        if (initialLoad.current && formsList.length > 0) {
+          setSelectedId(formsList[0].id);
+          initialLoad.current = false;
+        } else if (formsList.length > 0) {
+          setSelectedId((current) => {
+            if (current && formsList.some((f: Form) => f.id === current)) {
+              return current;
+            }
+            return formsList[0].id;
+          });
+        } else {
+          setSelectedId(null);
+        }
       }
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -1085,10 +1096,16 @@ function FormsTab() {
       {/* Detail */}
       {selected ? (
         <FormDetail form={selected} onChanged={loadForms} />
+      ) : loading ? (
+        <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 text-slate-400 space-y-3 min-h-[360px]">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400/20 border-t-cyan-400" />
+          <p className="text-xs font-semibold text-slate-300">Loading form details…</p>
+        </div>
       ) : (
-        <div className="glass-panel grid place-items-center rounded-3xl p-16 text-slate-500">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          <p className="mt-3">Select a form or create one</p>
+        <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 text-center min-h-[360px] space-y-2">
+          <svg className="w-12 h-12 text-slate-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          <p className="text-base font-bold text-white">No form selected</p>
+          <p className="text-xs text-slate-400 max-w-sm">Select an existing form from the sidebar or click &quot;+ New&quot; to create your first endpoint.</p>
         </div>
       )}
     </div>
