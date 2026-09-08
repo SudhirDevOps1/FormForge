@@ -43,10 +43,17 @@ export async function GET(request: Request, context: RouteContext) {
       return new Response("File not found in storage", { status: 404 });
     }
 
+    const safePreviewTypes = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
+    const isSafePreview = safePreviewTypes.includes(fileResult.contentType.toLowerCase());
+    const dispositionType = isSafePreview ? "inline" : "attachment";
+
     return new Response(fileResult.data, {
       headers: {
         "Content-Type": fileResult.contentType,
-        "Content-Disposition": `inline; filename="${encodeURIComponent(decodedFilename)}"`,
+        "Content-Disposition": `${dispositionType}; filename="${encodeURIComponent(decodedFilename)}"`,
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "X-Frame-Options": "DENY",
         "Cache-Control": "private, max-age=3600",
       },
     });

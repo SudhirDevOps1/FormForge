@@ -50,7 +50,8 @@ async function parsePayload(request: Request, submissionId: string, form?: any):
       };
 
       if (value.size > 0) {
-        const ext = "." + (value.name.split(".").pop() || "").toLowerCase();
+        const rawExt = (value.name.split(".").pop() || "").toLowerCase();
+        const ext = "." + rawExt;
         const dangerousExts = [".exe", ".bat", ".cmd", ".sh", ".php", ".phtml", ".cgi", ".pl", ".py", ".js", ".vbs", ".scr", ".jar", ".msi"];
         if (dangerousExts.includes(ext)) {
           throw new Error(`Executable file type '${ext}' is blocked for security reasons.`);
@@ -59,9 +60,9 @@ async function parsePayload(request: Request, submissionId: string, form?: any):
         if (form?.allowedFileExtensions) {
           const allowed = form.allowedFileExtensions
             .split(",")
-            .map((e: string) => e.trim().toLowerCase())
+            .map((e: string) => e.trim().toLowerCase().replace(/^\./, ""))
             .filter(Boolean);
-          if (allowed.length > 0 && !allowed.includes(ext)) {
+          if (allowed.length > 0 && !allowed.includes(rawExt)) {
             throw new Error(`File type '${ext}' is not permitted. Allowed: ${form.allowedFileExtensions}`);
           }
         }
@@ -71,11 +72,19 @@ async function parsePayload(request: Request, submissionId: string, form?: any):
           throw new Error(`File '${value.name}' exceeds the maximum allowed size of ${form?.maxAttachmentSizeMb ?? 10}MB.`);
         }
 
+        const fileBuffer = await value.arrayBuffer();
+
+        // Magic Bytes & binary signature verification (anti-spoofing defense)
+        const { validateFileSignature } = await import("@/lib/magic-bytes");
+        const sigResult = validateFileSignature(new Uint8Array(fileBuffer.slice(0, 1024)), rawExt);
+        if (!sigResult.valid) {
+          throw new Error(`Upload rejected: ${sigResult.reason || "File signature verification failed"}`);
+        }
+
         try {
           const { uploadFile, getStorageConfig } = await import("@/lib/storage");
           const storageConfig = getStorageConfig();
           if (storageConfig.type !== "none") {
-            const fileBuffer = await value.arrayBuffer();
             const safeName = value.name.replace(/[^a-zA-Z0-9._-]/g, "_");
             const storageKey = `uploads/${submissionId}/${safeName}`;
             const uploaded = await uploadFile(storageKey, fileBuffer, value.type || "application/octet-stream");
