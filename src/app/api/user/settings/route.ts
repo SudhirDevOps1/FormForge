@@ -35,7 +35,9 @@ export async function GET(request: Request) {
       hasGlobalSmtpPass: Boolean(user.globalSmtpPass),
       globalSmtpFrom: user.globalSmtpFrom || "",
       globalGasUrl: user.globalGasUrl || "",
+      hasGlobalGasSecret: Boolean(user.globalGasSecret),
       globalWebhookUrl: user.globalWebhookUrl || "",
+      hasGlobalWebhookSecret: Boolean(user.globalWebhookSecret),
       notifyOnLogin: user.notifyOnLogin !== false,
       notifyOnSubmission: user.notifyOnSubmission !== false,
     };
@@ -91,7 +93,7 @@ export async function PATCH(request: Request) {
       updateData.globalSmtpPass = await encryptText(body.globalSmtpPass.trim());
     }
 
-    // Handle Universal GAS Webhook URL
+    // Handle Universal GAS Webhook URL & Secret
     if (typeof body.globalGasUrl === "string") {
       const cleanUrl = body.globalGasUrl.trim();
       if (cleanUrl) {
@@ -103,8 +105,13 @@ export async function PATCH(request: Request) {
         updateData.globalGasUrl = null;
       }
     }
+    if (body.clearGlobalGasSecret === true) {
+      updateData.globalGasSecret = null;
+    } else if (typeof body.globalGasSecret === "string" && body.globalGasSecret.trim().length > 0) {
+      updateData.globalGasSecret = await encryptText(body.globalGasSecret.trim());
+    }
 
-    // Handle Universal Outgoing Webhook URL (Stoat, Slack, Discord, custom)
+    // Handle Universal Outgoing Webhook URL (Stoat, Slack, Discord, custom) & Secret
     if (typeof body.globalWebhookUrl === "string") {
       const cleanUrl = body.globalWebhookUrl.trim();
       if (cleanUrl) {
@@ -120,6 +127,11 @@ export async function PATCH(request: Request) {
       } else {
         updateData.globalWebhookUrl = null;
       }
+    }
+    if (body.clearGlobalWebhookSecret === true) {
+      updateData.globalWebhookSecret = null;
+    } else if (typeof body.globalWebhookSecret === "string" && body.globalWebhookSecret.trim().length > 0) {
+      updateData.globalWebhookSecret = await encryptText(body.globalWebhookSecret.trim());
     }
 
     if (typeof body.notifyOnLogin === "boolean") {
@@ -144,7 +156,9 @@ export async function PATCH(request: Request) {
         "ALTER TABLE users ADD COLUMN global_smtp_pass text;",
         "ALTER TABLE users ADD COLUMN global_smtp_from text;",
         "ALTER TABLE users ADD COLUMN global_gas_url text;",
+        "ALTER TABLE users ADD COLUMN global_gas_secret text;",
         "ALTER TABLE users ADD COLUMN global_webhook_url text;",
+        "ALTER TABLE users ADD COLUMN global_webhook_secret text;",
         "ALTER TABLE users ADD COLUMN notify_on_login integer NOT NULL DEFAULT 1;",
         "ALTER TABLE users ADD COLUMN notify_on_submission integer NOT NULL DEFAULT 1;",
       ];
@@ -170,7 +184,9 @@ export async function PATCH(request: Request) {
       hasGlobalSmtpPass: Boolean(updatedUser.globalSmtpPass),
       globalSmtpFrom: updatedUser.globalSmtpFrom || "",
       globalGasUrl: updatedUser.globalGasUrl || "",
+      hasGlobalGasSecret: Boolean(updatedUser.globalGasSecret),
       globalWebhookUrl: updatedUser.globalWebhookUrl || "",
+      hasGlobalWebhookSecret: Boolean(updatedUser.globalWebhookSecret),
       notifyOnLogin: updatedUser.notifyOnLogin !== false,
       notifyOnSubmission: updatedUser.notifyOnSubmission !== false,
     };

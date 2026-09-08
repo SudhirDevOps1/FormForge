@@ -177,7 +177,9 @@ export async function ensureSchema(db: AppDb): Promise<void> {
         `ALTER TABLE users ADD COLUMN global_smtp_pass text;`,
         `ALTER TABLE users ADD COLUMN global_smtp_from text;`,
         `ALTER TABLE users ADD COLUMN global_gas_url text;`,
+        `ALTER TABLE users ADD COLUMN global_gas_secret text;`,
         `ALTER TABLE users ADD COLUMN global_webhook_url text;`,
+        `ALTER TABLE users ADD COLUMN global_webhook_secret text;`,
         `ALTER TABLE users ADD COLUMN notify_on_login integer NOT NULL DEFAULT 1;`,
         `ALTER TABLE users ADD COLUMN notify_on_submission integer NOT NULL DEFAULT 1;`,
       ];

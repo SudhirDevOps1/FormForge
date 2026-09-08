@@ -448,7 +448,14 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   if (ownerUser?.globalWebhookUrl && ownerUser.globalWebhookUrl !== form.webhookUrl) {
     if (ownerUser.notifyOnSubmission !== false) {
       try {
-        const gWhResult = await dispatchWebhook(db, form, submission, ownerUser.globalWebhookUrl);
+        let globalWhSecret: string | undefined;
+        if (ownerUser.globalWebhookSecret) {
+          try {
+            const { decryptText } = await import("./encryption");
+            globalWhSecret = await decryptText(ownerUser.globalWebhookSecret);
+          } catch {}
+        }
+        const gWhResult = await dispatchWebhook(db, form, submission, ownerUser.globalWebhookUrl, "form.submitted", globalWhSecret);
         if (gWhResult.success) {
           results.push({ channel: "webhook", status: "sent" });
         }
@@ -462,7 +469,15 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   const gasUrl = form.gasUrl || (ownerUser?.notifyOnSubmission !== false ? ownerUser?.globalGasUrl : undefined) || env.GAS_URL;
   if (gasUrl) {
     try {
-      const gasSecret = extractGasSecret(gasUrl);
+      let gasSecret = extractGasSecret(gasUrl);
+      if (!gasSecret && ownerUser?.globalGasSecret) {
+        try {
+          const { decryptText } = await import("./encryption");
+          gasSecret = await decryptText(ownerUser.globalGasSecret);
+        } catch {
+          // ignore decryption error
+        }
+      }
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -857,7 +872,8 @@ export async function dispatchWebhook(
   form: Form,
   submission: Submission,
   targetUrl: string,
-  event = "form.submitted"
+  event = "form.submitted",
+  secretToken?: string
 ): Promise<{ success: boolean; statusCode?: number; latencyMs: number; error?: string }> {
   const env = getRuntimeEnv();
   const deliveryId = randomId("whk");
@@ -978,7 +994,7 @@ export async function dispatchWebhook(
     let signature = "";
     try {
       const { hmacSha256 } = await import("./crypto");
-      signature = await hmacSha256(`${timestamp}.${bodyPayload}`, env.AUTH_SECRET || form.id);
+      signature = await hmacSha256(`${timestamp}.${bodyPayload}`, secretToken || env.AUTH_SECRET || form.id);
     } catch {
       // ignore signature calculation error
     }
@@ -992,6 +1008,10 @@ export async function dispatchWebhook(
     };
     if (signature) {
       webhookHeaders["X-FormForge-Signature"] = `t=${timestamp},v1=${signature}`;
+    }
+    if (secretToken) {
+      webhookHeaders["X-FormForge-Secret"] = secretToken;
+      webhookHeaders["Authorization"] = `Bearer ${secretToken}`;
     }
 
     const response = await fetch(normalizedUrl, {
@@ -1416,7 +1436,15 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
   const gasUrl = user.globalGasUrl || env.GAS_URL;
   if (gasUrl) {
     try {
-      const gasSecret = extractGasSecret(gasUrl);
+      let gasSecret = extractGasSecret(gasUrl);
+      if (!gasSecret && user.globalGasSecret) {
+        try {
+          const { decryptText } = await import("./encryption");
+          gasSecret = await decryptText(user.globalGasSecret);
+        } catch {
+          // ignore decryption error
+        }
+      }
       await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1449,6 +1477,16 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
         return;
       }
 
+      let webhookSecret: string | undefined;
+      if (user.globalWebhookSecret) {
+        try {
+          const { decryptText } = await import("./encryption");
+          webhookSecret = await decryptText(user.globalWebhookSecret);
+        } catch {
+          // ignore decryption error
+        }
+      }
+
       const isStoat = targetUrl.includes("stoat.chat");
       const isDiscord = targetUrl.includes("discord.com");
       const isSlack = targetUrl.includes("slack.com");
@@ -1476,12 +1514,18 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
         };
       }
 
+      const webhookHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "User-Agent": "FormForge/1.0",
+      };
+      if (webhookSecret) {
+        webhookHeaders["X-FormForge-Secret"] = webhookSecret;
+        webhookHeaders["Authorization"] = `Bearer ${webhookSecret}`;
+      }
+
       await fetch(targetUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "FormForge/1.0",
-        },
+        headers: webhookHeaders,
         body: JSON.stringify(bodyPayload),
       });
     } catch (e) {

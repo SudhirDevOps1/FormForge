@@ -5263,8 +5263,15 @@ function SettingsTab({ user }: { user: User }) {
     globalSmtpPass: string;
     globalSmtpFrom: string;
     hasGlobalSmtpPass?: boolean;
+    clearGlobalSmtpPass?: boolean;
     globalGasUrl: string;
+    globalGasSecret?: string;
+    hasGlobalGasSecret?: boolean;
+    clearGlobalGasSecret?: boolean;
     globalWebhookUrl: string;
+    globalWebhookSecret?: string;
+    hasGlobalWebhookSecret?: boolean;
+    clearGlobalWebhookSecret?: boolean;
     notifyOnLogin: boolean;
     notifyOnSubmission: boolean;
   }>({
@@ -5276,7 +5283,11 @@ function SettingsTab({ user }: { user: User }) {
     globalSmtpFrom: "",
     hasGlobalSmtpPass: false,
     globalGasUrl: "",
+    globalGasSecret: "",
+    hasGlobalGasSecret: false,
     globalWebhookUrl: "",
+    globalWebhookSecret: "",
+    hasGlobalWebhookSecret: false,
     notifyOnLogin: true,
     notifyOnSubmission: true,
   });
@@ -5295,6 +5306,8 @@ function SettingsTab({ user }: { user: User }) {
             ...prev,
             ...s,
             globalSmtpPass: "",
+            globalGasSecret: "",
+            globalWebhookSecret: "",
           }));
         }
       })
@@ -5321,9 +5334,16 @@ function SettingsTab({ user }: { user: User }) {
       if (data.ok) {
         const s = data.data?.settings || data.settings;
         setGlobalSaveMsg({ type: "success", text: "✓ Universal Account Settings saved successfully!" });
-        if (s?.hasGlobalSmtpPass) {
-          setGlobalSettings(prev => ({ ...prev, hasGlobalSmtpPass: true, globalSmtpPass: "" }));
-        }
+        setGlobalSettings(prev => ({
+          ...prev,
+          ...(s || {}),
+          globalSmtpPass: "",
+          globalGasSecret: "",
+          globalWebhookSecret: "",
+          clearGlobalSmtpPass: false,
+          clearGlobalGasSecret: false,
+          clearGlobalWebhookSecret: false,
+        }));
         setTimeout(() => setGlobalSaveMsg(null), 4000);
       } else {
         setGlobalSaveMsg({ type: "error", text: data.message || data.error || "Failed to save settings." });
@@ -5340,8 +5360,14 @@ function SettingsTab({ user }: { user: User }) {
     setTestStatus(prev => ({ ...prev, [target]: { loading: true, message: undefined, error: undefined } }));
     try {
       const payload: Record<string, any> = { target };
-      if (target === "gas") payload.url = globalSettings.globalGasUrl;
-      if (target === "webhook") payload.url = globalSettings.globalWebhookUrl;
+      if (target === "gas") {
+        payload.url = globalSettings.globalGasUrl;
+        payload.secret = globalSettings.globalGasSecret;
+      }
+      if (target === "webhook") {
+        payload.url = globalSettings.globalWebhookUrl;
+        payload.secret = globalSettings.globalWebhookSecret;
+      }
       if (target === "smtp") {
         payload.host = globalSettings.globalSmtpHost;
         payload.port = globalSettings.globalSmtpPort;
@@ -5708,7 +5734,7 @@ function SettingsTab({ user }: { user: User }) {
               <div className="flex items-center gap-2">
                 <span className="text-base">📊</span>
                 <div>
-                  <h4 className="text-xs font-bold text-white">Universal Google Apps Script (GAS) URL</h4>
+                  <h4 className="text-xs font-bold text-white">Universal Google Apps Script (GAS)</h4>
                   <p className="text-[11px] text-slate-400">All submissions without form-specific GAS will stream directly to your Google Sheet / Gmail.</p>
                 </div>
               </div>
@@ -5721,13 +5747,44 @@ function SettingsTab({ user }: { user: User }) {
                 {testStatus.gas?.loading ? "Testing…" : "🧪 Test Universal GAS"}
               </button>
             </div>
-            <input
-              type="url"
-              placeholder="https://script.google.com/macros/s/.../exec"
-              value={globalSettings.globalGasUrl}
-              onChange={(e) => setGlobalSettings(s => ({ ...s, globalGasUrl: e.target.value }))}
-              className="ff-input text-xs"
-            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">Web App Deployment URL</label>
+                <input
+                  type="url"
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  value={globalSettings.globalGasUrl}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalGasUrl: e.target.value }))}
+                  className="ff-input text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                  GAS Secret Token
+                  {globalSettings.hasGlobalGasSecret && (
+                    <span className="text-emerald-400 ml-1.5 font-normal text-[10px]">✓ Saved encrypted</span>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder={globalSettings.hasGlobalGasSecret ? "•••••••• (leave blank to keep)" : "SECRET_TOKEN in script (optional)"}
+                    value={globalSettings.globalGasSecret || ""}
+                    onChange={(e) => setGlobalSettings(s => ({ ...s, globalGasSecret: e.target.value, clearGlobalGasSecret: false }))}
+                    className="ff-input text-xs font-mono flex-1"
+                  />
+                  {globalSettings.hasGlobalGasSecret && (
+                    <button
+                      type="button"
+                      onClick={() => setGlobalSettings(s => ({ ...s, clearGlobalGasSecret: true, hasGlobalGasSecret: false, globalGasSecret: "" }))}
+                      className="rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 px-2.5 py-1 text-[11px] font-medium transition"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             {testStatus.gas?.message && (
               <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">{testStatus.gas.message}</p>
             )}
@@ -5742,7 +5799,7 @@ function SettingsTab({ user }: { user: User }) {
               <div className="flex items-center gap-2">
                 <span className="text-base">📡</span>
                 <div>
-                  <h4 className="text-xs font-bold text-white">Universal Outgoing Webhook URL (Stoat, Slack, Discord)</h4>
+                  <h4 className="text-xs font-bold text-white">Universal Outgoing Webhook (Stoat, Slack, Discord)</h4>
                   <p className="text-[11px] text-slate-400">Sends formatted notifications to Stoat Chat, Slack, Discord, or any custom API endpoint.</p>
                 </div>
               </div>
@@ -5755,13 +5812,44 @@ function SettingsTab({ user }: { user: User }) {
                 {testStatus.webhook?.loading ? "Testing…" : "🧪 Test Universal Webhook"}
               </button>
             </div>
-            <input
-              type="url"
-              placeholder="https://stoat.chat/api/webhooks/... or Discord / Slack webhook URL"
-              value={globalSettings.globalWebhookUrl}
-              onChange={(e) => setGlobalSettings(s => ({ ...s, globalWebhookUrl: e.target.value }))}
-              className="ff-input text-xs font-mono"
-            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">Webhook Endpoint URL</label>
+                <input
+                  type="url"
+                  placeholder="https://stoat.chat/api/webhooks/... or Discord / Slack webhook URL"
+                  value={globalSettings.globalWebhookUrl}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalWebhookUrl: e.target.value }))}
+                  className="ff-input text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                  Webhook Secret / Signing Key
+                  {globalSettings.hasGlobalWebhookSecret && (
+                    <span className="text-emerald-400 ml-1.5 font-normal text-[10px]">✓ Saved encrypted</span>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder={globalSettings.hasGlobalWebhookSecret ? "•••••••• (leave blank to keep)" : "Signature key / Bearer token (optional)"}
+                    value={globalSettings.globalWebhookSecret || ""}
+                    onChange={(e) => setGlobalSettings(s => ({ ...s, globalWebhookSecret: e.target.value, clearGlobalWebhookSecret: false }))}
+                    className="ff-input text-xs font-mono flex-1"
+                  />
+                  {globalSettings.hasGlobalWebhookSecret && (
+                    <button
+                      type="button"
+                      onClick={() => setGlobalSettings(s => ({ ...s, clearGlobalWebhookSecret: true, hasGlobalWebhookSecret: false, globalWebhookSecret: "" }))}
+                      className="rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 px-2.5 py-1 text-[11px] font-medium transition"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             {testStatus.webhook?.message && (
               <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">{testStatus.webhook.message}</p>
             )}

@@ -48,8 +48,19 @@ export async function POST(request: Request) {
       return jsonError("SSRF_BLOCKED", "Internal network URLs are forbidden.", 403);
     }
 
-    const env = (await import("@/db")).getRuntimeEnv();
-    let gasSecret: string | undefined = (env.GAS_SECRET || env.GAS_SECRET_TOKEN || (process.env.GAS_SECRET as string) || (process.env.GAS_SECRET_TOKEN as string))?.trim() || undefined;
+    let gasSecret: string | undefined = readString(body.secret);
+    if (!gasSecret && user.globalGasSecret) {
+      try {
+        const { decryptText } = await import("@/lib/encryption");
+        gasSecret = await decryptText(user.globalGasSecret);
+      } catch {
+        // ignore decryption error
+      }
+    }
+    if (!gasSecret) {
+      const env = (await import("@/db")).getRuntimeEnv();
+      gasSecret = (env.GAS_SECRET || env.GAS_SECRET_TOKEN || (process.env.GAS_SECRET as string) || (process.env.GAS_SECRET_TOKEN as string))?.trim() || undefined;
+    }
     if (!gasSecret) {
       try {
         const u = new URL(gasUrl);
@@ -116,6 +127,16 @@ export async function POST(request: Request) {
     }
 
     try {
+      let webhookSecret: string | undefined = readString(body.secret);
+      if (!webhookSecret && user.globalWebhookSecret) {
+        try {
+          const { decryptText } = await import("@/lib/encryption");
+          webhookSecret = await decryptText(user.globalWebhookSecret);
+        } catch {
+          // ignore
+        }
+      }
+
       const isStoat = webhookUrl.includes("stoat.chat");
       const isDiscord = webhookUrl.includes("discord.com");
       const isSlack = webhookUrl.includes("slack.com");
@@ -137,9 +158,18 @@ export async function POST(request: Request) {
         bodyToSend = samplePayload;
       }
 
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "User-Agent": "FormForge/1.0",
+      };
+      if (webhookSecret) {
+        headers["X-FormForge-Secret"] = webhookSecret;
+        headers["Authorization"] = `Bearer ${webhookSecret}`;
+      }
+
       const response = await fetch(webhookUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(bodyToSend),
       });
 

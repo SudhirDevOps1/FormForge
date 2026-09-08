@@ -334,7 +334,9 @@ export async function autoMigrate(db: any): Promise<void> {
       "ALTER TABLE users ADD COLUMN global_smtp_pass TEXT;",
       "ALTER TABLE users ADD COLUMN global_smtp_from TEXT;",
       "ALTER TABLE users ADD COLUMN global_gas_url TEXT;",
+      "ALTER TABLE users ADD COLUMN global_gas_secret TEXT;",
       "ALTER TABLE users ADD COLUMN global_webhook_url TEXT;",
+      "ALTER TABLE users ADD COLUMN global_webhook_secret TEXT;",
       "ALTER TABLE users ADD COLUMN notify_on_login INTEGER DEFAULT 1 NOT NULL;",
       "ALTER TABLE users ADD COLUMN notify_on_submission INTEGER DEFAULT 1 NOT NULL;",
     ];
