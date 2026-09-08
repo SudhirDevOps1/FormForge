@@ -117,7 +117,8 @@ export async function signS3Request(
 }
 
 export interface StorageConfig {
-  type: "r2" | "s3" | "none";
+  type: "b2" | "r2" | "s3" | "none";
+  providerName: string;
   bucketName?: string;
   endpoint?: string;
   accessKeyId?: string;
@@ -128,25 +129,82 @@ export interface StorageConfig {
 export function getStorageConfig(): StorageConfig {
   const env = getRuntimeEnv() as any;
 
-  if (env?.S3_ENDPOINT && env?.S3_ACCESS_KEY_ID && env?.S3_SECRET_ACCESS_KEY && env?.S3_BUCKET_NAME) {
+  // 1. Backblaze B2 (First-Class Support)
+  const b2KeyId = env?.B2_APPLICATION_KEY_ID || env?.B2_KEY_ID;
+  const b2Key = env?.B2_APPLICATION_KEY || env?.B2_KEY;
+  const b2Bucket = env?.B2_BUCKET_NAME;
+  if (b2KeyId && b2Key && b2Bucket) {
+    const region = env?.B2_REGION || "us-west-004";
+    let endpoint = (env?.B2_ENDPOINT || `https://s3.${region}.backblazeb2.com`).trim();
+    if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
+      endpoint = "https://" + endpoint;
+    }
     return {
-      type: "s3",
-      bucketName: env.S3_BUCKET_NAME,
-      endpoint: env.S3_ENDPOINT,
-      accessKeyId: env.S3_ACCESS_KEY_ID,
-      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-      region: env.S3_REGION || "us-east-1",
+      type: "b2",
+      providerName: "Backblaze B2",
+      bucketName: b2Bucket,
+      endpoint,
+      accessKeyId: b2KeyId,
+      secretAccessKey: b2Key,
+      region,
     };
   }
 
-  if (env?.FILES_BUCKET) {
+  // 2. Cloudflare R2 via S3-Compatible API
+  if (env?.R2_ACCESS_KEY_ID && env?.R2_SECRET_ACCESS_KEY && env?.R2_BUCKET_NAME) {
+    const accountId = env?.R2_ACCOUNT_ID || "";
+    let endpoint = (env?.R2_ENDPOINT || (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : "")).trim();
+    if (endpoint && !endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
+      endpoint = "https://" + endpoint;
+    }
     return {
       type: "r2",
+      providerName: "Cloudflare R2 (S3 API)",
+      bucketName: env.R2_BUCKET_NAME,
+      endpoint,
+      accessKeyId: env.R2_ACCESS_KEY_ID,
+      secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+      region: "auto",
+    };
+  }
+
+  // 3. Cloudflare R2 via Native Worker Binding
+  if (env?.FILES_BUCKET || env?.R2_BUCKET) {
+    return {
+      type: "r2",
+      providerName: "Cloudflare R2 (Native Binding)",
       bucketName: "FILES_BUCKET",
     };
   }
 
-  return { type: "none" };
+  // 4. AWS S3 / MinIO / Generic S3
+  if (env?.S3_ACCESS_KEY_ID && env?.S3_SECRET_ACCESS_KEY && env?.S3_BUCKET_NAME) {
+    const region = env?.S3_REGION || "us-east-1";
+    let endpoint = (env?.S3_ENDPOINT || `https://s3.${region}.amazonaws.com`).trim();
+    if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
+      endpoint = "https://" + endpoint;
+    }
+    return {
+      type: "s3",
+      providerName: "AWS S3 / Compatible",
+      bucketName: env.S3_BUCKET_NAME,
+      endpoint,
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+      region,
+    };
+  }
+
+  return { type: "none", providerName: "Disabled" };
+}
+
+function getS3RequestUrl(config: StorageConfig, key: string): string {
+  let baseEndpoint = (config.endpoint || "").trim().replace(/\/+$/, "");
+  if (!baseEndpoint.startsWith("http://") && !baseEndpoint.startsWith("https://")) {
+    baseEndpoint = "https://" + baseEndpoint;
+  }
+  const normalizedKey = key.startsWith("/") ? key.substring(1) : key;
+  return `${baseEndpoint}/${config.bucketName}/${normalizedKey}`;
 }
 
 export async function uploadFile(
@@ -164,21 +222,15 @@ export async function uploadFile(
     return key;
   }
 
-  if (config.type === "s3" && config.endpoint && config.accessKeyId && config.secretAccessKey && config.bucketName) {
-    // S3 PUT Request
-    // Ensure endpoint URL has schema
-    let baseEndpoint = config.endpoint.trim();
-    if (!baseEndpoint.startsWith("http://") && !baseEndpoint.startsWith("https://")) {
-      baseEndpoint = "https://" + baseEndpoint;
-    }
-    
-    // Normalise key path
-    const normalizedKey = key.startsWith("/") ? key.substring(1) : key;
-    const url = `${baseEndpoint}/${config.bucketName}/${normalizedKey}`;
-
-    const headers = {
-      "Content-Type": contentType,
-    };
+  if (
+    (config.type === "b2" || config.type === "s3" || config.type === "r2") &&
+    config.endpoint &&
+    config.accessKeyId &&
+    config.secretAccessKey &&
+    config.bucketName
+  ) {
+    const url = getS3RequestUrl(config, key);
+    const headers = { "Content-Type": contentType };
 
     const signedHeaders = await signS3Request(
       "PUT",
@@ -198,7 +250,7 @@ export async function uploadFile(
     });
 
     if (!response.ok) {
-      throw new Error(`S3 upload failed with status ${response.status}: ${await response.text()}`);
+      throw new Error(`${config.providerName} upload failed with status ${response.status}: ${await response.text()}`);
     }
 
     return key;
@@ -222,14 +274,14 @@ export async function getFile(
     };
   }
 
-  if (config.type === "s3" && config.endpoint && config.accessKeyId && config.secretAccessKey && config.bucketName) {
-    let baseEndpoint = config.endpoint.trim();
-    if (!baseEndpoint.startsWith("http://") && !baseEndpoint.startsWith("https://")) {
-      baseEndpoint = "https://" + baseEndpoint;
-    }
-
-    const normalizedKey = key.startsWith("/") ? key.substring(1) : key;
-    const url = `${baseEndpoint}/${config.bucketName}/${normalizedKey}`;
+  if (
+    (config.type === "b2" || config.type === "s3" || config.type === "r2") &&
+    config.endpoint &&
+    config.accessKeyId &&
+    config.secretAccessKey &&
+    config.bucketName
+  ) {
+    const url = getS3RequestUrl(config, key);
 
     const signedHeaders = await signS3Request(
       "GET",
@@ -257,4 +309,93 @@ export async function getFile(
   }
 
   return null;
+}
+
+export async function deleteFile(key: string): Promise<boolean> {
+  const config = getStorageConfig();
+  const env = getRuntimeEnv() as any;
+
+  if (config.type === "r2" && env.FILES_BUCKET) {
+    await env.FILES_BUCKET.delete(key);
+    return true;
+  }
+
+  if (
+    (config.type === "b2" || config.type === "s3" || config.type === "r2") &&
+    config.endpoint &&
+    config.accessKeyId &&
+    config.secretAccessKey &&
+    config.bucketName
+  ) {
+    const url = getS3RequestUrl(config, key);
+
+    const signedHeaders = await signS3Request(
+      "DELETE",
+      url,
+      config.accessKeyId,
+      config.secretAccessKey,
+      config.region || "us-east-1",
+      "s3",
+      {}
+    );
+
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: signedHeaders,
+    });
+
+    return response.ok || response.status === 204;
+  }
+
+  return false;
+}
+
+export async function testStorageConnection(): Promise<{
+  ok: boolean;
+  provider: string;
+  bucket: string;
+  latencyMs: number;
+  message: string;
+}> {
+  const start = Date.now();
+  const config = getStorageConfig();
+  if (config.type === "none") {
+    return {
+      ok: false,
+      provider: "None",
+      bucket: "",
+      latencyMs: 0,
+      message: "No storage backend configured. Provide B2_*, R2_*, or S3_* environment credentials.",
+    };
+  }
+
+  const probeKey = `system-probes/probe-${Date.now()}.txt`;
+  const probeData = new TextEncoder().encode("FormForge storage probe verification");
+
+  try {
+    await uploadFile(probeKey, probeData.buffer as ArrayBuffer, "text/plain");
+    const fetched = await getFile(probeKey);
+    if (!fetched) {
+      throw new Error("Probe file was uploaded but could not be read back.");
+    }
+    await deleteFile(probeKey);
+
+    const latencyMs = Date.now() - start;
+    return {
+      ok: true,
+      provider: config.providerName,
+      bucket: config.bucketName || "Default",
+      latencyMs,
+      message: `✓ Connected to ${config.providerName} [${config.bucketName}]. Roundtrip: ${latencyMs}ms.`,
+    };
+  } catch (err: any) {
+    const latencyMs = Date.now() - start;
+    return {
+      ok: false,
+      provider: config.providerName,
+      bucket: config.bucketName || "Unknown",
+      latencyMs,
+      message: `Storage connection failed: ${err.message || String(err)}`,
+    };
+  }
 }

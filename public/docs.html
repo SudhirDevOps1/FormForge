@@ -1983,6 +1983,14 @@
       </div>
       <div class="grid grid-2">
         <div class="card">
+          <h3>📁 Backblaze B2 &amp; S3 Attachments</h3>
+          <p style="color: var(--text-secondary); font-size: 15px;">Native S3 SigV4 file upload pipeline using WebCrypto. Seamlessly store job application resumes, screenshots, and invoices into Backblaze B2 or Cloudflare R2 with configurable file extension and size limits.</p>
+        </div>
+        <div class="card">
+          <h3>🌐 Hosted Public Form Pages (/f/[slug])</h3>
+          <p style="color: var(--text-secondary); font-size: 15px;">Instantly generate and share standalone, responsive public form pages in social bios, client emails, or Notion documents without designing a custom website.</p>
+        </div>
+        <div class="card">
           <h3>🔐 Native TOTP 2FA (RFC 6238)</h3>
           <p style="color: var(--text-secondary); font-size: 15px;">Zero-dependency Two-Factor Authentication running natively on Cloudflare Edge via WebCrypto. Compatible with Google Authenticator, Authy, and 1Password with constant-time verification.</p>
         </div>
@@ -2114,6 +2122,26 @@
               <td>DB</td>
               <td><span class="env-req yes">Required</span></td>
               <td style="color: var(--text-secondary); font-size: 14px;">Cloudflare D1 binding name. Configure as a D1 binding, <strong>not</strong> as a string secret.</td>
+            </tr>
+            <tr>
+              <td>B2_APPLICATION_KEY_ID</td>
+              <td><span class="env-req no">Optional</span></td>
+              <td style="color: var(--text-secondary); font-size: 14px;">Backblaze B2 Application Key ID for secure S3-compatible file attachments &amp; resume uploads.</td>
+            </tr>
+            <tr>
+              <td>B2_APPLICATION_KEY</td>
+              <td><span class="env-req no">Optional</span></td>
+              <td style="color: var(--text-secondary); font-size: 14px;">Backblaze B2 Application Key secret.</td>
+            </tr>
+            <tr>
+              <td>B2_BUCKET_NAME</td>
+              <td><span class="env-req no">Optional</span></td>
+              <td style="color: var(--text-secondary); font-size: 14px;">Target Backblaze B2 bucket name (e.g. <code class="inline-code">my-formforge-uploads</code>).</td>
+            </tr>
+            <tr>
+              <td>B2_REGION</td>
+              <td><span class="env-req no">Optional</span></td>
+              <td style="color: var(--text-secondary); font-size: 14px;">Backblaze B2 cluster region, e.g. <code class="inline-code">us-west-004</code> or <code class="inline-code">eu-central-003</code>.</td>
             </tr>
           </tbody>
         </table>

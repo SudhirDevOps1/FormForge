@@ -127,6 +127,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     submissionLimit: typeof body.submissionLimit === "number" ? body.submissionLimit : (body.submissionLimit ? Number(body.submissionLimit) : result.form.submissionLimit ?? 0),
     emailSubjectTemplate: readString(body.emailSubjectTemplate, result.form.emailSubjectTemplate ?? "") || null,
     autoresponderReplyTo: readString(body.autoresponderReplyTo, result.form.autoresponderReplyTo ?? "") || null,
+    maxAttachmentSizeMb: typeof body.maxAttachmentSizeMb === "number" ? body.maxAttachmentSizeMb : (body.maxAttachmentSizeMb ? Number(body.maxAttachmentSizeMb) : (result.form as any).maxAttachmentSizeMb ?? 10),
+    allowedFileExtensions: readString(body.allowedFileExtensions, (result.form as any).allowedFileExtensions ?? "") || "",
     updatedAt: new Date().toISOString(),
   };
 

@@ -40,6 +40,8 @@ type Form = {
   submissionLimit?: number;
   emailSubjectTemplate?: string | null;
   autoresponderReplyTo?: string | null;
+  maxAttachmentSizeMb?: number;
+  allowedFileExtensions?: string;
   createdAt: string;
 };
 type Submission = {
@@ -2481,12 +2483,35 @@ function SubmissionRow({
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(payload).map(([k, v]) => (
-                    <tr key={k} className="border-b border-white/5 last:border-0 hover:bg-white/[0.01]">
-                      <td className="py-2.5 px-3 font-bold text-sky-300 font-mono">{k}</td>
-                      <td className="py-2.5 px-3 text-slate-200 break-all select-all">{String(v)}</td>
-                    </tr>
-                  ))}
+                  {Object.entries(payload).map(([k, v]) => {
+                    const isFileObj = v && typeof v === "object" && "name" in (v as any) && "size" in (v as any);
+                    return (
+                      <tr key={k} className="border-b border-white/5 last:border-0 hover:bg-white/[0.01]">
+                        <td className="py-2.5 px-3 font-bold text-sky-300 font-mono">{k}</td>
+                        <td className="py-2.5 px-3 text-slate-200 break-all select-all">
+                          {isFileObj ? (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-emerald-300 font-mono">📎 {(v as any).name}</span>
+                              <span className="text-slate-500 text-[11px]">({(((v as any).size || 0) / (1024 * 1024)).toFixed(2)} MB)</span>
+                              {(v as any).url && (
+                                <a
+                                  href={(v as any).url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/20 transition inline-flex items-center gap-1"
+                                >
+                                  <span>Download / View</span>
+                                  <span>↗</span>
+                                </a>
+                              )}
+                            </div>
+                          ) : (
+                            String(v)
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -2531,6 +2556,11 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [autoresponderSubject, setAutoresponderSubject] = useState(form.autoresponderSubject ?? "");
   const [autoresponderReplyTo, setAutoresponderReplyTo] = useState(form.autoresponderReplyTo ?? "");
   const [autoresponderBody, setAutoresponderBody] = useState(form.autoresponderBody ?? "");
+  const [maxAttachmentSizeMb, setMaxAttachmentSizeMb] = useState(form.maxAttachmentSizeMb ? String(form.maxAttachmentSizeMb) : "10");
+  const [allowedFileExtensions, setAllowedFileExtensions] = useState(form.allowedFileExtensions ?? "");
+  const [storageStatus, setStorageStatus] = useState<{ configured: boolean; providerName: string; bucketName: string | null } | null>(null);
+  const [testingStorage, setTestingStorage] = useState(false);
+  const [storageTestResult, setStorageTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [spamBlocklist, setSpamBlocklist] = useState(form.spamBlocklist ?? "");
   const [retentionDays, setRetentionDays] = useState(form.retentionDays ?? 0);
   const [customDays, setCustomDays] = useState((form.retentionDays && ![0, 30, 60, 90].includes(form.retentionDays)) ? form.retentionDays : 15);
@@ -2553,6 +2583,31 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [msg, setMsg] = useState("");
   const [testingTarget, setTestingTarget] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({});
+
+  useEffect(() => {
+    async function checkStorage() {
+      try {
+        const res = await fetch("/api/storage", { credentials: "include" });
+        const json = await res.json();
+        if (json.ok && json.data) setStorageStatus(json.data);
+      } catch {}
+    }
+    checkStorage();
+  }, []);
+
+  async function runStorageTest() {
+    setTestingStorage(true);
+    setStorageTestResult(null);
+    try {
+      const res = await fetch("/api/storage", { method: "POST", credentials: "include" });
+      const json = await res.json();
+      setStorageTestResult({ ok: json.ok, message: json.message || (json.ok ? "Connected successfully" : "Test failed") });
+    } catch (err: any) {
+      setStorageTestResult({ ok: false, message: err.message || "Network error" });
+    } finally {
+      setTestingStorage(false);
+    }
+  }
 
   async function runTest(target: "webhook" | "gas" | "telegram" | "ntfy") {
     setTestingTarget(target);
@@ -2610,6 +2665,8 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     setAutoresponderSubject(form.autoresponderSubject ?? "");
     setAutoresponderReplyTo(form.autoresponderReplyTo ?? "");
     setAutoresponderBody(form.autoresponderBody ?? "");
+    setMaxAttachmentSizeMb(form.maxAttachmentSizeMb ? String(form.maxAttachmentSizeMb) : "10");
+    setAllowedFileExtensions(form.allowedFileExtensions ?? "");
     setSpamBlocklist(form.spamBlocklist ?? "");
     setRetentionDays(form.retentionDays ?? 0);
     setStoreIpHash(form.storeIpHash ?? true);
@@ -2655,6 +2712,8 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           autoresponderSubject: autoresponderSubject || null,
           autoresponderReplyTo: autoresponderReplyTo || null,
           autoresponderBody: autoresponderBody || null,
+          maxAttachmentSizeMb: maxAttachmentSizeMb ? Number(maxAttachmentSizeMb) : 10,
+          allowedFileExtensions: allowedFileExtensions.trim(),
           spamBlocklist: spamBlocklist || null,
           retentionDays: isCustom ? Number(customDays) : Number(retentionDays),
           emailVerificationEnabled,
@@ -2682,6 +2741,32 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
       {/* Section 1: General Settings */}
       <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
         <h4 className="text-sm font-bold text-white flex items-center gap-2">📝 General Settings</h4>
+
+        {/* Shareable Hosted Form Page */}
+        <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/20 p-3.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+              <span>🌐 Hosted Public Form Page</span>
+            </span>
+            <a
+              href={`/f/${slug || form.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 underline"
+            >
+              <span>Open Live Form ↗</span>
+            </a>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Share this URL directly with clients, in social bios, or Notion pages to collect responses without building a website:
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="text-xs font-mono text-cyan-200 bg-black/40 border border-white/10 px-2.5 py-1.5 rounded-lg flex-1 truncate select-all">
+              {typeof window !== "undefined" ? `${window.location.origin}/f/${slug || form.slug}` : `/f/${slug || form.slug}`}
+            </code>
+          </div>
+        </div>
+
         <div>
           <label htmlFor="settings-name" className="mb-1 block text-xs text-slate-400">Form name</label>
           <input id="settings-name" required value={name} onChange={(e) => setName(e.target.value)} className="ff-input text-sm" />
@@ -2809,6 +2894,81 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
             🔐 Require 6-Digit OTP Verification for Submissions
           </label>
           <p className="text-[10px] text-slate-500 pl-6 mt-1">If enabled, submitters receive an instant 6-digit OTP code to verify their email address before the submission is accepted. Zero card / zero cost.</p>
+        </div>
+      </div>
+
+      {/* Section: File Uploads & Object Storage */}
+      <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <span>📁 File Uploads &amp; Storage</span>
+              <span className="text-[10px] text-slate-400 font-normal">(Backblaze B2 / Cloudflare R2 / S3)</span>
+            </h4>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Configure file upload limits and accepted formats for resume uploads, attachments, and screenshots.
+            </p>
+          </div>
+          {storageStatus ? (
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold border ${
+                storageStatus.configured
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  : "border-slate-500/30 bg-slate-500/10 text-slate-400"
+              }`}>
+                <span>{storageStatus.configured ? "●" : "○"}</span>
+                <span>{storageStatus.providerName}</span>
+                {storageStatus.bucketName ? ` (${storageStatus.bucketName})` : ""}
+              </span>
+              <button
+                type="button"
+                disabled={testingStorage}
+                onClick={runStorageTest}
+                className="rounded-lg bg-sky-500/10 border border-sky-500/30 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20 disabled:opacity-40 transition"
+              >
+                {testingStorage ? "Testing..." : "⚡ Test Connection"}
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        {storageTestResult && (
+          <p className={`text-[11px] font-medium ${storageTestResult.ok ? "text-emerald-400" : "text-rose-400"}`}>
+            {storageTestResult.message}
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="settings-max-file-size" className="mb-1 block text-xs text-slate-400">
+              Max Attachment Size (MB)
+            </label>
+            <input
+              id="settings-max-file-size"
+              type="number"
+              min="1"
+              max="100"
+              value={maxAttachmentSizeMb}
+              onChange={(e) => setMaxAttachmentSizeMb(e.target.value)}
+              className="ff-input text-sm"
+              placeholder="10"
+            />
+            <p className="text-[10px] text-slate-500 mt-1">Default: 10 MB per attachment</p>
+          </div>
+
+          <div>
+            <label htmlFor="settings-allowed-extensions" className="mb-1 block text-xs text-slate-400">
+              Allowed Extensions (comma-separated)
+            </label>
+            <input
+              id="settings-allowed-extensions"
+              value={allowedFileExtensions}
+              onChange={(e) => setAllowedFileExtensions(e.target.value)}
+              className="ff-input text-sm"
+              placeholder=".pdf, .png, .jpg, .jpeg, .docx"
+            />
+            <p className="text-[10px] text-slate-500 mt-1">Leave empty to allow all non-executable safe formats</p>
+          </div>
         </div>
       </div>
 

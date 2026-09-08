@@ -243,10 +243,14 @@ npm run deploy
 | `SMTP_PASS` | SMTP password (use wrangler secret). |
 | `SMTP_FROM` | Sender email address. |
 
-### File Storage (S3-Compatible — Backblaze B2, Wasabi, Storj, AWS S3, MinIO, etc.)
+### File Storage (Backblaze B2, Cloudflare R2 & AWS S3)
 | Variable | Description |
 | --- | --- |
-| `S3_ENDPOINT` | S3-compatible endpoint URL (e.g. `https://s3.us-west-002.backblazeb2.com`). |
+| `B2_APPLICATION_KEY_ID` | Backblaze B2 Application Key ID (Recommended: 10GB free permanent storage). |
+| `B2_APPLICATION_KEY` | Backblaze B2 Application Key secret. |
+| `B2_BUCKET_NAME` | Backblaze B2 Bucket name. |
+| `B2_REGION` | Backblaze B2 Region (e.g. `us-west-004`, `eu-central-003`). |
+| `S3_ENDPOINT` | S3 endpoint URL (e.g. MinIO, Wasabi, or custom S3). |
 | `S3_ACCESS_KEY_ID` | S3 access key (use wrangler secret). |
 | `S3_SECRET_ACCESS_KEY` | S3 secret key (use wrangler secret). |
 | `S3_BUCKET_NAME` | Bucket name for file uploads. |
@@ -257,8 +261,20 @@ npm run deploy
 | --- | --- |
 | `ALLOW_REGISTRATION` | Set to `false` to disable new user registration (owner-only mode). |
 
-> **Note:** Cloudflare R2 can also be used by binding an R2 bucket as `FILES_BUCKET` in `wrangler.jsonc`.
+> **Note:** Cloudflare R2 can be used either by binding an R2 bucket as `FILES_BUCKET` in `wrangler.jsonc` or via S3 credentials (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`).
+> Backblaze B2 provides 10GB free storage and zero egress fee when paired with Cloudflare.
 > Do **not** set `DATABASE_URL`. FormForge uses Cloudflare D1 by default.
+
+---
+
+## 🌐 Hosted Public Form Pages (`/f/[slug]`)
+
+Every form created in FormForge automatically generates an instant, beautiful, and mobile-responsive standalone public form page accessible at:
+```
+https://YOUR-WORKER.workers.dev/f/your-form-slug
+```
+* **No website required:** Share the URL directly in email signatures, Twitter/LinkedIn bios, Notion documents, or Discord channels.
+* **Full capabilities:** Built-in ALTCHA proof-of-work spam defense, honeypot bot trap, file upload dropzone (with B2/R2 storage integration), and quota auto-close.
 
 ---
 

@@ -79,6 +79,8 @@ export const forms = sqliteTable(
     submissionLimit: integer("submission_limit").default(0),
     emailSubjectTemplate: text("email_subject_template"),
     autoresponderReplyTo: text("autoresponder_reply_to"),
+    maxAttachmentSizeMb: integer("max_attachment_size_mb").default(10),
+    allowedFileExtensions: text("allowed_file_extensions").default(""),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },

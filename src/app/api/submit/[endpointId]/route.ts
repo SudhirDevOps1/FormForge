@@ -23,16 +23,13 @@ async function getForm(endpointId: string): Promise<Form | null> {
   return rows[0] ?? null;
 }
 
-async function parsePayload(request: Request, submissionId: string): Promise<ParsedSubmission> {
-  const contentType = request.headers.get("content-type") ?? "";
+async function parsePayload(request: Request, submissionId: string, form?: any): Promise<ParsedSubmission> {
+  const contentType = request.headers.get("content-type") || "";
 
   if (contentType.includes("application/json")) {
-    try {
-      const body = (await request.json()) as unknown;
-      return body && typeof body === "object" && !Array.isArray(body) ? (body as ParsedSubmission) : {};
-    } catch {
-      return {};
-    }
+    const text = await request.text();
+    if (!text.trim()) return {};
+    return JSON.parse(text);
   }
 
   if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -53,15 +50,37 @@ async function parsePayload(request: Request, submissionId: string): Promise<Par
       };
 
       if (value.size > 0) {
+        const ext = "." + (value.name.split(".").pop() || "").toLowerCase();
+        const dangerousExts = [".exe", ".bat", ".cmd", ".sh", ".php", ".phtml", ".cgi", ".pl", ".py", ".js", ".vbs", ".scr", ".jar", ".msi"];
+        if (dangerousExts.includes(ext)) {
+          throw new Error(`Executable file type '${ext}' is blocked for security reasons.`);
+        }
+
+        if (form?.allowedFileExtensions) {
+          const allowed = form.allowedFileExtensions
+            .split(",")
+            .map((e: string) => e.trim().toLowerCase())
+            .filter(Boolean);
+          if (allowed.length > 0 && !allowed.includes(ext)) {
+            throw new Error(`File type '${ext}' is not permitted. Allowed: ${form.allowedFileExtensions}`);
+          }
+        }
+
+        const maxBytes = ((form?.maxAttachmentSizeMb ?? 10) || 10) * 1024 * 1024;
+        if (value.size > maxBytes) {
+          throw new Error(`File '${value.name}' exceeds the maximum allowed size of ${form?.maxAttachmentSizeMb ?? 10}MB.`);
+        }
+
         try {
           const { uploadFile, getStorageConfig } = await import("@/lib/storage");
           const storageConfig = getStorageConfig();
           if (storageConfig.type !== "none") {
             const fileBuffer = await value.arrayBuffer();
-            const storageKey = `uploads/${submissionId}/${value.name}`;
-            const uploaded = await uploadFile(storageKey, fileBuffer, value.type);
+            const safeName = value.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+            const storageKey = `uploads/${submissionId}/${safeName}`;
+            const uploaded = await uploadFile(storageKey, fileBuffer, value.type || "application/octet-stream");
             if (uploaded) {
-              fileMeta.url = `/api/submissions/${submissionId}/files/${encodeURIComponent(value.name)}`;
+              fileMeta.url = `/api/submissions/${submissionId}/files/${encodeURIComponent(safeName)}`;
             }
           }
         } catch (err) {
@@ -420,10 +439,22 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
-  // Check payload size using Content-Length header or streaming check
+  // Check payload size using Content-Length header
   const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
-  if (contentLength > 65536) {
-    return new Response(JSON.stringify({ ok: false, code: "PAYLOAD_TOO_LARGE", message: "Payload size exceeds 64KB limit." }), {
+  const reqContentType = request.headers.get("content-type") || "";
+  const isMultipart = reqContentType.includes("multipart/form-data");
+  const maxAllowedBytes = isMultipart
+    ? (((form as any).maxAttachmentSizeMb ?? 10) || 10) * 1024 * 1024 + 65536
+    : 65536;
+
+  if (contentLength > maxAllowedBytes) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: "PAYLOAD_TOO_LARGE",
+      message: isMultipart
+        ? `Upload exceeds attachment limit of ${(form as any).maxAttachmentSizeMb ?? 10}MB.`
+        : "Payload size exceeds 64KB limit.",
+    }), {
       status: 413,
       headers: { ...cors, "Content-Type": "application/json" },
     });
@@ -432,9 +463,13 @@ export async function POST(request: Request, context: RouteContext) {
   const submissionId = randomId("sub");
   let payload: ParsedSubmission;
   try {
-    payload = await parsePayload(request, submissionId);
+    payload = await parsePayload(request, submissionId, form);
   } catch (error) {
-    return new Response(JSON.stringify({ ok: false, code: "BAD_REQUEST", message: "Invalid payload formatting." }), {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: "BAD_REQUEST",
+      message: error instanceof Error ? error.message : "Invalid payload formatting.",
+    }), {
       status: 400,
       headers: { ...cors, "Content-Type": "application/json" },
     });
