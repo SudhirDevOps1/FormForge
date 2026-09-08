@@ -552,10 +552,73 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   };
 
   const [snippetTab, setSnippetTab] = useState<"html" | "widget" | "react" | "js" | "python" | "curl">("html");
-  const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "newsletter" | "feedback">("plain");
+  const [connectSubView, setConnectSubView] = useState<"studio" | "docs" | "security">("studio");
+  const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
+  const [apiTestLoading, setApiTestLoading] = useState(false);
+  const [apiTestResult, setApiTestResult] = useState<{ status: number; ok: boolean; data: any } | null>(null);
+  const [formTemplate, setFormTemplate] = useState<"plain" | "contact" | "glass" | "minimal" | "card" | "newsletter" | "feedback">("plain");
   const [formColor, setFormColor] = useState<"cyan" | "indigo" | "emerald" | "amber" | "rose">("cyan");
+  const [widgetPosition, setWidgetPosition] = useState<"bottom-right" | "bottom-left">("bottom-right");
+  const [widgetBtnText, setWidgetBtnText] = useState("Feedback");
   const [snippetFields, setSnippetFields] = useState<string[]>(["email", "message"]);
   const [newFieldName, setNewFieldName] = useState("");
+
+  const handleToggleSelectAll = () => {
+    if (selectedSubIds.length === subs.length) {
+      setSelectedSubIds([]);
+    } else {
+      setSelectedSubIds(subs.map(s => s.id));
+    }
+  };
+
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedSubIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedSubIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedSubIds.length} selected submissions?`)) return;
+    setLoading(true);
+    try {
+      await fetch(`/api/forms/${form.id}/submissions`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedSubIds }),
+      });
+      setSelectedSubIds([]);
+      onChanged();
+      loadSubs();
+    } catch (e) {
+      console.error("Failed to bulk delete submissions", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRunApiTest = async () => {
+    setApiTestLoading(true);
+    setApiTestResult(null);
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Test Developer",
+          email: "developer@example.com",
+          message: "Testing FormForge API directly from dashboard interactive sandbox!",
+          _source: "dashboard_api_tester",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setApiTestResult({ status: res.status, ok: res.ok, data });
+      onChanged();
+      loadSubs();
+    } catch (err) {
+      setApiTestResult({ status: 500, ok: false, data: { error: String(err) } });
+    } finally {
+      setApiTestLoading(false);
+    }
+  };
 
   const addSnippetField = (e: React.FormEvent) => {
     e.preventDefault();
@@ -646,6 +709,91 @@ ${snippetFields.map(f => {
     </button>
   </div>
 </form>`
+    : formTemplate === "glass"
+    ? `<!-- FormForge Glassmorphic Cyber Dark Card -->
+<style>
+  .ff-glass { max-width: 460px; margin: 2rem auto; padding: 2rem; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.12); border-radius: 1.5rem; font-family: 'Inter', system-ui, sans-serif; color: #f8fafc; box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 30px ${theme.styleHex1}20; text-align: left; }
+  .ff-glass h3 { font-size: 1.35rem; font-weight: 800; margin: 0 0 0.25rem; color: #fff; }
+  .ff-glass p { font-size: 0.85rem; color: #94a3b8; margin: 0 0 1.5rem; }
+  .ff-glass label { display: block; font-size: 0.75rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
+  .ff-glass input, .ff-glass textarea, .ff-glass select { width: 100%; padding: 0.75rem 1rem; background: rgba(2, 6, 23, 0.65); border: 1px solid rgba(255,255,255,0.12); border-radius: 0.75rem; color: #fff; font-size: 0.875rem; outline: none; transition: all 0.2s; margin-bottom: 1.1rem; box-sizing: border-box; }
+  .ff-glass input:focus, .ff-glass textarea:focus { border-color: ${theme.styleHex1}; box-shadow: 0 0 15px ${theme.styleHex1}35; background: rgba(2, 6, 23, 0.85); }
+  .ff-glass button[type="submit"] { width: 100%; padding: 0.85rem; background: linear-gradient(135deg, ${theme.styleHex1}, ${theme.styleHex2}); color: #fff; font-weight: 700; font-size: 0.9rem; border: none; border-radius: 0.75rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 8px 20px -4px ${theme.styleHex1}50; }
+  .ff-glass button[type="submit"]:hover { filter: brightness(1.1); transform: translateY(-1px); }
+</style>
+<form method="POST" action="${endpoint}"${enctype} class="ff-glass">
+  <h3>✨ Get in Touch</h3>
+  <p>Leave a message and we'll reply right away.</p>
+${snippetFields.map(f => {
+  const label = f.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  if (["message", "comments", "description"].includes(f)) {
+    return `  <div>\n    <label>${label}</label>\n    <textarea name="${f}" required rows="4" placeholder="Your message..."></textarea>\n  </div>`;
+  }
+  if (["attachment", "file", "image", "upload"].includes(f)) {
+    return `  <div>\n    <label>${label}</label>\n    <input name="${f}" type="file" required />\n  </div>`;
+  }
+  return `  <div>\n    <label>${label}</label>\n    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${label.toLowerCase()}" />\n  </div>`;
+}).join("\n")}
+  <!-- Honeypot Bot Trap -->
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+  <button type="submit">Send Secure Message ➔</button>
+</form>`
+    : formTemplate === "minimal"
+    ? `<!-- FormForge Clean Minimal Line Style -->
+<style>
+  .ff-minimal { max-width: 440px; margin: 2rem auto; padding: 2rem; background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #f8fafc; text-align: left; }
+  .ff-minimal h3 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
+  .ff-minimal p { font-size: 0.875rem; color: #64748b; margin: 0 0 2rem; }
+  .ff-minimal .ff-group { position: relative; margin-bottom: 1.75rem; }
+  .ff-minimal label { display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.25rem; }
+  .ff-minimal input, .ff-minimal textarea { width: 100%; padding: 0.6rem 0; background: transparent; border: none; border-bottom: 1px solid #334155; color: #fff; font-size: 0.95rem; outline: none; transition: border-color 0.2s; box-sizing: border-box; border-radius: 0; }
+  .ff-minimal input:focus, .ff-minimal textarea:focus { border-bottom-color: ${theme.styleHex1}; }
+  .ff-minimal button[type="submit"] { width: 100%; margin-top: 1rem; padding: 0.85rem; background: #fff; color: #020617; font-weight: 700; font-size: 0.875rem; border: none; border-radius: 9999px; cursor: pointer; transition: all 0.2s; }
+  .ff-minimal button[type="submit"]:hover { background: #e2e8f0; transform: translateY(-1px); }
+</style>
+<form method="POST" action="${endpoint}"${enctype} class="ff-minimal">
+  <h3>Let's Connect</h3>
+  <p>Fill out the form below and we will get back to you shortly.</p>
+${snippetFields.map(f => {
+  const label = f.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  if (["message", "comments", "description"].includes(f)) {
+    return `  <div class="ff-group">\n    <label>${label}</label>\n    <textarea name="${f}" required rows="3" placeholder="Write your message..."></textarea>\n  </div>`;
+  }
+  if (["attachment", "file", "image", "upload"].includes(f)) {
+    return `  <div class="ff-group">\n    <label>${label}</label>\n    <input name="${f}" type="file" required />\n  </div>`;
+  }
+  return `  <div class="ff-group">\n    <label>${label}</label>\n    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="${label}" />\n  </div>`;
+}).join("\n")}
+  <!-- Honeypot Bot Trap -->
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+  <button type="submit">Submit ➔</button>
+</form>`
+    : formTemplate === "card"
+    ? `<!-- FormForge Modern SaaS Floating Card -->
+<div style="max-width: 460px; margin: 2rem auto; background: #0f172a; border: 1px solid #1e293b; border-radius: 1.5rem; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); font-family: 'Inter', system-ui, sans-serif; text-align: left;">
+  <div style="background: linear-gradient(135deg, ${theme.styleHex1}25, ${theme.styleHex2}15); padding: 1.75rem; border-bottom: 1px solid #1e293b;">
+    <span style="display: inline-block; padding: 0.25rem 0.75rem; background: ${theme.styleHex1}25; color: ${theme.styleHex1}; border: 1px solid ${theme.styleHex1}40; border-radius: 9999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Online Inquiry</span>
+    <h3 style="font-size: 1.25rem; font-weight: 800; color: #ffffff; margin: 0 0 0.25rem;">Contact ${form.name}</h3>
+    <p style="font-size: 0.8rem; color: #94a3b8; margin: 0;">We typically respond within 24 hours.</p>
+  </div>
+  <form method="POST" action="${endpoint}"${enctype} style="padding: 1.75rem; display: flex; flex-direction: column; gap: 1rem;">
+${snippetFields.map(f => {
+  const label = f.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  if (["message", "comments", "description"].includes(f)) {
+    return `    <div>\n      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem;">${label}</label>\n      <textarea name="${f}" required rows="4" placeholder="Your message..." style="width: 100%; padding: 0.65rem 0.85rem; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; color: #fff; font-size: 0.85rem; box-sizing: border-box; outline: none;"></textarea>\n    </div>`;
+  }
+  if (["attachment", "file", "image", "upload"].includes(f)) {
+    return `    <div>\n      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem;">${label}</label>\n      <input name="${f}" type="file" required style="width: 100%; padding: 0.65rem 0.85rem; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; color: #fff; font-size: 0.85rem; box-sizing: border-box;" />\n    </div>`;
+  }
+  return `    <div>\n      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem;">${label}</label>\n      <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${label.toLowerCase()}" style="width: 100%; padding: 0.65rem 0.85rem; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; color: #fff; font-size: 0.85rem; box-sizing: border-box; outline: none;" />\n    </div>`;
+}).join("\n")}
+    <!-- Honeypot Bot Trap -->
+    <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+    <button type="submit" style="width: 100%; padding: 0.85rem; background: ${theme.styleHex1}; color: #020617; font-weight: 700; font-size: 0.875rem; border: none; border-radius: 0.75rem; cursor: pointer; box-shadow: 0 4px 14px ${theme.styleHex1}40; margin-top: 0.5rem;">
+      Send Message
+    </button>
+  </form>
+</div>`
     : `<!-- FormForge Customer Feedback Form (Glassmorphism CSS) -->
 <style>
   .ff-feedback { max-width: 480px; margin: 2rem auto; padding: 2rem; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); border-radius: 1.5rem; font-family: 'Inter', system-ui, sans-serif; color: #f1f5f9; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
@@ -742,10 +890,10 @@ print(response.json())`;
 <script
   src="${base}/widget.js"
   data-endpoint="${endpoint}"
-  data-position="bottom-right"
+  data-position="${widgetPosition}"
   data-color="${theme.styleHex1}"
   data-title="Contact ${form.name}"
-  data-btn-text="Feedback"
+  data-btn-text="${widgetBtnText || "Feedback"}"
   defer
 ></script>`;
 
@@ -912,9 +1060,52 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                 </button>
               </div>
             </div>
-        
-        {/* Dynamic Fields Embed Generator Selector */}
-        <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
+
+            {/* Sub-Navigation Switcher for Connect & Snippets */}
+            <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-3">
+              <button
+                type="button"
+                onClick={() => setConnectSubView("studio")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                  connectSubView === "studio"
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20"
+                    : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                <span>⚡ Visual Studio &amp; Snippets</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setConnectSubView("docs")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                  connectSubView === "docs"
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20"
+                    : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <svg className="w-4 h-4 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <span>📖 API Guide &amp; Reference</span>
+                <span className="rounded-full bg-cyan-400/20 text-cyan-300 text-[10px] px-2 py-0.5 font-mono">Documentation</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setConnectSubView("security")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                  connectSubView === "security"
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20"
+                    : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>🛡️ Spam &amp; Security Architecture</span>
+              </button>
+            </div>
+
+            {connectSubView === "studio" && (
+              <>
+                {/* Dynamic Fields Embed Generator Selector */}
+                <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
@@ -1035,8 +1226,8 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
           </div>
 
           {snippetTab === "html" && (
-            <div className="flex gap-1 bg-black/25 p-1 rounded-xl w-fit border border-white/5">
-              {(["plain", "contact", "newsletter", "feedback"] as const).map((tpl) => (
+            <div className="flex flex-wrap gap-1 bg-black/25 p-1 rounded-xl w-fit border border-white/5">
+              {(["plain", "contact", "glass", "minimal", "card", "newsletter", "feedback"] as const).map((tpl) => (
                 <button
                   key={tpl}
                   type="button"
@@ -1049,15 +1240,58 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                   {tpl === "contact" && (
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   )}
+                  {tpl === "glass" && (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                  )}
+                  {tpl === "minimal" && (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                  )}
+                  {tpl === "card" && (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg>
+                  )}
                   {tpl === "newsletter" && (
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                   )}
                   {tpl === "feedback" && (
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                   )}
-                  <span>{tpl === "plain" ? "Plain HTML" : tpl === "contact" ? "Contact Form" : tpl === "newsletter" ? "Newsletter" : "Feedback"}</span>
+                  <span>{tpl === "plain" ? "Plain HTML" : tpl === "contact" ? "Contact Form" : tpl === "glass" ? "Cyber Glass" : tpl === "minimal" ? "Minimal Line" : tpl === "card" ? "SaaS Card" : tpl === "newsletter" ? "Newsletter" : "Feedback"}</span>
                 </button>
               ))}
+            </div>
+          )}
+
+          {snippetTab === "widget" && (
+            <div className="flex flex-wrap items-center gap-3 bg-black/25 p-2 rounded-xl border border-white/5 text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold text-slate-500">Position:</span>
+                <div className="flex gap-1 bg-slate-900/80 p-0.5 rounded-lg border border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setWidgetPosition("bottom-right")}
+                    className={`px-2.5 py-1 rounded-md font-medium text-xs transition ${widgetPosition === "bottom-right" ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white"}`}
+                  >
+                    Bottom-Right
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWidgetPosition("bottom-left")}
+                    className={`px-2.5 py-1 rounded-md font-medium text-xs transition ${widgetPosition === "bottom-left" ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white"}`}
+                  >
+                    Bottom-Left
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold text-slate-500">Button Label:</span>
+                <input
+                  type="text"
+                  value={widgetBtnText}
+                  onChange={(e) => setWidgetBtnText(e.target.value)}
+                  placeholder="Feedback"
+                  className="px-2.5 py-1 bg-slate-950 border border-white/10 rounded-lg text-white text-xs w-28 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
             </div>
           )}
 
@@ -1193,7 +1427,8 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                         s.setAttribute("data-endpoint", endpoint);
                         s.setAttribute("data-color", theme.styleHex1);
                         s.setAttribute("data-title", `Contact ${form.name}`);
-                        s.setAttribute("data-btn-text", "Feedback");
+                        s.setAttribute("data-position", widgetPosition);
+                        s.setAttribute("data-btn-text", widgetBtnText || "Feedback");
                         document.body.appendChild(s);
                       }
                     }}
@@ -1202,14 +1437,35 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                   >
                     ⚡ Test Floating Widget On This Page
                   </button>
-                  <span className="text-[10px] text-slate-500 mt-3">Spawns bottom-right bubble with glassmorphic modal</span>
+                  <span className="text-[10px] text-slate-500 mt-3">Spawns {widgetPosition} bubble with glassmorphic modal</span>
                 </div>
               </div>
             )}
           </div>
         </div>
-      </div>
-    )}
+        </>
+      )}
+
+      {connectSubView === "docs" && (
+        <ApiDocumentationView
+          endpoint={endpoint}
+          form={form}
+          apiTestLoading={apiTestLoading}
+          apiTestResult={apiTestResult}
+          onRunApiTest={handleRunApiTest}
+          copy={copy}
+          copied={copied}
+        />
+      )}
+
+      {connectSubView === "security" && (
+        <SecurityArchitectureView
+          endpoint={endpoint}
+          form={form}
+        />
+      )}
+    </div>
+  )}
 
     {/* Submissions Tab */}
     {view === "submissions" && (
@@ -1240,6 +1496,17 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                       {filter.label} <span className="text-[10px] opacity-75">({filter.count})</span>
                     </button>
                   ))}
+                  {subs.length > 0 && (
+                    <label className="flex items-center gap-1.5 ml-1 px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs text-slate-300 cursor-pointer hover:bg-white/10 transition">
+                      <input
+                        type="checkbox"
+                        checked={subs.length > 0 && selectedSubIds.length === subs.length}
+                        onChange={handleToggleSelectAll}
+                        className="h-3.5 w-3.5 rounded accent-cyan-400 cursor-pointer"
+                      />
+                      <span>Select All</span>
+                    </label>
+                  )}
                 </div>
 
                 {/* Export & Actions Toolbar */}
@@ -1250,7 +1517,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                       onClick={handleClearSpam}
                       className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-500/20 transition"
                     >
-                      🗑️ Clear Spam ({counts.spam})
+                      🗑️ Clear All Spam ({counts.spam})
                     </button>
                   )}
                   <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5 text-xs text-slate-300">
@@ -1292,6 +1559,35 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                 </div>
               </div>
 
+              {/* Bulk Action Bar when items are selected */}
+              {selectedSubIds.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-xs shadow-xl shadow-cyan-950/30">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-cyan-300 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                      {selectedSubIds.length} Selected
+                    </span>
+                    <span className="text-slate-400">of {subs.length} on this page</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleBulkDelete}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 font-bold hover:bg-rose-500/30 transition shadow-sm"
+                    >
+                      🗑️ Delete Selected ({selectedSubIds.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSubIds([])}
+                      className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+                    >
+                      ✕ Clear Selection
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Real-time Search Input */}
               <div className="relative">
                 <input
@@ -1327,6 +1623,8 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                     sub={sub}
                     onToggleStatus={handleToggleStatus}
                     onDelete={handleDeleteSub}
+                    isSelected={selectedSubIds.includes(sub.id)}
+                    onSelect={() => handleToggleSelectOne(sub.id)}
                   />
                 ))}
                 
@@ -1687,10 +1985,14 @@ function SubmissionRow({
   sub,
   onToggleStatus,
   onDelete,
+  isSelected,
+  onSelect,
 }: {
   sub: Submission;
   onToggleStatus?: (subId: string, currentStatus: string) => void;
   onDelete?: (subId: string) => void;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [viewType, setViewType] = useState<"table" | "json">("table");
@@ -1712,17 +2014,28 @@ function SubmissionRow({
   const preview = Object.entries(payload).slice(0, 3).map(([k, v]) => `${k}: ${String(v).slice(0, 40)}`).join(" · ");
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] transition hover:bg-white/[0.05]">
-      <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${sub.status === "spam" ? "bg-amber-400" : "bg-emerald-400"}`} aria-hidden="true" />
-        <span className="sr-only">Status: {sub.status}</span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm text-slate-300">{preview || "(empty)"}</p>
-          <p className="text-xs text-slate-500">{timeAgo(sub.createdAt)}{sub.email ? ` · ${sub.email}` : ""}{sub.spamScore > 0 ? ` · spam:${sub.spamScore}` : ""}</p>
-        </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${sub.status === "spam" ? "bg-amber-400/15 text-amber-200" : "bg-emerald-400/15 text-emerald-200"}`}>{sub.status}</span>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`shrink-0 text-slate-500 transition ${open ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6" /></svg>
-      </button>
+    <div className={`rounded-2xl border transition ${isSelected ? "border-cyan-500/50 bg-cyan-500/[0.07]" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.05]"}`}>
+      <div className="flex items-center gap-2 px-3 py-1">
+        {onSelect && (
+          <input
+            type="checkbox"
+            checked={!!isSelected}
+            onChange={onSelect}
+            className="h-4 w-4 rounded accent-cyan-400 cursor-pointer shrink-0 ml-1"
+            title="Select submission"
+          />
+        )}
+        <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-3 py-2 text-left">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${sub.status === "spam" ? "bg-amber-400" : "bg-emerald-400"}`} aria-hidden="true" />
+          <span className="sr-only">Status: {sub.status}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm text-slate-300">{preview || "(empty)"}</p>
+            <p className="text-xs text-slate-500">{timeAgo(sub.createdAt)}{sub.email ? ` · ${sub.email}` : ""}{sub.spamScore > 0 ? ` · spam:${sub.spamScore}` : ""}</p>
+          </div>
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${sub.status === "spam" ? "bg-amber-400/15 text-amber-200" : "bg-emerald-400/15 text-emerald-200"}`}>{sub.status}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`shrink-0 text-slate-500 transition ${open ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6" /></svg>
+        </button>
+      </div>
       {open && (
         <div className="border-t border-white/10 px-4 py-4 space-y-3">
           {/* Tab Selector & Action Buttons */}
@@ -1999,41 +2312,79 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           <label htmlFor="settings-redirect" className="mb-1 block text-xs text-slate-400">Redirect URL after submit (optional)</label>
           <input id="settings-redirect" value={redirectUrl} onChange={(e) => setRedirectUrl(e.target.value)} className="ff-input text-sm" placeholder="https://mysite.com/thanks" />
         </div>
-        <div>
-          <label htmlFor="settings-retention" className="mb-1 block text-xs text-slate-400">Data Retention Limit</label>
-          <select
-            id="settings-retention"
-            value={isCustom ? "custom" : retentionDays}
-            onChange={(e) => {
-              if (e.target.value === "custom") {
-                setIsCustom(true);
-              } else {
-                setIsCustom(false);
-                setRetentionDays(Number(e.target.value));
-              }
-            }}
-            className="ff-input text-sm bg-slate-900 text-white border border-white/10"
-          >
-            <option value="0" className="bg-slate-950 text-white">Keep Forever (Never Delete)</option>
-            <option value="30" className="bg-slate-950 text-white">Auto-delete older than 30 Days</option>
-            <option value="60" className="bg-slate-950 text-white">Auto-delete older than 60 Days</option>
-            <option value="90" className="bg-slate-950 text-white">Auto-delete older than 90 Days</option>
-            <option value="custom" className="bg-slate-950 text-white">Custom Days...</option>
-          </select>
+        {/* Database Storage & Retention Policy */}
+        <div className="border-t border-white/5 pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <label htmlFor="settings-retention" className="block text-xs font-bold text-white flex items-center gap-1.5">
+              <span>💾 Database Storage &amp; Auto-Cleanup Policy</span>
+            </label>
+            <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+              Zero Storage Bloat
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            FormForge runs automated background purging on every new submission. Submissions older than the specified duration are permanently deleted from Cloudflare D1 to ensure minimal database size and keep you 100% within free-tier quotas.
+          </p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+            {[
+              { days: 0, label: "Keep Forever", desc: "No auto-delete" },
+              { days: 7, label: "7 Days", desc: "Ultra-lean free tier" },
+              { days: 30, label: "30 Days", desc: "Recommended" },
+              { days: 60, label: "60 Days", desc: "Bi-monthly clean" },
+              { days: 90, label: "90 Days", desc: "Quarterly purge" },
+            ].map((preset) => {
+              const isSelected = !isCustom && retentionDays === preset.days;
+              return (
+                <button
+                  key={preset.days}
+                  type="button"
+                  onClick={() => {
+                    setIsCustom(false);
+                    setRetentionDays(preset.days);
+                  }}
+                  className={`p-2.5 rounded-xl border text-left transition ${
+                    isSelected
+                      ? "border-cyan-500 bg-cyan-500/15 text-white shadow-sm"
+                      : "border-white/10 bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                  }`}
+                >
+                  <div className="font-bold text-xs flex items-center justify-between">
+                    <span>{preset.label}</span>
+                    {isSelected && <span className="text-cyan-400 text-[10px]">✓</span>}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{preset.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setIsCustom(!isCustom)}
+              className="text-[11px] text-cyan-400 hover:text-cyan-300 underline font-medium"
+            >
+              {isCustom ? "Use standard presets above" : "Custom days limit..."}
+            </button>
+          </div>
 
           {isCustom && (
-            <div className="mt-3">
-              <label htmlFor="settings-custom-retention" className="mb-1 block text-xs text-slate-400">Specify Custom Days</label>
+            <div className="rounded-xl border border-white/10 bg-black/40 p-3 space-y-2">
+              <label htmlFor="settings-custom-retention" className="block text-xs font-semibold text-slate-300">
+                Specify Custom Days:
+              </label>
               <input
                 id="settings-custom-retention"
                 type="number"
                 min="1"
+                max="3650"
                 value={customDays}
                 onChange={(e) => setCustomDays(Number(e.target.value))}
                 className="ff-input text-sm"
-                placeholder="e.g. 15, 45, 120"
+                placeholder="e.g. 15, 45, 180"
               />
-              <p className="text-[10px] text-slate-500 mt-1">Specify custom number of days before submissions are auto-deleted.</p>
+              <p className="text-[10px] text-slate-500">Submissions older than {customDays || "X"} days will be automatically deleted from D1.</p>
             </div>
           )}
         </div>
@@ -2643,6 +2994,558 @@ print(response.json())`}
         })}
       </div>
     </section>
+  );
+}
+
+/* ─────────────────── In-Dashboard API Documentation & Guides Hub ─────────────────── */
+
+function ApiDocumentationView({
+  endpoint,
+  form,
+  apiTestLoading,
+  apiTestResult,
+  onRunApiTest,
+  copy,
+  copied,
+}: {
+  endpoint: string;
+  form: Form;
+  apiTestLoading: boolean;
+  apiTestResult: { status: number; ok: boolean; data: any } | null;
+  onRunApiTest: () => Promise<void>;
+  copy: (text: string, label: string) => Promise<void>;
+  copied: string | null;
+}) {
+  const [docTab, setDocTab] = useState<"submit" | "pow" | "rest" | "forwarding" | "params">("submit");
+  const [codeLang, setCodeLang] = useState<"html" | "fetch" | "react" | "python" | "curl">("html");
+
+  return (
+    <div className="space-y-6 pt-2">
+      {/* Interactive Sandbox & Live Tester */}
+      <div className="rounded-3xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/30 via-slate-900/60 to-slate-950 p-6 space-y-4 shadow-xl text-left">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-400/20 text-cyan-300 font-bold text-sm border border-cyan-400/40">
+              ⚡
+            </span>
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                Live Interactive API Sandbox
+                <span className="rounded-full bg-emerald-400/15 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
+                  Ready to Test
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Trigger a real HTTP POST submission directly to your endpoint to inspect response payloads, headers, and status codes.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={apiTestLoading}
+            onClick={onRunApiTest}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-5 py-2.5 text-xs font-bold transition shadow-lg shadow-cyan-500/25 disabled:opacity-50 min-h-[40px]"
+          >
+            {apiTestLoading ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" strokeOpacity="0.75"/></svg>
+                <span>Sending Test Request...</span>
+              </>
+            ) : (
+              <>
+                <span>🚀 Send Test Submission</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {apiTestResult && (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-black/60 p-4 space-y-2 animate-fade-in font-mono text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+              <span className="flex items-center gap-2 text-slate-300">
+                <span className={`h-2.5 w-2.5 rounded-full ${apiTestResult.ok ? "bg-emerald-400" : "bg-rose-400"} animate-pulse`} />
+                <span>Response Status:</span>
+                <span className={`font-bold px-2 py-0.5 rounded-md ${apiTestResult.ok ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"}`}>
+                  HTTP {apiTestResult.status} {apiTestResult.ok ? "Accepted" : "Error"}
+                </span>
+              </span>
+              <span className="text-[10px] text-slate-500">Live submission saved to D1</span>
+            </div>
+            <pre className="text-[11px] text-cyan-300 whitespace-pre-wrap break-all overflow-x-auto p-2 bg-black/40 rounded-xl">
+              {JSON.stringify(apiTestResult.data, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Sub-Pills for API Reference */}
+      <div className="flex flex-wrap gap-1.5 p-1 bg-black/30 border border-white/5 rounded-2xl w-fit text-xs">
+        {[
+          { id: "submit", label: "1. Form Submission (Public POST)", badge: "Most Used" },
+          { id: "pow", label: "2. Anti-Spam Challenge (GET)", badge: "PoW" },
+          { id: "rest", label: "3. Management REST API", badge: "Bearer Key" },
+          { id: "forwarding", label: "4. Webhooks & GAS vs SMTP", badge: "Architecture" },
+          { id: "params", label: "5. Parameter Reference", badge: "Docs" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setDocTab(tab.id as any)}
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-semibold transition ${
+              docTab === tab.id
+                ? "bg-white/10 text-white border border-white/10 shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <span>{tab.label}</span>
+            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-white/5 text-slate-400 font-mono">
+              {tab.badge}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Tab 1: Form Submission API */}
+      {docTab === "submit" && (
+        <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-6 space-y-5 text-left">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-mono font-bold">POST</span>
+              <code className="text-sm font-mono text-cyan-300 select-all break-all">{endpoint}</code>
+            </div>
+            <h4 className="text-base font-bold text-white pt-2">What is this endpoint &amp; When to use it?</h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              This is the primary public submission URL for <strong>{form.name}</strong>. Use this endpoint whenever you have a form on a website, landing page, mobile application, or backend service that needs to collect responses. It accepts submissions in <strong>JSON</strong>, <strong>HTML Form-encoded</strong>, or <strong>Multipart (Files)</strong>, verifies spam protection, stores the record securely in Cloudflare D1, and asynchronously forwards alerts.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+              <span className="text-[10px] uppercase font-bold text-cyan-400 tracking-wider">Where to put it</span>
+              <p className="text-xs font-semibold text-white">Inside your HTML &lt;form&gt; tag</p>
+              <p className="text-[11px] text-slate-400">
+                Set <code className="text-cyan-300">&lt;form method=&quot;POST&quot; action=&quot;{endpoint}&quot;&gt;</code>. Works natively on Webflow, WordPress, Shopify, Astro, or static HTML.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+              <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">AJAX / React fetch</span>
+              <p className="text-xs font-semibold text-white">Single-Page &amp; Headless Apps</p>
+              <p className="text-[11px] text-slate-400">
+                Call <code className="text-purple-300">fetch(&quot;{endpoint}&quot;, &#123; method: &quot;POST&quot;, body: ... &#125;)</code> inside React modals or contact drawers without page reloads.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Zero Setup Required</span>
+              <p className="text-xs font-semibold text-white">Dynamic Field Ingestion</p>
+              <p className="text-[11px] text-slate-400">
+                You do NOT need to define fields beforehand. Any key you submit (e.g. <code className="text-emerald-300">company</code>, <code className="text-emerald-300">budget</code>, <code className="text-emerald-300">rating</code>) is automatically parsed and saved!
+              </p>
+            </div>
+          </div>
+
+          {/* Code Snippets Accordion */}
+          <div className="space-y-2 border-t border-white/10 pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Example Implementation:</span>
+              <div className="flex gap-1 bg-black/40 p-0.5 rounded-lg border border-white/5">
+                {(["html", "fetch", "react", "python", "curl"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setCodeLang(lang)}
+                    className={`px-2 py-1 rounded text-[11px] font-semibold transition ${codeLang === lang ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white"}`}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative">
+              <pre className="text-xs bg-slate-950 p-4 rounded-xl text-slate-300 font-mono whitespace-pre-wrap break-all leading-relaxed overflow-x-auto border border-white/5">
+                {codeLang === "html" && (
+                  `<!-- Plain HTML Form -->
+<form method="POST" action="${endpoint}">
+  <input type="text" name="name" required placeholder="Your Name" />
+  <input type="email" name="email" required placeholder="Your Email" />
+  <textarea name="message" required placeholder="Your Message"></textarea>
+  
+  <!-- Hidden bot trap -->
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />
+  
+  <button type="submit">Submit</button>
+</form>`
+                )}
+
+                {codeLang === "fetch" && (
+                  `// Modern JavaScript (Fetch API)
+const response = await fetch("${endpoint}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    name: "Jane Doe",
+    email: "jane@example.com",
+    message: "I would like to inquire about your product."
+  })
+});
+
+const result = await response.json();
+console.log("Submission status:", result);`
+                )}
+
+                {codeLang === "react" && (
+                  `// React / Next.js Component
+import { useState } from "react";
+
+export function ContactForm() {
+  const [status, setStatus] = useState("idle");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setStatus("submitting");
+    const formData = new FormData(e.target);
+
+    const res = await fetch("${endpoint}", {
+      method: "POST",
+      body: formData
+    });
+
+    if (res.ok) setStatus("success");
+    else setStatus("error");
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="email" type="email" required />
+      <button type="submit">Send</button>
+      {status === "success" && <p>Response recorded!</p>}
+    </form>
+  );
+}`
+                )}
+
+                {codeLang === "python" && (
+                  `import requests
+
+url = "${endpoint}"
+payload = {
+    "name": "Alex Developer",
+    "email": "alex@example.com",
+    "message": "Automated pipeline submission"
+}
+
+response = requests.post(url, json=payload)
+print("Status Code:", response.status_code)
+print("Response:", response.json())`
+                )}
+
+                {codeLang === "curl" && (
+                  `curl -X POST "${endpoint}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "message": "Hello from Terminal"
+  }'`
+                )}
+              </pre>
+              <button
+                type="button"
+                onClick={() => {
+                  const text = codeLang === "html"
+                    ? `<form method="POST" action="${endpoint}">\n  <input type="text" name="name" required placeholder="Your Name" />\n  <input type="email" name="email" required placeholder="Your Email" />\n  <textarea name="message" required placeholder="Your Message"></textarea>\n  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />\n  <button type="submit">Submit</button>\n</form>`
+                    : codeLang === "fetch"
+                    ? `const response = await fetch("${endpoint}", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify({\n    name: "Jane Doe",\n    email: "jane@example.com",\n    message: "I would like to inquire about your product."\n  })\n});\nconst result = await response.json();`
+                    : codeLang === "react"
+                    ? `const res = await fetch("${endpoint}", {\n  method: "POST",\n  body: new FormData(e.target)\n});`
+                    : codeLang === "python"
+                    ? `import requests\nresponse = requests.post("${endpoint}", json={"name": "Alex", "email": "alex@example.com", "message": "Test"})\nprint(response.json())`
+                    : `curl -X POST "${endpoint}" -H "Content-Type: application/json" -d '{"name": "Jane", "email": "jane@example.com"}'`;
+                  copy(text, `code_${codeLang}`);
+                }}
+                className="absolute right-3 top-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 px-2.5 py-1 text-[11px] text-slate-300"
+              >
+                {copied === `code_${codeLang}` ? "✓ Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: ALTCHA Anti-Spam Challenge API */}
+      {docTab === "pow" && (
+        <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-6 space-y-5 text-left">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-mono font-bold">GET</span>
+              <code className="text-sm font-mono text-cyan-300 select-all break-all">{endpoint}</code>
+            </div>
+            <h4 className="text-base font-bold text-white pt-2">What is the Anti-Spam Challenge API?</h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              When an HTTP <code>GET</code> request is sent to your endpoint, FormForge dynamically generates a cryptographic <strong>SHA-256 Proof-of-Work puzzle</strong>. The official <code className="text-cyan-300">&lt;altcha-widget&gt;</code> fetches this challenge automatically, solves it locally on the visitor&apos;s machine in ~50ms using Web Workers, and includes the solved proof in the POST payload.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 space-y-2">
+              <h5 className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                <span>🛡️ Why FormForge Proof-of-Work beats Google reCAPTCHA</span>
+              </h5>
+              <ul className="text-[11px] text-slate-300 space-y-1.5 list-disc pl-4">
+                <li><strong>Zero tracking cookies:</strong> No privacy policy popups or GDPR consent cookies needed.</li>
+                <li><strong>Zero user friction:</strong> Users don&apos;t have to click on traffic lights, buses, or crosswalks.</li>
+                <li><strong>100% Self-Hosted &amp; Free:</strong> Runs directly inside your Cloudflare Worker — no Google API keys, no monthly bills.</li>
+                <li><strong>Cryptographic guarantee:</strong> Spam bots cannot bypass it without burning enormous CPU cycles.</li>
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Widget Embed Snippet:</span>
+              <pre className="text-[11px] font-mono text-cyan-300 bg-slate-950 p-3 rounded-xl whitespace-pre-wrap leading-relaxed">
+                {`<!-- Place inside your form -->
+<script type="module" src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" async defer></script>
+<altcha-widget challengeurl="${endpoint}"></altcha-widget>`}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: Management REST API */}
+      {docTab === "rest" && (
+        <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-6 space-y-5 text-left">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-mono font-bold">GET</span>
+              <code className="text-sm font-mono text-purple-300 select-all break-all">
+                {typeof window !== "undefined" ? window.location.origin : ""}/api/forms/{form.id}/submissions
+              </code>
+            </div>
+            <h4 className="text-base font-bold text-white pt-2">Management &amp; Read REST API</h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Use this authenticated JSON API to query, filter, search, or export submissions programmatically. Perfect for custom admin panels, Python analysis pipelines, Zapier, Make, and automated backups.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-3">
+            <h5 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Authentication &amp; Headers</h5>
+            <p className="text-xs text-slate-400">
+              Pass your API key in the <code className="text-cyan-300">Authorization</code> header (create keys anytime in the <strong>API Keys</strong> tab above):
+            </p>
+            <pre className="text-[11px] font-mono text-cyan-300 bg-slate-950 p-3 rounded-xl whitespace-pre-wrap">
+              {`Authorization: Bearer ff_live_your_api_key_here`}
+            </pre>
+          </div>
+
+          <div className="space-y-2">
+            <h5 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Query Parameters</h5>
+            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-black/20">
+              <table className="w-full text-left text-xs border-collapse font-mono">
+                <thead>
+                  <tr className="border-b border-white/10 text-slate-400 bg-white/[0.02]">
+                    <th className="py-2.5 px-3">Parameter</th>
+                    <th className="py-2.5 px-3">Type</th>
+                    <th className="py-2.5 px-3">Description</th>
+                    <th className="py-2.5 px-3">Example</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-[11px]">
+                  <tr>
+                    <td className="py-2 px-3 text-cyan-300 font-bold">limit</td>
+                    <td className="py-2 px-3 text-slate-400">number</td>
+                    <td className="py-2 px-3 text-slate-300">Maximum submissions to return (1-200)</td>
+                    <td className="py-2 px-3 text-slate-400">?limit=50</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 text-cyan-300 font-bold">offset</td>
+                    <td className="py-2 px-3 text-slate-400">number</td>
+                    <td className="py-2 px-3 text-slate-300">Pagination skip offset</td>
+                    <td className="py-2 px-3 text-slate-400">?offset=100</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 text-cyan-300 font-bold">status</td>
+                    <td className="py-2 px-3 text-slate-400">string</td>
+                    <td className="py-2 px-3 text-slate-300">Filter by &quot;accepted&quot;, &quot;spam&quot;, or &quot;pending&quot;</td>
+                    <td className="py-2 px-3 text-slate-400">?status=accepted</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 text-cyan-300 font-bold">q</td>
+                    <td className="py-2 px-3 text-slate-400">string</td>
+                    <td className="py-2 px-3 text-slate-300">Full-text search by email or payload content</td>
+                    <td className="py-2 px-3 text-slate-400">?q=john</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Webhooks & GAS vs SMTP Architecture */}
+      {docTab === "forwarding" && (
+        <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-6 space-y-5 text-left">
+          <div>
+            <h4 className="text-base font-bold text-white">Why Google Apps Script (GAS) &amp; Webhooks Beat SMTP</h4>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Many developers wonder why SMTP causes issues on serverless edge networks like Cloudflare Workers. Here is the technical explanation:
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-2">
+              <h5 className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                <span>⚠️ The Problem with SMTP on Edge Workers</span>
+              </h5>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                SMTP requires opening a direct TCP socket and performing an 8-step conversational protocol:
+                <br />
+                <code>connect() &rarr; EHLO &rarr; STARTTLS handshake &rarr; AUTH LOGIN &rarr; MAIL FROM &rarr; RCPT TO &rarr; DATA stream &rarr; QUIT</code>
+              </p>
+              <p className="text-[11px] text-slate-400">
+                This keeps the Cloudflare Worker socket open for <strong>1.5 to 3.5 seconds</strong>. Under burst traffic, workers hit connection concurrency limits, freezing execution or causing HTTP 524 timeouts.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-2">
+              <h5 className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                <span>⚡ The Advantage of Google Apps Script (GAS) &amp; Webhooks</span>
+              </h5>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                FormForge dispatches GAS and webhook alerts via an asynchronous <strong>HTTPS POST</strong> in just <strong>50ms</strong> using Cloudflare&apos;s native <code>ctx.waitUntil()</code> execution context.
+              </p>
+              <p className="text-[11px] text-slate-400">
+                The visitor gets an instant 0ms response, zero worker sockets freeze, and data is logged directly to Google Sheets or Slack without third-party services like Zapier!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 5: Parameter Reference */}
+      {docTab === "params" && (
+        <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-6 space-y-5 text-left">
+          <h4 className="text-base font-bold text-white">Form Parameters &amp; Reserved Fields</h4>
+          <p className="text-xs text-slate-400">
+            FormForge supports special reserved field names to control redirects, anti-spam, and notifications:
+          </p>
+
+          <div className="overflow-x-auto rounded-2xl border border-white/10 bg-black/30">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-white/10 text-slate-400 font-mono bg-white/[0.02]">
+                  <th className="py-2.5 px-3">Field Name</th>
+                  <th className="py-2.5 px-3">Type</th>
+                  <th className="py-2.5 px-3">Purpose &amp; Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 font-mono text-[11px]">
+                <tr>
+                  <td className="py-2 px-3 text-cyan-300 font-bold">_next / _redirect</td>
+                  <td className="py-2 px-3 text-slate-400">string (URL)</td>
+                  <td className="py-2 px-3 text-slate-300">Redirects submitter to this URL after successful submit (e.g. <code>https://mysite.com/thanks</code>). Supports template tags like <code>/thanks?name=&#123;name&#125;</code>!</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3 text-cyan-300 font-bold">{form.honeypotField}</td>
+                  <td className="py-2 px-3 text-slate-400">hidden input</td>
+                  <td className="py-2 px-3 text-slate-300">Invisible bot trap. Real users leave it blank; bots that autofill it are silently flagged as spam with zero disruption.</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3 text-cyan-300 font-bold">email / replyTo</td>
+                  <td className="py-2 px-3 text-slate-400">email string</td>
+                  <td className="py-2 px-3 text-slate-300">The visitor&apos;s email address. Used to send submitter autoresponders, double opt-in confirmations, and fraud analysis.</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3 text-cyan-300 font-bold">altcha / altcha-response</td>
+                  <td className="py-2 px-3 text-slate-400">string (PoW)</td>
+                  <td className="py-2 px-3 text-slate-300">Attached automatically by the &lt;altcha-widget&gt;. Contains mathematical proof that the visitor solved the computational challenge.</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3 text-cyan-300 font-bold">Any other key</td>
+                  <td className="py-2 px-3 text-slate-400">any</td>
+                  <td className="py-2 px-3 text-slate-300">Automatically saved into the submission payload JSON and rendered in the dashboard table and CSV exports.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────── Security Architecture Guide ─────────────────── */
+
+function SecurityArchitectureView({
+  endpoint,
+  form,
+}: {
+  endpoint: string;
+  form: Form;
+}) {
+  return (
+    <div className="space-y-5 pt-2 text-left">
+      <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-6 space-y-4">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-sm border border-emerald-500/40">
+            🛡️
+          </span>
+          <div>
+            <h3 className="text-base font-bold text-white">FormForge 6-Layer Security &amp; Anti-Spam Engine</h3>
+            <p className="text-xs text-slate-400">Enterprise security designed for serverless edge workers, with zero third-party cookies.</p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 pt-2">
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+            <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Layer 1</span>
+            <h5 className="text-xs font-bold text-white">Honeypot Bot Trap</h5>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Invisible field (<code className="text-emerald-300">{form.honeypotField}</code>) hidden from real visitors. Automated scrapers fill every input and get instantly flagged with 100 spam score.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+            <span className="text-[10px] uppercase font-bold text-cyan-400 tracking-wider">Layer 2</span>
+            <h5 className="text-xs font-bold text-white">ALTCHA Proof-of-Work</h5>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Cryptographic SHA-256 challenges solved in 50ms inside visitor browsers. Eliminates automated spam without irritating CAPTCHA images.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+            <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Layer 3</span>
+            <h5 className="text-xs font-bold text-white">Token-Bucket Rate Limiter</h5>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Enforces a strict 60 submissions / minute per IP ceiling to completely shut down Denial-of-Service (DoS) spam flooding.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+            <span className="text-[10px] uppercase font-bold text-sky-400 tracking-wider">Layer 4</span>
+            <h5 className="text-xs font-bold text-white">GDPR IP Pseudonymization</h5>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Visitor IP addresses are salted per form and hashed with SHA-256 before storage. True IP addresses are never exposed or sold.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+            <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Layer 5</span>
+            <h5 className="text-xs font-bold text-white">SSRF Defense Shield</h5>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              All webhooks and redirects are strictly validated to block private network IPs (10.0.0.0/8, 127.0.0.1) and AWS/GCP cloud metadata endpoints.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+            <span className="text-[10px] uppercase font-bold text-rose-400 tracking-wider">Layer 6</span>
+            <h5 className="text-xs font-bold text-white">Disposable Email Filter</h5>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Built-in blocklist covering 1,000+ temporary burner email providers (mailinator, 10minutemail, etc.) and live DNS MX validation.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -492,10 +492,18 @@ export async function POST(request: Request, context: RouteContext) {
   const isPendingVerification = (form.emailVerificationEnabled || form.otpEnabled) && email;
   const status = score >= 80 ? "spam" : isPendingVerification ? "pending" : "accepted";
   
+  // Storage optimization: prune transient/internal fields (honeypot, large verified altcha token) to save D1 space
+  const storagePayload: ParsedSubmission = { ...payload };
+  delete storagePayload[form.honeypotField];
+  delete storagePayload["altcha"];
+  delete storagePayload["altcha-response"];
+  delete storagePayload["_ff_pow"];
+  const minifiedPayload = safeStringify(storagePayload);
+  
   const submission: NewSubmission = {
     id: submissionId,
     formId: form.id,
-    payload: serialized,
+    payload: minifiedPayload,
     email: email || undefined,
     ipHash: form.storeIpHash && ip ? await sha256(`${form.id}:${ip}`) : (ip ?? undefined),
     userAgent: request.headers.get("user-agent") ?? undefined,
