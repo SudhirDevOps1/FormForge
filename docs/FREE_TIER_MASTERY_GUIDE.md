@@ -82,15 +82,19 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents);
     var recipient = data.emailTo || data.to || data.recipient;
     var subject = data.subject || ("New FormForge Notification: " + (data.form ? data.form.name : "Alert"));
-    var body = data.body || (data.code ? ("Your verification code is: " + data.code) : JSON.stringify(data.payload, null, 2));
+    var body = data.body || data.text || (data.code ? ("Your verification code is: " + data.code) : (data.magicLink ? ("Your Magic Link: " + data.magicLink) : JSON.stringify(data.payload, null, 2)));
     
     // 1. Send free email via your personal Gmail
     if (recipient) {
-      MailApp.sendEmail({
+      var mailOptions = {
         to: recipient,
         subject: subject,
         body: body
-      });
+      };
+      if (data.html) {
+        mailOptions.htmlBody = data.html;
+      }
+      MailApp.sendEmail(mailOptions);
     }
     
     // 2. Append row to active Google Sheet (optional)

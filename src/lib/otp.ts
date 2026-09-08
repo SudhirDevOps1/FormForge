@@ -1,6 +1,7 @@
 import type { AppDb } from "@/db";
 import { otpCodes } from "@/db/schema";
 import { and, desc, eq, gte, isNotNull, isNull } from "drizzle-orm";
+import { randomToken } from "./crypto";
 
 async function sha256Hex(str: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -47,12 +48,13 @@ export async function verifyOtp(
   db: AppDb,
   formId: string,
   email: string,
-  code: string
+  codeOrToken: string
 ): Promise<{ success: boolean; error?: string }> {
   const normalizedEmail = email.trim().toLowerCase();
+  const trimmed = codeOrToken.trim();
   const nowIso = new Date().toISOString();
 
-  // Find latest unverified OTP for this email
+  // Find unverified OTP / token records for this form and email
   const records = await db
     .select()
     .from(otpCodes)
@@ -64,38 +66,37 @@ export async function verifyOtp(
       )
     )
     .orderBy(desc(otpCodes.createdAt))
-    .limit(1);
+    .limit(10);
 
   if (!records.length) {
-    return { success: false, error: "No active OTP request found for this email." };
+    return { success: false, error: "No active verification code or link found for this email." };
   }
 
-  const otpRecord = records[0];
+  const expectedHash = await sha256Hex(`${formId}:${normalizedEmail}:${trimmed}`);
+  const matched = records.find((r) => r.codeHash === expectedHash);
 
-  if (new Date(otpRecord.expiresAt).getTime() < Date.now()) {
-    return { success: false, error: "OTP has expired. Please request a new code." };
-  }
-
-  if (otpRecord.attempts >= 5) {
-    return { success: false, error: "Too many failed attempts. Please request a new code." };
-  }
-
-  const expectedHash = await sha256Hex(`${formId}:${normalizedEmail}:${code.trim()}`);
-
-  if (expectedHash !== otpRecord.codeHash) {
-    // Increment attempts
+  if (!matched) {
+    // Increment attempts on latest record to prevent brute-force attacks
     await db
       .update(otpCodes)
-      .set({ attempts: otpRecord.attempts + 1 })
-      .where(eq(otpCodes.id, otpRecord.id));
-    return { success: false, error: "Invalid OTP code. Please try again." };
+      .set({ attempts: records[0].attempts + 1 })
+      .where(eq(otpCodes.id, records[0].id));
+    return { success: false, error: "Invalid verification code or link. Please try again." };
+  }
+
+  if (new Date(matched.expiresAt).getTime() < Date.now()) {
+    return { success: false, error: "Verification code or magic link has expired. Please request a new one." };
+  }
+
+  if (matched.attempts >= 5) {
+    return { success: false, error: "Too many failed attempts. Please request a new code or magic link." };
   }
 
   // Mark verified
   await db
     .update(otpCodes)
     .set({ verifiedAt: nowIso })
-    .where(eq(otpCodes.id, otpRecord.id));
+    .where(eq(otpCodes.id, matched.id));
 
   return { success: true };
 }
@@ -127,15 +128,71 @@ export async function isEmailVerifiedForForm(
 export async function createPasswordResetOtp(
   db: AppDb,
   email: string
-): Promise<{ code: string; expiresAt: string }> {
-  return createOtp(db, "__password_reset__", email);
+): Promise<{ code: string; token: string; expiresAt: string }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const code = generateSecureCode();
+  const token = randomToken(32);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+  const codeHash = await sha256Hex(`__password_reset__:${normalizedEmail}:${code}`);
+  const tokenHash = await sha256Hex(`__password_reset__:${normalizedEmail}:${token}`);
+
+  await db.insert(otpCodes).values([
+    {
+      id: crypto.randomUUID(),
+      formId: "__password_reset__",
+      email: normalizedEmail,
+      codeHash,
+      expiresAt,
+      attempts: 0,
+    },
+    {
+      id: crypto.randomUUID(),
+      formId: "__password_reset__",
+      email: normalizedEmail,
+      codeHash: tokenHash,
+      expiresAt,
+      attempts: 0,
+    },
+  ]);
+
+  return { code, token, expiresAt };
 }
 
 export async function verifyPasswordResetOtp(
   db: AppDb,
   email: string,
-  code: string
+  codeOrToken: string
 ): Promise<{ success: boolean; error?: string }> {
-  return verifyOtp(db, "__password_reset__", email, code);
+  return verifyOtp(db, "__password_reset__", email, codeOrToken);
+}
+
+export async function createMagicLoginToken(
+  db: AppDb,
+  email: string
+): Promise<{ token: string; expiresAt: string }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const token = randomToken(32);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const tokenHash = await sha256Hex(`__magic_login__:${normalizedEmail}:${token}`);
+
+  await db.insert(otpCodes).values({
+    id: crypto.randomUUID(),
+    formId: "__magic_login__",
+    email: normalizedEmail,
+    codeHash: tokenHash,
+    expiresAt,
+    attempts: 0,
+  });
+
+  return { token, expiresAt };
+}
+
+export async function verifyMagicLoginToken(
+  db: AppDb,
+  email: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  return verifyOtp(db, "__magic_login__", email, token);
 }
 

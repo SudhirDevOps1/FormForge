@@ -43,13 +43,15 @@ export async function POST(request: Request) {
       });
     }
 
-    const { code } = await createPasswordResetOtp(db, email);
-    const sent = await sendPasswordResetEmail(email, code);
+    const appUrl = new URL(request.url).origin;
+    const { code, token } = await createPasswordResetOtp(db, email);
+    const magicLink = `${appUrl}/dashboard?reset_token=${token}&email=${encodeURIComponent(email)}`;
+    const sent = await sendPasswordResetEmail(email, code, magicLink);
 
     return jsonOk({
       sent: true,
       delivered: sent,
-      message: "A 6-digit password reset code has been sent to your email.",
+      message: "A 6-digit password reset code and 1-click magic link have been sent to your email.",
     });
   } catch (error) {
     return jsonError("SERVER_ERROR", "Failed to process password reset request.", 500);

@@ -965,21 +965,29 @@ export async function dispatchWebhook(
   }
 }
 
-export async function sendPasswordResetEmail(toEmail: string, code: string): Promise<boolean> {
+export async function sendPasswordResetEmail(toEmail: string, code: string, magicLink?: string): Promise<boolean> {
   const env = getRuntimeEnv();
-  const subject = `🔐 FormForge Password Reset Code: ${code}`;
-  const text = `Your 6-digit FormForge password reset code is:\n\n${code}\n\nThis code will expire in 15 minutes. If you did not request a password reset, you can safely ignore this email.`;
+  const subject = `🔐 FormForge Password Reset Code & Magic Link`;
+  const text = `Your 6-digit FormForge password reset code is: ${code}
+
+${magicLink ? `Or click this 1-click Magic Link to reset your password immediately:\n${magicLink}\n\n` : ""}This code and link will expire in 15 minutes. If you did not request a password reset, you can safely ignore this email.`;
   const html = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #030712; padding: 40px 10px; text-align: center;">
   <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden;">
     <tr>
       <td style="padding: 32px 24px; text-align: center;">
         <h2 style="font-size: 22px; font-weight: 800; color: #ffffff; margin: 0 0 12px;">Admin Password Reset</h2>
-        <p style="font-size: 14px; color: #94a3b8; margin: 0 0 24px;">Enter this 6-digit code to reset your FormForge owner account password:</p>
+        <p style="font-size: 14px; color: #94a3b8; margin: 0 0 24px;">Enter this 6-digit code or click the magic link button below to reset your FormForge password:</p>
         <div style="background-color: #1e293b; border: 1px dashed #38bdf8; border-radius: 12px; padding: 18px 24px; display: inline-block; margin-bottom: 24px;">
           <span style="font-family: monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #38bdf8;">${code}</span>
         </div>
-        <p style="font-size: 13px; color: #64748b; margin: 0;">Expires in 15 minutes &bull; Do not share this code.</p>
+        ${magicLink ? `
+        <div style="margin: 8px 0 24px;">
+          <p style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">Prefer 1-click password reset?</p>
+          <a href="${magicLink}" style="background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%); color: #020617; font-weight: 700; font-size: 14px; text-decoration: none; padding: 12px 24px; border-radius: 10px; display: inline-block;">Reset Password via Magic Link &rarr;</a>
+        </div>
+        ` : ""}
+        <p style="font-size: 13px; color: #64748b; margin: 0;">Expires in 15 minutes &bull; Do not share this code or link.</p>
       </td>
     </tr>
   </table>
@@ -1002,7 +1010,10 @@ export async function sendPasswordResetEmail(toEmail: string, code: string): Pro
           text,
           html,
           code,
-          payload: { reset_code: code, expires_in: "15 minutes" },
+          magicLink,
+          magic_link: magicLink,
+          reset_link: magicLink,
+          payload: { reset_code: code, magic_link: magicLink, expires_in: "15 minutes" },
         }),
       });
       if (response.ok) return true;
@@ -1116,6 +1127,167 @@ export async function sendPasswordResetEmail(toEmail: string, code: string): Pro
       if (response.ok) return true;
     } catch (e) {
       console.warn("Mailgun password reset failed:", e);
+    }
+  }
+
+  return false;
+}
+
+export async function sendMagicLoginEmail(toEmail: string, magicLink: string): Promise<boolean> {
+  const env = getRuntimeEnv();
+  const subject = `✨ FormForge 1-Click Magic Sign-In`;
+  const text = `Click this 1-click Magic Link to sign in to FormForge immediately:\n\n${magicLink}\n\nThis link will expire in 15 minutes. If you did not request this, you can safely ignore this email.`;
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #030712; padding: 40px 10px; text-align: center;">
+  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden;">
+    <tr>
+      <td style="padding: 32px 24px; text-align: center;">
+        <h2 style="font-size: 22px; font-weight: 800; color: #ffffff; margin: 0 0 12px;">Instant Magic Sign-In</h2>
+        <p style="font-size: 14px; color: #94a3b8; margin: 0 0 24px;">Click the button below to sign in to your FormForge Dashboard without entering a password:</p>
+        <div style="margin: 12px 0 24px;">
+          <a href="${magicLink}" style="background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%); color: #020617; font-weight: 700; font-size: 15px; text-decoration: none; padding: 14px 28px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 14px rgba(6,182,212,0.4);">Sign In to FormForge &rarr;</a>
+        </div>
+        <p style="font-size: 12px; color: #64748b; margin: 0 0 8px;">Or copy and paste this link into your browser:</p>
+        <p style="font-size: 11px; font-family: monospace; color: #38bdf8; word-break: break-all; margin: 0 0 24px;">${magicLink}</p>
+        <p style="font-size: 12px; color: #475569; margin: 0;">Expires in 15 minutes &bull; Single-use security token.</p>
+      </td>
+    </tr>
+  </table>
+</div>
+  `;
+
+  // 1. Google Apps Script Relay (Zero-card Free)
+  const gasUrl = env.GAS_URL || env.GAS_WEBHOOK_URL;
+  if (gasUrl) {
+    try {
+      const response = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "magic_login",
+          emailTo: toEmail,
+          to: toEmail,
+          recipient: toEmail,
+          subject,
+          text,
+          html,
+          magicLink,
+          magic_link: magicLink,
+          login_link: magicLink,
+          payload: { magic_link: magicLink, expires_in: "15 minutes" },
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("GAS magic login relay failed, trying other providers:", e);
+    }
+  }
+
+  // 2. Global SMTP
+  const smtpEnabled = env.SMTP_ENABLED === "true" || env.SMTP_ENABLED === "1";
+  const smtpHost = env.SMTP_HOST;
+  const smtpPort = env.SMTP_PORT ? Number(env.SMTP_PORT) : 587;
+  const smtpUser = env.SMTP_USER;
+  const smtpPass = env.SMTP_PASS;
+  const smtpFrom = env.SMTP_FROM || smtpUser;
+
+  if (smtpEnabled && smtpHost && smtpUser && smtpPass && smtpFrom) {
+    try {
+      const res = await sendSmtpEmail(smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, toEmail, subject, text, html);
+      if (res.success) return true;
+    } catch (e) {
+      console.warn("SMTP magic login delivery failed:", e);
+    }
+  }
+
+  // 3. Direct Email APIs
+  if (env.RESEND_API_KEY && env.RESEND_FROM) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM,
+          to: toEmail,
+          subject,
+          text,
+          html,
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Resend magic login failed:", e);
+    }
+  }
+
+  if (env.BREVO_API_KEY && env.BREVO_FROM) {
+    try {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { email: env.BREVO_FROM, name: "FormForge Security" },
+          to: [{ email: toEmail }],
+          subject,
+          textContent: text,
+          htmlContent: html,
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Brevo magic login failed:", e);
+    }
+  }
+
+  if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
+    try {
+      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: toEmail }] }],
+          from: { email: env.SENDGRID_FROM, name: "FormForge Security" },
+          subject,
+          content: [
+            { type: "text/plain", value: text },
+            { type: "text/html", value: html }
+          ],
+        }),
+      });
+      if (response.status === 202) return true;
+    } catch (e) {
+      console.warn("SendGrid magic login failed:", e);
+    }
+  }
+
+  if (env.MAILGUN_API_KEY && env.MAILGUN_DOMAIN && env.MAILGUN_FROM) {
+    try {
+      const formData = new FormData();
+      formData.append("from", env.MAILGUN_FROM);
+      formData.append("to", toEmail);
+      formData.append("subject", subject);
+      formData.append("text", text);
+      formData.append("html", html);
+
+      const response = await fetch(`https://api.mailgun.net/v3/${env.MAILGUN_DOMAIN}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(`api:${env.MAILGUN_API_KEY}`)}`,
+        },
+        body: formData,
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Mailgun magic login failed:", e);
     }
   }
 

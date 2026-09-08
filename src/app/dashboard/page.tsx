@@ -401,6 +401,67 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
   const [forgotError, setForgotError] = useState("");
   const [forgotBusy, setForgotBusy] = useState(false);
 
+  // Magic Login states
+  const [magicMode, setMagicMode] = useState(false);
+  const [magicEmail, setMagicEmail] = useState("");
+  const [magicBusy, setMagicBusy] = useState(false);
+  const [magicSuccess, setMagicSuccess] = useState("");
+  const [magicError, setMagicError] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get("reset_token");
+    const paramEmail = params.get("email");
+    const magic2fa = params.get("magic_2fa");
+    const authError = params.get("auth_error");
+
+    if (resetToken && paramEmail) {
+      setForgotMode("reset");
+      setForgotEmail(paramEmail);
+      setResetCode(resetToken);
+      setForgotSuccess("✨ Magic reset link applied! Please enter your new password below.");
+    } else if (magic2fa && paramEmail) {
+      setEmail(paramEmail);
+      setRequires2fa(true);
+      setError("✨ Magic link verified! Please enter your 6-digit authenticator code.");
+    } else if (authError) {
+      setError(decodeURIComponent(authError));
+    }
+  }, []);
+
+  async function handleMagicLinkRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setMagicError("");
+    setMagicSuccess("");
+
+    if (!altchaVerified) {
+      setMagicError("Please complete human verification below before continuing.");
+      return;
+    }
+
+    setMagicBusy(true);
+    try {
+      const res = await fetch("/api/auth/magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: magicEmail, altcha: altchaPayload }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setMagicError(data.error || data.message || "Failed to send magic link.");
+        return;
+      }
+      setMagicSuccess(data.message || "✨ 1-Click Magic Link sent to your email! Check your inbox.");
+      setAltchaPayload("");
+      setAltchaVerified(false);
+    } catch {
+      setMagicError("Network error. Could not request magic link.");
+    } finally {
+      setMagicBusy(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -513,6 +574,97 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
     } finally {
       setForgotBusy(false);
     }
+  }
+
+  if (magicMode) {
+    return (
+      <div className="grid min-h-screen place-items-center px-4 py-12">
+        <form onSubmit={handleMagicLinkRequest} className="glass-panel w-full max-w-md rounded-3xl p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <img src="/logo.svg" alt="FormForge Logo" className="h-10 w-10 rounded-xl" />
+            <span className="text-xl font-bold">FormForge</span>
+          </div>
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300 font-semibold">
+            ✨ Passwordless Authentication
+          </div>
+          <h1 className="text-2xl font-black text-white">Sign in with Magic Link</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Enter your account email. We will send you a secure 1-click sign-in link via Google Apps Script (GAS) or SMTP. No password needed.
+          </p>
+
+          {magicSuccess ? (
+            <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center space-y-3">
+              <span className="text-3xl">📬</span>
+              <h3 className="text-base font-bold text-white">Check Your Email Inbox</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">{magicSuccess}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setMagicMode(false);
+                  setMagicSuccess("");
+                  setMagicError("");
+                }}
+                className="mt-3 inline-block rounded-xl bg-cyan-300/20 border border-cyan-300/40 px-4 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-300/30 transition"
+              >
+                ← Return to Sign In
+              </button>
+            </div>
+          ) : (
+            <>
+              <label htmlFor="magic-email" className="mt-5 block text-sm text-slate-300">Email Address</label>
+              <input
+                id="magic-email"
+                required
+                type="email"
+                value={magicEmail}
+                onChange={(e) => setMagicEmail(e.target.value)}
+                className="ff-input"
+                placeholder="you@example.com"
+              />
+
+              <div className="mt-4">
+                <TurnstileAltcha
+                  key="magic-request"
+                  challengeUrl="/api/altcha/challenge?maxnumber=20000"
+                  onVerified={(payload) => {
+                    setAltchaPayload(payload);
+                    setAltchaVerified(true);
+                    setMagicError("");
+                  }}
+                />
+              </div>
+
+              {magicError && (
+                <div className="mt-4 rounded-xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
+                  <p>{magicError}</p>
+                </div>
+              )}
+
+              <button
+                disabled={magicBusy || !altchaVerified || !magicEmail.includes("@")}
+                className="mt-5 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {magicBusy ? "Sending magic link…" : "Send 1-Click Magic Link ✨"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMagicMode(false);
+                  setMagicError("");
+                  setMagicSuccess("");
+                  setAltchaVerified(false);
+                  setAltchaPayload("");
+                }}
+                className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white"
+              >
+                ← Back to Password Sign In
+              </button>
+            </>
+          )}
+        </form>
+      </div>
+    );
   }
 
   if (forgotMode === "request") {
@@ -834,6 +986,24 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
         <button disabled={busy || !altchaVerified} className="mt-5 w-full rounded-2xl bg-cyan-300 px-6 py-4 font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed">
           {busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}
         </button>
+        {mode === "login" && (
+          <button
+            type="button"
+            onClick={() => {
+              setMagicMode(true);
+              setMagicEmail(email);
+              setError("");
+              setMagicError("");
+              setMagicSuccess("");
+              setAltchaVerified(false);
+              setAltchaPayload("");
+            }}
+            className="mt-3 w-full text-center text-xs text-slate-300 hover:text-cyan-300 flex items-center justify-center gap-1.5 transition py-1"
+          >
+            <span>✨</span>
+            <span>Sign in with 1-Click Magic Link (Passwordless)</span>
+          </button>
+        )}
         <button type="button" onClick={() => { setMode(mode === "register" ? "login" : "register"); setError(""); setForgotSuccess(""); setAltchaVerified(false); setAltchaPayload(""); setRequires2fa(false); }} className="mt-3 w-full text-center text-sm text-cyan-200 hover:text-white">
           {mode === "register" ? "Already have an account? Sign in →" : "New here? Create an account →"}
         </button>
@@ -4051,15 +4221,19 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
     var data = JSON.parse(e.postData.contents);
     var recipient = data.emailTo || data.to || data.recipient;
     var subject = data.subject || ("New FormForge Notification: " + (data.form ? data.form.name : "Alert"));
-    var body = data.body || (data.code ? ("Your verification code is: " + data.code) : JSON.stringify(data.payload, null, 2));
+    var body = data.body || data.text || (data.code ? ("Your verification code is: " + data.code) : (data.magicLink ? ("Your Magic Link: " + data.magicLink) : JSON.stringify(data.payload, null, 2)));
     
     // 1. Send free email via Gmail (500-1500/day free)
     if (recipient) {
-      MailApp.sendEmail({
+      var mailOptions = {
         to: recipient,
         subject: subject,
         body: body
-      });
+      };
+      if (data.html) {
+        mailOptions.htmlBody = data.html;
+      }
+      MailApp.sendEmail(mailOptions);
     }
     
     // 2. Append to Google Sheet (optional)
