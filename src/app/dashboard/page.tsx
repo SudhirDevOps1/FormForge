@@ -5289,15 +5289,16 @@ function SettingsTab({ user }: { user: User }) {
     fetch("/api/user/settings", { credentials: "include" })
       .then(res => res.json())
       .then(data => {
-        if (data.ok && data.settings) {
+        const s = data?.data?.settings || data?.settings;
+        if (data?.ok && s) {
           setGlobalSettings(prev => ({
             ...prev,
-            ...data.settings,
+            ...s,
             globalSmtpPass: "",
           }));
         }
       })
-      .catch(console.error)
+      .catch((err) => console.error("Load universal settings error:", err))
       .finally(() => setLoadingGlobal(false));
   }, []);
 
@@ -5312,18 +5313,24 @@ function SettingsTab({ user }: { user: User }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(globalSettings),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!data) {
+        setGlobalSaveMsg({ type: "error", text: `Server error (HTTP ${res.status}). Failed to save settings.` });
+        return;
+      }
       if (data.ok) {
+        const s = data.data?.settings || data.settings;
         setGlobalSaveMsg({ type: "success", text: "✓ Universal Account Settings saved successfully!" });
-        if (data.settings?.hasGlobalSmtpPass) {
+        if (s?.hasGlobalSmtpPass) {
           setGlobalSettings(prev => ({ ...prev, hasGlobalSmtpPass: true, globalSmtpPass: "" }));
         }
         setTimeout(() => setGlobalSaveMsg(null), 4000);
       } else {
-        setGlobalSaveMsg({ type: "error", text: data.error || "Failed to save settings." });
+        setGlobalSaveMsg({ type: "error", text: data.message || data.error || "Failed to save settings." });
       }
-    } catch {
-      setGlobalSaveMsg({ type: "error", text: "Network error while saving." });
+    } catch (err: any) {
+      console.error("Save universal settings error:", err);
+      setGlobalSaveMsg({ type: "error", text: err instanceof Error ? err.message : "Network error while saving." });
     } finally {
       setSavingGlobal(false);
     }

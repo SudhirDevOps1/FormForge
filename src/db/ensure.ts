@@ -168,11 +168,23 @@ export async function ensureSchema(db: AppDb): Promise<void> {
         `ALTER TABLE forms ADD COLUMN display_mode text NOT NULL DEFAULT 'classic';`,
         `ALTER TABLE forms ADD COLUMN allowed_file_extensions text DEFAULT '';`,
         `ALTER TABLE forms ADD COLUMN max_attachment_size_mb integer DEFAULT 10;`,
+        `ALTER TABLE users ADD COLUMN totp_secret text;`,
+        `ALTER TABLE users ADD COLUMN totp_enabled integer NOT NULL DEFAULT 0;`,
+        `ALTER TABLE users ADD COLUMN global_smtp_enabled integer NOT NULL DEFAULT 0;`,
+        `ALTER TABLE users ADD COLUMN global_smtp_host text;`,
+        `ALTER TABLE users ADD COLUMN global_smtp_port integer DEFAULT 587;`,
+        `ALTER TABLE users ADD COLUMN global_smtp_user text;`,
+        `ALTER TABLE users ADD COLUMN global_smtp_pass text;`,
+        `ALTER TABLE users ADD COLUMN global_smtp_from text;`,
+        `ALTER TABLE users ADD COLUMN global_gas_url text;`,
+        `ALTER TABLE users ADD COLUMN global_webhook_url text;`,
+        `ALTER TABLE users ADD COLUMN notify_on_login integer NOT NULL DEFAULT 1;`,
+        `ALTER TABLE users ADD COLUMN notify_on_submission integer NOT NULL DEFAULT 1;`,
       ];
       for (const stmt of alterStatements) {
         try {
           await db.run(sql.raw(stmt));
-        } catch (e) {
+        } catch {
           // Column might already exist, which is fine
         }
       }

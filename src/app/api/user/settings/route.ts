@@ -9,25 +9,25 @@ import { jsonError, jsonOk, readJson } from "@/lib/http";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const db = getDb();
-  if (!isDbReady(db)) {
-    return databaseUnavailableResponse();
-  }
+  try {
+    const db = getDb();
+    if (!isDbReady(db)) {
+      return databaseUnavailableResponse();
+    }
 
-  await ensureSchema(db);
-  const sessionUser = await getCurrentUser(request, db);
-  if (!sessionUser) {
-    return jsonError("UNAUTHENTICATED", "Sign in to continue.", 401);
-  }
+    await ensureSchema(db);
+    const sessionUser = await getCurrentUser(request, db);
+    if (!sessionUser) {
+      return jsonError("UNAUTHENTICATED", "Sign in to continue.", 401);
+    }
 
-  const rows = await db.select().from(users).where(eq(users.id, sessionUser.id)).limit(1);
-  const user = rows[0];
-  if (!user) {
-    return jsonError("USER_NOT_FOUND", "Account profile not found.", 404);
-  }
+    const rows = await db.select().from(users).where(eq(users.id, sessionUser.id)).limit(1);
+    const user = rows[0];
+    if (!user) {
+      return jsonError("USER_NOT_FOUND", "Account profile not found.", 404);
+    }
 
-  return jsonOk({
-    settings: {
+    const settings = {
       globalSmtpEnabled: Boolean(user.globalSmtpEnabled),
       globalSmtpHost: user.globalSmtpHost || "",
       globalSmtpPort: user.globalSmtpPort || 587,
@@ -38,100 +38,131 @@ export async function GET(request: Request) {
       globalWebhookUrl: user.globalWebhookUrl || "",
       notifyOnLogin: user.notifyOnLogin !== false,
       notifyOnSubmission: user.notifyOnSubmission !== false,
-    },
-  });
+    };
+
+    return jsonOk({ settings });
+  } catch (err: any) {
+    console.error("GET /api/user/settings error:", err);
+    return jsonError("FETCH_SETTINGS_FAILED", err.message || "Failed to retrieve settings.", 500);
+  }
 }
 
 export async function PATCH(request: Request) {
-  const db = getDb();
-  if (!isDbReady(db)) {
-    return databaseUnavailableResponse();
-  }
-
-  await ensureSchema(db);
-  const sessionUser = await getCurrentUser(request, db);
-  if (!sessionUser) {
-    return jsonError("UNAUTHENTICATED", "Sign in to continue.", 401);
-  }
-
-  const body = await readJson(request);
-  const updateData: Partial<typeof users.$inferInsert> = {
-    updatedAt: new Date().toISOString(),
-  };
-
-  if (typeof body.globalSmtpEnabled === "boolean") {
-    updateData.globalSmtpEnabled = body.globalSmtpEnabled;
-  }
-  if (typeof body.globalSmtpHost === "string") {
-    updateData.globalSmtpHost = body.globalSmtpHost.trim() || null;
-  }
-  if (typeof body.globalSmtpPort === "number" || typeof body.globalSmtpPort === "string") {
-    const port = Number(body.globalSmtpPort);
-    if (!isNaN(port) && port > 0 && port <= 65535) {
-      updateData.globalSmtpPort = port;
+  try {
+    const db = getDb();
+    if (!isDbReady(db)) {
+      return databaseUnavailableResponse();
     }
-  }
-  if (typeof body.globalSmtpUser === "string") {
-    updateData.globalSmtpUser = body.globalSmtpUser.trim() || null;
-  }
-  if (typeof body.globalSmtpFrom === "string") {
-    updateData.globalSmtpFrom = body.globalSmtpFrom.trim() || null;
-  }
 
-  // Handle password update / clear
-  if (body.clearGlobalSmtpPass === true) {
-    updateData.globalSmtpPass = null;
-  } else if (typeof body.globalSmtpPass === "string" && body.globalSmtpPass.trim().length > 0) {
-    updateData.globalSmtpPass = await encryptText(body.globalSmtpPass.trim());
-  }
-
-  // Handle Universal GAS Webhook URL
-  if (typeof body.globalGasUrl === "string") {
-    const cleanUrl = body.globalGasUrl.trim();
-    if (cleanUrl) {
-      if (!cleanUrl.startsWith("https://")) {
-        return jsonError("INVALID_URL", "Google Apps Script URL must use https://.", 400);
-      }
-      updateData.globalGasUrl = cleanUrl;
-    } else {
-      updateData.globalGasUrl = null;
+    await ensureSchema(db);
+    const sessionUser = await getCurrentUser(request, db);
+    if (!sessionUser) {
+      return jsonError("UNAUTHENTICATED", "Sign in to continue.", 401);
     }
-  }
 
-  // Handle Universal Outgoing Webhook URL (Stoat, Slack, Discord, custom)
-  if (typeof body.globalWebhookUrl === "string") {
-    const cleanUrl = body.globalWebhookUrl.trim();
-    if (cleanUrl) {
-      const { isPrivateUrl, normalizeWebhookUrl } = await import("@/lib/url-validation");
-      const normalized = normalizeWebhookUrl(cleanUrl);
-      if (!normalized.startsWith("https://") && !normalized.startsWith("http://")) {
-        return jsonError("INVALID_URL", "Webhook URL must start with https:// or http://.", 400);
-      }
-      if (isPrivateUrl(normalized)) {
-        return jsonError("SSRF_BLOCKED", "Internal network URLs are forbidden.", 403);
-      }
-      updateData.globalWebhookUrl = normalized;
-    } else {
-      updateData.globalWebhookUrl = null;
+    const body = await readJson(request);
+    const updateData: Partial<typeof users.$inferInsert> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (typeof body.globalSmtpEnabled === "boolean") {
+      updateData.globalSmtpEnabled = body.globalSmtpEnabled;
     }
-  }
+    if (typeof body.globalSmtpHost === "string") {
+      updateData.globalSmtpHost = body.globalSmtpHost.trim() || null;
+    }
+    if (typeof body.globalSmtpPort === "number" || typeof body.globalSmtpPort === "string") {
+      const port = Number(body.globalSmtpPort);
+      if (!isNaN(port) && port > 0 && port <= 65535) {
+        updateData.globalSmtpPort = port;
+      }
+    }
+    if (typeof body.globalSmtpUser === "string") {
+      updateData.globalSmtpUser = body.globalSmtpUser.trim() || null;
+    }
+    if (typeof body.globalSmtpFrom === "string") {
+      updateData.globalSmtpFrom = body.globalSmtpFrom.trim() || null;
+    }
 
-  if (typeof body.notifyOnLogin === "boolean") {
-    updateData.notifyOnLogin = body.notifyOnLogin;
-  }
-  if (typeof body.notifyOnSubmission === "boolean") {
-    updateData.notifyOnSubmission = body.notifyOnSubmission;
-  }
+    // Handle password update / clear
+    if (body.clearGlobalSmtpPass === true) {
+      updateData.globalSmtpPass = null;
+    } else if (typeof body.globalSmtpPass === "string" && body.globalSmtpPass.trim().length > 0) {
+      updateData.globalSmtpPass = await encryptText(body.globalSmtpPass.trim());
+    }
 
-  await db.update(users).set(updateData).where(eq(users.id, sessionUser.id));
+    // Handle Universal GAS Webhook URL
+    if (typeof body.globalGasUrl === "string") {
+      const cleanUrl = body.globalGasUrl.trim();
+      if (cleanUrl) {
+        if (!cleanUrl.startsWith("https://")) {
+          return jsonError("INVALID_URL", "Google Apps Script URL must use https://.", 400);
+        }
+        updateData.globalGasUrl = cleanUrl;
+      } else {
+        updateData.globalGasUrl = null;
+      }
+    }
 
-  const updatedRows = await db.select().from(users).where(eq(users.id, sessionUser.id)).limit(1);
-  const updatedUser = updatedRows[0];
+    // Handle Universal Outgoing Webhook URL (Stoat, Slack, Discord, custom)
+    if (typeof body.globalWebhookUrl === "string") {
+      const cleanUrl = body.globalWebhookUrl.trim();
+      if (cleanUrl) {
+        const { isPrivateUrl, normalizeWebhookUrl } = await import("@/lib/url-validation");
+        const normalized = normalizeWebhookUrl(cleanUrl);
+        if (!normalized.startsWith("https://") && !normalized.startsWith("http://")) {
+          return jsonError("INVALID_URL", "Webhook URL must start with https:// or http://.", 400);
+        }
+        if (isPrivateUrl(normalized)) {
+          return jsonError("SSRF_BLOCKED", "Internal network URLs are forbidden.", 403);
+        }
+        updateData.globalWebhookUrl = normalized;
+      } else {
+        updateData.globalWebhookUrl = null;
+      }
+    }
 
-  return jsonOk({
-    success: true,
-    message: "Universal account settings updated successfully.",
-    settings: {
+    if (typeof body.notifyOnLogin === "boolean") {
+      updateData.notifyOnLogin = body.notifyOnLogin;
+    }
+    if (typeof body.notifyOnSubmission === "boolean") {
+      updateData.notifyOnSubmission = body.notifyOnSubmission;
+    }
+
+    try {
+      await db.update(users).set(updateData).where(eq(users.id, sessionUser.id));
+    } catch {
+      // If column is missing in SQLite/D1, dynamically run column additions and retry:
+      const { sql: drizzleSql } = await import("drizzle-orm");
+      const alterQueries = [
+        "ALTER TABLE users ADD COLUMN totp_secret text;",
+        "ALTER TABLE users ADD COLUMN totp_enabled integer NOT NULL DEFAULT 0;",
+        "ALTER TABLE users ADD COLUMN global_smtp_enabled integer NOT NULL DEFAULT 0;",
+        "ALTER TABLE users ADD COLUMN global_smtp_host text;",
+        "ALTER TABLE users ADD COLUMN global_smtp_port integer DEFAULT 587;",
+        "ALTER TABLE users ADD COLUMN global_smtp_user text;",
+        "ALTER TABLE users ADD COLUMN global_smtp_pass text;",
+        "ALTER TABLE users ADD COLUMN global_smtp_from text;",
+        "ALTER TABLE users ADD COLUMN global_gas_url text;",
+        "ALTER TABLE users ADD COLUMN global_webhook_url text;",
+        "ALTER TABLE users ADD COLUMN notify_on_login integer NOT NULL DEFAULT 1;",
+        "ALTER TABLE users ADD COLUMN notify_on_submission integer NOT NULL DEFAULT 1;",
+      ];
+      for (const q of alterQueries) {
+        try {
+          if (typeof (db as any).run === "function") await (db as any).run(drizzleSql.raw(q));
+          else if (typeof (db as any).execute === "function") await (db as any).execute(drizzleSql.raw(q));
+        } catch {
+          // already exists
+        }
+      }
+      await db.update(users).set(updateData).where(eq(users.id, sessionUser.id));
+    }
+
+    const updatedRows = await db.select().from(users).where(eq(users.id, sessionUser.id)).limit(1);
+    const updatedUser = updatedRows[0];
+
+    const settings = {
       globalSmtpEnabled: Boolean(updatedUser.globalSmtpEnabled),
       globalSmtpHost: updatedUser.globalSmtpHost || "",
       globalSmtpPort: updatedUser.globalSmtpPort || 587,
@@ -142,6 +173,15 @@ export async function PATCH(request: Request) {
       globalWebhookUrl: updatedUser.globalWebhookUrl || "",
       notifyOnLogin: updatedUser.notifyOnLogin !== false,
       notifyOnSubmission: updatedUser.notifyOnSubmission !== false,
-    },
-  });
+    };
+
+    return jsonOk({
+      success: true,
+      message: "Universal account settings updated successfully.",
+      settings,
+    });
+  } catch (err: any) {
+    console.error("PATCH /api/user/settings error:", err);
+    return jsonError("SETTINGS_UPDATE_FAILED", err.message || "Failed to update settings.", 500);
+  }
 }
