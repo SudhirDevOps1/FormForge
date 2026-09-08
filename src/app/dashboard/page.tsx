@@ -1238,7 +1238,7 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   const [intentFilter, setIntentFilter] = useState<string>("all");
   const [liveBanner, setLiveBanner] = useState<string | null>(null);
 
-  const [snippetTab, setSnippetTab] = useState<"html" | "widget" | "react" | "js" | "python" | "curl">("html");
+  const [snippetTab, setSnippetTab] = useState<"html" | "widget" | "otp" | "react" | "js" | "python" | "curl">("html");
   const [connectSubView, setConnectSubView] = useState<"studio" | "docs" | "security" | "webhooks">("studio");
   const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
   const [apiTestLoading, setApiTestLoading] = useState(false);
@@ -1395,6 +1395,14 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
     ? `\n  <!-- Turnstile-Styled ALTCHA Proof-of-Work Anti-Spam Widget -->\n  <style>\n    altcha-widget { --altcha-max-width: 100%; --altcha-border-radius: 12px; --altcha-color-base: #0f172a; --altcha-color-border: #334155; --altcha-color-text: #f8fafc; }\n  </style>\n  <script type="module" src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js" async defer></script>\n  <altcha-widget challengeurl="${endpoint}"></altcha-widget>\n  <div id="altcha-timer" style="font-family: monospace; font-size: 11px; color: #34d399; margin-top: 4px; display: none;"></div>\n  <script>\n    document.addEventListener("DOMContentLoaded", () => {\n      const w = document.querySelector("altcha-widget");\n      const t = document.getElementById("altcha-timer");\n      let s = 0;\n      if (w && t) {\n        w.addEventListener("statechange", (e) => {\n          if (e.detail.state === "verifying") s = performance.now();\n          if (e.detail.state === "verified") {\n            const ms = Math.round(performance.now() - s);\n            t.textContent = "⚡ Solved in " + ms + "ms (Proof-of-Work)";\n            t.style.display = "block";\n          }\n        });\n      }\n    });\n  </script>`
     : "";
 
+  const otpSnippet = form.otpEnabled
+    ? `\n  <!-- FormForge Drop-in 6-Digit Email OTP Verification -->\n  <script src="${base}/otp.js" defer></script>`
+    : "";
+
+  const otpDropinSnippet = `<!-- FormForge Universal 6-Digit OTP Verification Script -->
+<!-- Drop this 1 line anywhere on your website or portfolio page. FormForge automatically intercepts submissions, displays an elegant OTP verification modal, and verifies the submitter's email! -->
+<script src="${base}/otp.js" defer></script>`;
+
   const htmlSnippet = formTemplate === "plain"
     ? `<form method="POST" action="${endpoint}"${enctype}>
 ${snippetFields.map(f => {
@@ -1406,7 +1414,7 @@ ${snippetFields.map(f => {
   }
   return `  <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Your ${f}" />`;
 }).join("\n")}
-  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}${otpSnippet}
   <button type="submit">Send</button>
 </form>`
     : formTemplate === "document"
@@ -1444,7 +1452,7 @@ ${snippetFields.filter(f => !["attachment", "file", "document", "upload", "resum
     </div>
   </div>
   <!-- Honeypot Bot Trap -->
-  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}${otpSnippet}
   <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r ${theme.fromTo} text-white font-bold rounded-xl ${theme.hoverFromTo} shadow-lg shadow-${formColor}-500/20 transition-all flex items-center justify-center gap-2">
     <span>Submit Document</span>
     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -1473,7 +1481,7 @@ ${snippetFields.map(f => {
   </div>`;
 }).join("\n")}
   <!-- Honeypot Bot Trap -->
-  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}${otpSnippet}
   <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r ${theme.fromTo} text-white font-semibold rounded-xl ${theme.hoverFromTo} transition-all">
     Send Message
   </button>
@@ -1520,7 +1528,7 @@ ${snippetFields.map(f => {
   return `  <div>\n    <label>${label}</label>\n    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${label.toLowerCase()}" />\n  </div>`;
 }).join("\n")}
   <!-- Honeypot Bot Trap -->
-  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}${otpSnippet}
   <button type="submit">Send Secure Message ➔</button>
 </form>`
     : formTemplate === "minimal"
@@ -1550,7 +1558,7 @@ ${snippetFields.map(f => {
   return `  <div class="ff-group">\n    <label>${label}</label>\n    <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="${label}" />\n  </div>`;
 }).join("\n")}
   <!-- Honeypot Bot Trap -->
-  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+  <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}${otpSnippet}
   <button type="submit">Submit ➔</button>
 </form>`
     : formTemplate === "card"
@@ -1573,7 +1581,7 @@ ${snippetFields.map(f => {
   return `    <div>\n      <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem;">${label}</label>\n      <input name="${f}" type="${f === "email" ? "email" : "text"}" required placeholder="Enter ${label.toLowerCase()}" style="width: 100%; padding: 0.65rem 0.85rem; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; color: #fff; font-size: 0.85rem; box-sizing: border-box; outline: none;" />\n    </div>`;
 }).join("\n")}
     <!-- Honeypot Bot Trap -->
-    <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}
+    <input name="${form.honeypotField}" tabindex="-1" autocomplete="off" style="display:none" />${altchaSnippet}${otpSnippet}
     <button type="submit" style="width: 100%; padding: 0.85rem; background: ${theme.styleHex1}; color: #020617; font-weight: 700; font-size: 0.875rem; border: none; border-radius: 0.75rem; cursor: pointer; box-shadow: 0 4px 14px ${theme.styleHex1}40; margin-top: 0.5rem;">
       Send Message
     </button>
@@ -2078,13 +2086,13 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
         <div className="mt-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-2">
             <div className="flex flex-wrap gap-1.5">
-              {(["html", "widget", "react", "js", "python", "curl"] as const).map((tab) => (
+              {(["html", "widget", "otp", "react", "js", "python", "curl"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setSnippetTab(tab)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase transition ${snippetTab === tab ? "bg-white/10 text-white border border-white/10" : "text-slate-400 hover:text-slate-200"}`}
                 >
-                  {tab === "js" ? "JS Fetch" : tab === "widget" ? "Floating Widget" : tab}
+                  {tab === "js" ? "JS Fetch" : tab === "widget" ? "Floating Widget" : tab === "otp" ? "🔐 OTP Embed" : tab}
                 </button>
               ))}
             </div>
@@ -2185,13 +2193,26 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
             <div className="relative">
               {snippetTab === "html" && <CodeHighlight code={htmlSnippet} lang="html" />}
               {snippetTab === "widget" && <CodeHighlight code={widgetSnippet} lang="html" />}
+              {snippetTab === "otp" && (
+                <div className="space-y-3">
+                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-200">
+                    <p className="font-semibold text-amber-300 flex items-center gap-1.5">
+                      <span>💡 1-Line Drop-in Fix for Existing Websites &amp; Portfolios</span>
+                    </p>
+                    <p className="mt-1 text-slate-300 text-[11px] leading-relaxed">
+                      If you already built your website without OTP fields, just paste this 1-line script right before <code className="font-mono text-cyan-300">&lt;/body&gt;</code>. It automatically intercepts submissions, displays an elegant glassmorphic 6-digit OTP popup, sends the code, and verifies the user’s email seamlessly!
+                    </p>
+                  </div>
+                  <CodeHighlight code={otpDropinSnippet} lang="html" />
+                </div>
+              )}
               {snippetTab === "js" && <CodeHighlight code={jsSnippet} lang="js" />}
               {snippetTab === "react" && <CodeHighlight code={reactSnippet} lang="js" />}
               {snippetTab === "python" && <CodeHighlight code={pythonSnippet} lang="python" />}
               {snippetTab === "curl" && <CodeHighlight code={curlSnippet} lang="curl" />}
               <button
                 onClick={() => {
-                  const text = snippetTab === "html" ? htmlSnippet : snippetTab === "widget" ? widgetSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : snippetTab === "python" ? pythonSnippet : curlSnippet;
+                  const text = snippetTab === "html" ? htmlSnippet : snippetTab === "widget" ? widgetSnippet : snippetTab === "otp" ? otpDropinSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : snippetTab === "python" ? pythonSnippet : curlSnippet;
                   copy(text, "copy");
                 }}
                 className="absolute right-3 top-3 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10"
@@ -2323,6 +2344,44 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                     ⚡ Test Floating Widget On This Page
                   </button>
                   <span className="text-[10px] text-slate-500 mt-3">Spawns {widgetPosition} bubble with glassmorphic modal</span>
+                </div>
+              </div>
+            )}
+
+            {/* OTP Verification Live Explainer */}
+            {snippetTab === "otp" && (
+              <div className="flex flex-col rounded-2xl border border-white/10 overflow-hidden bg-slate-950/60 p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 text-sm border border-amber-500/30">🔐</span>
+                    <h4 className="text-sm font-bold text-white">How FormForge Drop-in OTP Works</h4>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold px-2 py-0.5">
+                    Zero Re-coding
+                  </span>
+                </div>
+                <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
+                  <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex gap-3 items-start">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 font-mono text-[11px] font-bold">1</span>
+                    <div>
+                      <strong className="text-white block font-semibold">Enable in Form Settings:</strong>
+                      <p className="text-slate-400 text-[11px] mt-0.5">In this form&apos;s Settings tab, turn on &quot;Email OTP Verification (2FA)&quot;.</p>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex gap-3 items-start">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 font-mono text-[11px] font-bold">2</span>
+                    <div>
+                      <strong className="text-white block font-semibold">Paste Drop-in Script Tag:</strong>
+                      <p className="text-slate-400 text-[11px] mt-0.5">Add <code className="text-cyan-300 font-mono">&lt;script src=&quot;{base}/otp.js&quot; defer&gt;&lt;/script&gt;</code> to your existing website HTML (e.g. portfolio &quot;SK&quot;).</p>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex gap-3 items-start">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 font-mono text-[11px] font-bold">3</span>
+                    <div>
+                      <strong className="text-white block font-semibold">Automatic Glassmorphic Modal:</strong>
+                      <p className="text-slate-400 text-[11px] mt-0.5">When someone submits your form, the script intercepts it, dispatches a 6-digit code to their email, pops up a verification box, and seamlessly finishes submitting once verified!</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -5178,6 +5237,111 @@ function SettingsTab({ user }: { user: User }) {
   const [disableBusy, setDisableBusy] = useState(false);
   const [disableError, setDisableError] = useState("");
 
+  // Universal Account-Level Integrations & Alerts state
+  const [globalSettings, setGlobalSettings] = useState<{
+    globalSmtpEnabled: boolean;
+    globalSmtpHost: string;
+    globalSmtpPort: number;
+    globalSmtpUser: string;
+    globalSmtpPass: string;
+    globalSmtpFrom: string;
+    hasGlobalSmtpPass?: boolean;
+    globalGasUrl: string;
+    globalWebhookUrl: string;
+    notifyOnLogin: boolean;
+    notifyOnSubmission: boolean;
+  }>({
+    globalSmtpEnabled: false,
+    globalSmtpHost: "",
+    globalSmtpPort: 587,
+    globalSmtpUser: "",
+    globalSmtpPass: "",
+    globalSmtpFrom: "",
+    hasGlobalSmtpPass: false,
+    globalGasUrl: "",
+    globalWebhookUrl: "",
+    notifyOnLogin: true,
+    notifyOnSubmission: true,
+  });
+  const [loadingGlobal, setLoadingGlobal] = useState(true);
+  const [savingGlobal, setSavingGlobal] = useState(false);
+  const [globalSaveMsg, setGlobalSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [testStatus, setTestStatus] = useState<Record<string, { loading: boolean; message?: string; error?: string }>>({});
+
+  useEffect(() => {
+    fetch("/api/user/settings", { credentials: "include" })
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok && data.settings) {
+          setGlobalSettings(prev => ({
+            ...prev,
+            ...data.settings,
+            globalSmtpPass: "",
+          }));
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingGlobal(false));
+  }, []);
+
+  const handleSaveGlobalSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingGlobal(true);
+    setGlobalSaveMsg(null);
+    try {
+      const res = await fetch("/api/user/settings", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(globalSettings),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setGlobalSaveMsg({ type: "success", text: "✓ Universal Account Settings saved successfully!" });
+        if (data.settings?.hasGlobalSmtpPass) {
+          setGlobalSettings(prev => ({ ...prev, hasGlobalSmtpPass: true, globalSmtpPass: "" }));
+        }
+        setTimeout(() => setGlobalSaveMsg(null), 4000);
+      } else {
+        setGlobalSaveMsg({ type: "error", text: data.error || "Failed to save settings." });
+      }
+    } catch {
+      setGlobalSaveMsg({ type: "error", text: "Network error while saving." });
+    } finally {
+      setSavingGlobal(false);
+    }
+  };
+
+  const handleTestIntegration = async (target: "gas" | "webhook" | "smtp") => {
+    setTestStatus(prev => ({ ...prev, [target]: { loading: true, message: undefined, error: undefined } }));
+    try {
+      const payload: Record<string, any> = { target };
+      if (target === "gas") payload.url = globalSettings.globalGasUrl;
+      if (target === "webhook") payload.url = globalSettings.globalWebhookUrl;
+      if (target === "smtp") {
+        payload.host = globalSettings.globalSmtpHost;
+        payload.port = globalSettings.globalSmtpPort;
+        payload.user = globalSettings.globalSmtpUser;
+        payload.pass = globalSettings.globalSmtpPass;
+        payload.from = globalSettings.globalSmtpFrom;
+      }
+      const res = await fetch("/api/user/test-integration", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTestStatus(prev => ({ ...prev, [target]: { loading: false, message: data.message || "✓ Test succeeded!" } }));
+      } else {
+        setTestStatus(prev => ({ ...prev, [target]: { loading: false, error: data.error || "✕ Test failed." } }));
+      }
+    } catch (err: any) {
+      setTestStatus(prev => ({ ...prev, [target]: { loading: false, error: err.message || "Network test failure" } }));
+    }
+  };
+
   const handleStartSetup = async () => {
     setSetupBusy(true);
     setSetupError("");
@@ -5454,6 +5618,251 @@ function SettingsTab({ user }: { user: User }) {
             </form>
           </div>
         )}
+      </div>
+
+      {/* Universal Integrations & Alerts (Account-Level Defaults) */}
+      <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 sm:p-6 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <span>🌐 Universal Account Integrations &amp; Security Alerts</span>
+              <span className="rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold px-2 py-0.5">
+                Global Defaults
+              </span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+              Set your Google Apps Script, Outgoing Webhook (Stoat Chat, Slack, Discord), and Custom SMTP once here. Any form without custom settings will automatically inherit these! You will also receive instant alerts when someone logs into your account.
+            </p>
+          </div>
+          {loadingGlobal && (
+            <span className="text-xs text-slate-500 font-mono animate-pulse">Loading settings…</span>
+          )}
+        </div>
+
+        <form onSubmit={handleSaveGlobalSettings} className="space-y-6">
+          {/* Notification Alert Triggers */}
+          <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
+            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🔔 Real-Time Event Triggers</span>
+            </h4>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] cursor-pointer transition">
+                <input
+                  type="checkbox"
+                  checked={globalSettings.notifyOnLogin}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, notifyOnLogin: e.target.checked }))}
+                  className="mt-0.5 rounded border-white/20 bg-slate-900 text-cyan-500 focus:ring-cyan-500"
+                />
+                <div>
+                  <span className="text-xs font-bold text-white block">🚨 Admin Login Security Alerts</span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    Send instant alerts with IP address, timestamp, and device info to your Universal Webhook, GAS, and SMTP upon dashboard login.
+                  </span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] cursor-pointer transition">
+                <input
+                  type="checkbox"
+                  checked={globalSettings.notifyOnSubmission}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, notifyOnSubmission: e.target.checked }))}
+                  className="mt-0.5 rounded border-white/20 bg-slate-900 text-cyan-500 focus:ring-cyan-500"
+                />
+                <div>
+                  <span className="text-xs font-bold text-white block">📬 Universal Form Submissions</span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    Forms that don&apos;t have custom webhooks or GAS configured will automatically dispatch submissions to your universal targets below.
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* 1. Universal Google Apps Script (GAS) */}
+          <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📊</span>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Universal Google Apps Script (GAS) URL</h4>
+                  <p className="text-[11px] text-slate-400">All submissions without form-specific GAS will stream directly to your Google Sheet / Gmail.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTestIntegration("gas")}
+                disabled={testStatus.gas?.loading || !globalSettings.globalGasUrl}
+                className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 px-3 py-1.5 text-xs font-bold transition disabled:opacity-40"
+              >
+                {testStatus.gas?.loading ? "Testing…" : "🧪 Test Universal GAS"}
+              </button>
+            </div>
+            <input
+              type="url"
+              placeholder="https://script.google.com/macros/s/.../exec"
+              value={globalSettings.globalGasUrl}
+              onChange={(e) => setGlobalSettings(s => ({ ...s, globalGasUrl: e.target.value }))}
+              className="ff-input text-xs"
+            />
+            {testStatus.gas?.message && (
+              <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">{testStatus.gas.message}</p>
+            )}
+            {testStatus.gas?.error && (
+              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg">{testStatus.gas.error}</p>
+            )}
+          </div>
+
+          {/* 2. Universal Outgoing Webhook (Stoat Chat, Slack, Discord, Custom) */}
+          <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📡</span>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Universal Outgoing Webhook URL (Stoat, Slack, Discord)</h4>
+                  <p className="text-[11px] text-slate-400">Sends formatted notifications to Stoat Chat, Slack, Discord, or any custom API endpoint.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTestIntegration("webhook")}
+                disabled={testStatus.webhook?.loading || !globalSettings.globalWebhookUrl}
+                className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 px-3 py-1.5 text-xs font-bold transition disabled:opacity-40"
+              >
+                {testStatus.webhook?.loading ? "Testing…" : "🧪 Test Universal Webhook"}
+              </button>
+            </div>
+            <input
+              type="url"
+              placeholder="https://stoat.chat/api/webhooks/... or Discord / Slack webhook URL"
+              value={globalSettings.globalWebhookUrl}
+              onChange={(e) => setGlobalSettings(s => ({ ...s, globalWebhookUrl: e.target.value }))}
+              className="ff-input text-xs font-mono"
+            />
+            {testStatus.webhook?.message && (
+              <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">{testStatus.webhook.message}</p>
+            )}
+            {testStatus.webhook?.error && (
+              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg">{testStatus.webhook.error}</p>
+            )}
+          </div>
+
+          {/* 3. Universal SMTP Credentials */}
+          <div className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={globalSettings.globalSmtpEnabled}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalSmtpEnabled: e.target.checked }))}
+                  className="rounded border-white/20 bg-slate-900 text-cyan-500 focus:ring-cyan-500"
+                />
+                <div>
+                  <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                    <span>Universal Custom SMTP Server</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${globalSettings.globalSmtpEnabled ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-slate-500"}`}>
+                      {globalSettings.globalSmtpEnabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-400">Send form alerts and login notices through your own Gmail / Outlook / Resend / Postmark SMTP relay.</p>
+                </div>
+              </label>
+              <button
+                type="button"
+                onClick={() => handleTestIntegration("smtp")}
+                disabled={testStatus.smtp?.loading || !globalSettings.globalSmtpHost || !globalSettings.globalSmtpUser}
+                className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 px-3 py-1.5 text-xs font-bold transition disabled:opacity-40"
+              >
+                {testStatus.smtp?.loading ? "Testing…" : "🧪 Test Universal SMTP"}
+              </button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 pt-1">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">SMTP Host</label>
+                <input
+                  type="text"
+                  placeholder="smtp.gmail.com"
+                  value={globalSettings.globalSmtpHost}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalSmtpHost: e.target.value }))}
+                  className="ff-input text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">SMTP Port</label>
+                <input
+                  type="number"
+                  placeholder="587"
+                  value={globalSettings.globalSmtpPort}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalSmtpPort: parseInt(e.target.value) || 587 }))}
+                  className="ff-input text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">SMTP Username / Email</label>
+                <input
+                  type="text"
+                  placeholder="you@gmail.com"
+                  value={globalSettings.globalSmtpUser}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalSmtpUser: e.target.value }))}
+                  className="ff-input text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                  SMTP Password / App Password
+                  {globalSettings.hasGlobalSmtpPass && (
+                    <span className="text-emerald-400 ml-1.5 font-normal text-[10px]">✓ Saved encrypted</span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  placeholder={globalSettings.hasGlobalSmtpPass ? "•••••••• (leave blank to keep)" : "Enter SMTP App Password"}
+                  value={globalSettings.globalSmtpPass}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalSmtpPass: e.target.value }))}
+                  className="ff-input text-xs"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">Sender Email / Name (From)</label>
+                <input
+                  type="text"
+                  placeholder="FormForge Alerts <you@gmail.com>"
+                  value={globalSettings.globalSmtpFrom}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalSmtpFrom: e.target.value }))}
+                  className="ff-input text-xs"
+                />
+              </div>
+            </div>
+
+            {testStatus.smtp?.message && (
+              <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">{testStatus.smtp.message}</p>
+            )}
+            {testStatus.smtp?.error && (
+              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg">{testStatus.smtp.error}</p>
+            )}
+          </div>
+
+          {/* Feedback & Save Actions */}
+          {globalSaveMsg && (
+            <div className={`p-3 rounded-xl border text-xs font-semibold ${
+              globalSaveMsg.type === "success"
+                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-200"
+                : "bg-rose-500/15 border-rose-500/30 text-rose-200"
+            }`}>
+              {globalSaveMsg.text}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={savingGlobal}
+              className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold px-6 py-2.5 text-xs shadow-lg shadow-cyan-500/20 transition disabled:opacity-50"
+            >
+              {savingGlobal ? "Saving Universal Settings…" : "💾 Save Universal Settings"}
+            </button>
+          </div>
+        </form>
       </div>
 
       <div>

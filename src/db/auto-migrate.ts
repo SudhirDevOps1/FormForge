@@ -27,6 +27,16 @@ export async function autoMigrate(db: any): Promise<void> {
         role TEXT DEFAULT 'owner' NOT NULL,
         totp_secret TEXT,
         totp_enabled INTEGER DEFAULT 0 NOT NULL,
+        global_smtp_enabled INTEGER DEFAULT 0 NOT NULL,
+        global_smtp_host TEXT,
+        global_smtp_port INTEGER DEFAULT 587,
+        global_smtp_user TEXT,
+        global_smtp_pass TEXT,
+        global_smtp_from TEXT,
+        global_gas_url TEXT,
+        global_webhook_url TEXT,
+        notify_on_login INTEGER DEFAULT 1 NOT NULL,
+        notify_on_submission INTEGER DEFAULT 1 NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
@@ -317,6 +327,16 @@ export async function autoMigrate(db: any): Promise<void> {
       "ALTER TABLE forms ADD COLUMN max_attachment_size_mb INTEGER DEFAULT 10;",
       "ALTER TABLE forms ADD COLUMN allowed_file_extensions TEXT DEFAULT '';",
       "ALTER TABLE forms ADD COLUMN display_mode TEXT DEFAULT 'classic' NOT NULL;",
+      "ALTER TABLE users ADD COLUMN global_smtp_enabled INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE users ADD COLUMN global_smtp_host TEXT;",
+      "ALTER TABLE users ADD COLUMN global_smtp_port INTEGER DEFAULT 587;",
+      "ALTER TABLE users ADD COLUMN global_smtp_user TEXT;",
+      "ALTER TABLE users ADD COLUMN global_smtp_pass TEXT;",
+      "ALTER TABLE users ADD COLUMN global_smtp_from TEXT;",
+      "ALTER TABLE users ADD COLUMN global_gas_url TEXT;",
+      "ALTER TABLE users ADD COLUMN global_webhook_url TEXT;",
+      "ALTER TABLE users ADD COLUMN notify_on_login INTEGER DEFAULT 1 NOT NULL;",
+      "ALTER TABLE users ADD COLUMN notify_on_submission INTEGER DEFAULT 1 NOT NULL;",
     ];
 
     for (const ddl of columnsToAdd) {

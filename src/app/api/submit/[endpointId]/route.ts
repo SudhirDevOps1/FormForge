@@ -553,7 +553,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     // 2. If not already verified, verify the submitted code directly
     if (!otpVerified) {
-      const submittedOtp = payload.otpCode || payload.code || payload._otp;
+      const submittedOtp = payload._ff_otp || payload.otp || payload.otpCode || payload.code || payload._otp;
       if (submittedOtp && typeof submittedOtp === "string") {
         const otpRes = await verifyOtp(db, form.id, email, submittedOtp);
         if (otpRes.success) {
@@ -575,6 +575,9 @@ export async function POST(request: Request, context: RouteContext) {
       return new Response(JSON.stringify({
         ok: false,
         code: "OTP_REQUIRED",
+        error: "OTP_REQUIRED",
+        otpRequired: true,
+        email,
         message: "Email verification is required. Please verify your email with the 6-digit code before submitting."
       }), {
         status: 400,

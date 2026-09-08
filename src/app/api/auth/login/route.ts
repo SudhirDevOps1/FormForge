@@ -90,6 +90,15 @@ export async function POST(request: Request) {
       return jsonError("AUTH_SECRET_MISSING", "Set AUTH_SECRET before creating sessions.", 503);
     }
 
+    // Dispatch Universal Admin Login Alert
+    try {
+      const { sendLoginAlert } = await import("@/lib/notifications");
+      const userAgent = request.headers.get("user-agent") || "Unknown Browser";
+      void sendLoginAlert(user, ip, userAgent);
+    } catch (e) {
+      console.warn("Failed to dispatch login alert:", e);
+    }
+
     return jsonOk(
       {
         user: {

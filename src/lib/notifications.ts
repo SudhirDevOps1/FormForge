@@ -42,21 +42,24 @@ async function sendSmtpEmail(
   }
 }
 
-function getSmtpConfig(form: Form, env: Record<string, string | undefined>) {
-  const enabled = form.smtpEnabled || (env.SMTP_ENABLED === "true" || env.SMTP_ENABLED === "1");
-  const host = form.smtpHost || env.SMTP_HOST;
-  const port = form.smtpPort ? Number(form.smtpPort) : (env.SMTP_PORT ? Number(env.SMTP_PORT) : 587);
-  const user = form.smtpUser || env.SMTP_USER;
-  const from = form.smtpFrom || env.SMTP_FROM;
+function getSmtpConfig(form: Form, env: Record<string, string | undefined>, ownerUser?: typeof users.$inferSelect) {
+  const enabled = form.smtpEnabled || ownerUser?.globalSmtpEnabled || (env.SMTP_ENABLED === "true" || env.SMTP_ENABLED === "1");
+  const host = (form.smtpEnabled && form.smtpHost) || ownerUser?.globalSmtpHost || env.SMTP_HOST;
+  const port = (form.smtpEnabled && form.smtpPort) ? Number(form.smtpPort) : (ownerUser?.globalSmtpPort ? Number(ownerUser.globalSmtpPort) : (env.SMTP_PORT ? Number(env.SMTP_PORT) : 587));
+  const user = (form.smtpEnabled && form.smtpUser) || ownerUser?.globalSmtpUser || env.SMTP_USER;
+  const from = (form.smtpEnabled && form.smtpFrom) || ownerUser?.globalSmtpFrom || env.SMTP_FROM;
   
+  const hasDbPass = (form.smtpEnabled && !!form.smtpPass) || (!form.smtpEnabled && !!ownerUser?.globalSmtpPass);
+  const dbPass = (form.smtpEnabled ? form.smtpPass : ownerUser?.globalSmtpPass) || undefined;
+
   return {
     enabled: !!(enabled && host && port && user && from),
     host,
     port,
     user,
     from,
-    hasDbPass: !!form.smtpPass,
-    dbPass: form.smtpPass,
+    hasDbPass,
+    dbPass,
     envPass: env.SMTP_PASS,
   };
 }
@@ -87,19 +90,20 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   const payload = JSON.parse(submission.payload) as Record<string, unknown>;
   const dashboardUrl = appUrl ? `${appUrl}/dashboard` : (env.APP_URL ? `${env.APP_URL}/dashboard` : "/dashboard");
 
-  let targetEmail = form.emailTo;
-  if (form.notifyEmail && !targetEmail && form.userId) {
+  let ownerUser: typeof users.$inferSelect | undefined;
+  if (form.userId) {
     try {
-      const owner = await db.select({ email: users.email }).from(users).where(eq(users.id, form.userId)).limit(1);
-      if (owner.length > 0 && owner[0].email) {
-        targetEmail = owner[0].email;
-      }
+      const ownerRows = await db.select().from(users).where(eq(users.id, form.userId)).limit(1);
+      ownerUser = ownerRows[0];
     } catch {
       // Ignore error
     }
   }
 
-  if (form.notifyEmail && targetEmail) {
+  let targetEmail = form.emailTo || ownerUser?.email;
+  const shouldNotifyEmail = (form.notifyEmail || (ownerUser?.globalSmtpEnabled && ownerUser?.notifyOnSubmission !== false)) && !!targetEmail;
+
+  if (shouldNotifyEmail && targetEmail) {
     const tableRows = Object.entries(payload)
       .map(([k, v]) => `
         <tr>
@@ -155,7 +159,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
 </div>
     `;
 
-    const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+    const smtp = getSmtpConfig(form, env as Record<string, string | undefined>, ownerUser);
     if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
       try {
         let decryptedPass = "";
@@ -304,7 +308,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
 
     const autoresponderReplyTo = form.autoresponderReplyTo || targetEmail || undefined;
 
-    const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+    const smtp = getSmtpConfig(form, env as Record<string, string | undefined>, ownerUser);
     if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
       try {
         let decryptedPass = "";
@@ -421,8 +425,20 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
     results.push({ channel: "webhook", status: "skipped" });
   }
 
+  // Universal Account-Level Webhook Dispatch
+  if (ownerUser?.globalWebhookUrl && ownerUser.globalWebhookUrl !== form.webhookUrl) {
+    try {
+      const gWhResult = await dispatchWebhook(db, form, submission, ownerUser.globalWebhookUrl);
+      if (gWhResult.success) {
+        results.push({ channel: "webhook", status: "sent" });
+      }
+    } catch (e) {
+      console.warn("Global webhook delivery error:", e);
+    }
+  }
+
   // Google Apps Script (GAS) Webhook & Free Email Relay
-  const gasUrl = form.gasUrl || env.GAS_URL;
+  const gasUrl = form.gasUrl || ownerUser?.globalGasUrl || env.GAS_URL;
   if (gasUrl) {
     try {
       const response = await fetch(gasUrl, {
@@ -1335,4 +1351,112 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
 
   return false;
 }
+
+export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string, userAgent: string): Promise<void> {
+  if (user.notifyOnLogin === false) return;
+  const env = getRuntimeEnv();
+  const timestamp = new Date().toUTCString();
+  const subject = `🔔 Security Alert: New Login to FormForge (${user.name})`;
+  const text = `A new login to your FormForge account was detected.\n\nUser: ${user.name} (${user.email})\nTime: ${timestamp}\nIP Address: ${ip}\nDevice: ${userAgent}\n\nIf this was you, you can safely ignore this alert. If you did not log in, please reset your password immediately.`;
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #030712; padding: 40px 10px; color: #f8fafc;">
+  <div style="max-width: 500px; margin: 0 auto; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 32px 24px;">
+    <div style="font-size: 20px; font-weight: 800; color: #38bdf8; margin-bottom: 8px;">🔔 Security Alert: New Admin Login</div>
+    <p style="font-size: 14px; color: #94a3b8; margin: 0 0 20px;">A successful login to your FormForge account was recorded:</p>
+    <div style="background-color: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 20px; font-size: 13px; line-height: 1.8;">
+      <div><strong style="color: #ffffff;">Account:</strong> <span style="color: #cbd5e1;">${user.name} (${user.email})</span></div>
+      <div><strong style="color: #ffffff;">Time:</strong> <span style="color: #cbd5e1;">${timestamp}</span></div>
+      <div><strong style="color: #ffffff;">IP Address:</strong> <span style="color: #38bdf8; font-family: monospace;">${ip}</span></div>
+      <div><strong style="color: #ffffff;">Device / Agent:</strong> <span style="color: #94a3b8; word-break: break-all;">${userAgent}</span></div>
+    </div>
+    <p style="font-size: 12px; color: #64748b; margin: 0;">If this was you, no action is required. If you did not log in, please change your password or revoke active sessions immediately.</p>
+  </div>
+</div>
+  `;
+
+  // 1. Universal / Global GAS Relay
+  const gasUrl = user.globalGasUrl || env.GAS_URL;
+  if (gasUrl) {
+    try {
+      await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        redirect: "follow",
+        body: JSON.stringify({
+          event: "admin_login",
+          emailTo: user.email,
+          to: user.email,
+          subject,
+          text,
+          html,
+          payload: { ip, userAgent, timestamp, email: user.email, name: user.name },
+        }),
+      });
+    } catch (e) {
+      console.warn("GAS login alert failed:", e);
+    }
+  }
+
+  // 2. Universal / Global Webhook (Stoat, Slack, Discord, Custom)
+  if (user.globalWebhookUrl) {
+    try {
+      const isStoat = user.globalWebhookUrl.includes("stoat.chat");
+      const isDiscord = user.globalWebhookUrl.includes("discord.com");
+      const isSlack = user.globalWebhookUrl.includes("slack.com");
+
+      let bodyPayload: Record<string, unknown>;
+      if (isStoat) {
+        bodyPayload = {
+          content: `🔔 **FormForge Security Alert: New Login**\n**User:** ${user.name} (${user.email})\n**IP:** \`${ip}\`\n**Time:** ${timestamp}\n**Device:** ${userAgent}`,
+        };
+      } else if (isDiscord) {
+        bodyPayload = {
+          content: `🔔 **Security Alert: New Admin Login**\n> **User:** ${user.name} (${user.email})\n> **IP:** \`${ip}\`\n> **Time:** ${timestamp}`,
+        };
+      } else if (isSlack) {
+        bodyPayload = {
+          text: `🔔 *FormForge Security Alert: New Admin Login*\n*User:* ${user.name} (${user.email})\n*IP:* \`${ip}\`\n*Time:* ${timestamp}`,
+        };
+      } else {
+        bodyPayload = {
+          event: "admin_login",
+          user: { id: user.id, email: user.email, name: user.name },
+          ip,
+          userAgent,
+          timestamp,
+        };
+      }
+
+      await fetch(user.globalWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyPayload),
+      });
+    } catch (e) {
+      console.warn("Global webhook login alert failed:", e);
+    }
+  }
+
+  // 3. Universal SMTP / Email
+  if (user.globalSmtpEnabled && user.globalSmtpHost && user.globalSmtpUser && user.globalSmtpPass) {
+    try {
+      const { decryptText } = await import("./encryption");
+      const decryptedPass = await decryptText(user.globalSmtpPass);
+      await sendSmtpEmail(
+        user.globalSmtpHost,
+        user.globalSmtpPort || 587,
+        user.globalSmtpUser,
+        decryptedPass,
+        user.globalSmtpFrom || user.globalSmtpUser,
+        user.email,
+        subject,
+        text,
+        html
+      );
+    } catch (e) {
+      console.warn("SMTP login alert failed:", e);
+    }
+  }
+}
+
 
