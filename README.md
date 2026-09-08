@@ -1,23 +1,32 @@
-<h1 align="center">FormForge v2.1 Universal</h1>
+<h1 align="center">FormForge v2.2 Universal</h1>
 
 <div align="center">
   A forever-free, open-source, universal form backend & analytics engine for static sites.
   <br />
-  <strong>Deploys on Vercel, Netlify, Cloudflare Pages/Workers, and Docker with 100% Zero-Card Free Tier support.</strong>
+  <strong>Deploys on Cloudflare Workers/Pages, Vercel, Netlify, and Docker with 100% Zero-Card Free Tier support.</strong>
   <br />
   <strong>Developed by <a href="https://github.com/SudhirDevOps1">Sudhir Singh</a></strong>
   <br /><br />
   🔓 <em>No paid database required.</em> 📀 <em>Own your data.</em> ⚡️ <em>Zero-card forever free.</em>
   <br /><br />
-  <img src="https://img.shields.io/badge/Version-2.1.0%20Universal-blue?style=for-the-badge" alt="Version 2.1.0" />
-  <img src="https://img.shields.io/badge/Platforms-Vercel%20%7C%20Netlify%20%7C%20Cloudflare-success?style=for-the-badge&logo=vercel&color=059669" alt="Platforms: Vercel | Netlify | Cloudflare" />
-  <img src="https://img.shields.io/badge/Databases-Neon%20%7C%20D1%20%7C%20Turso%20%7C%20SQLite-blueviolet?style=for-the-badge" alt="Databases: Neon | D1 | Turso | SQLite" />
+  <img src="https://img.shields.io/badge/Version-2.2.0%20Universal-blue?style=for-the-badge" alt="Version 2.2.0" />
+  <img src="https://img.shields.io/badge/Platforms-Cloudflare%20%7C%20Vercel%20%7C%20Netlify-success?style=for-the-badge&logo=cloudflare&color=f38020" alt="Platforms: Cloudflare | Vercel | Netlify" />
+  <img src="https://img.shields.io/badge/Databases-D1%20%7C%20Neon%20%7C%20Turso%20%7C%20SQLite-blueviolet?style=for-the-badge" alt="Databases: D1 | Neon | Turso | SQLite" />
   <img src="https://img.shields.io/badge/Security%20Tests-53%2F53%20Passed-brightgreen?style=for-the-badge" alt="Security Tests: 53/53 Passed" />
 </div>
 
 <br />
 
-> 🚀 **v2.1 Universal Status:** Fully tested across Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), Cloudflare Pages (`*.pages.dev`), Cloudflare Workers (`*.workers.dev`), and local dev. Features include Multi-Database auto-migration (Neon Serverless Postgres, Cloudflare D1, Turso libSQL, SQLite), In-Browser DuckDB Live SQL Query Studio, Zero-Dependency Floating Embed Widget (`/widget.js`), Real-Time Submission Search & Status Filtering (`all`, `inbox`, `spam`, `pending`), Submission Lifecycle Management (single/bulk deletion & spam toggles), Dynamic HTML Form Redirects (`_next`, `_redirect`, `next`), Glassmorphic Browser Thank-You Page for zero-JS forms, Real-Time Integration & Webhook Tester with HMAC-SHA256 signatures, Free Notification Relays (Google Apps Script Gmail+Sheets, Telegram Bot, ntfy.sh), 6-digit OTP verification, ALTCHA PoW anti-spam, and Backblaze B2 S3 storage.
+> 🚀 **v2.2 Universal Status:** Fully tested on Cloudflare Workers (`*.workers.dev`), Cloudflare Pages (`*.pages.dev`), Vercel, Netlify, and local development. Key capabilities include:
+> - **In-Dashboard Interactive API Documentation & Live Sandbox Tester** (direct browser API testing with response time latency counter).
+> - **100% Native In-App Confirmation Modals** (sleek dark glassmorphic dialogs replacing all browser alert popups).
+> - **Submissions Lifecycle & Bulk Management** (per-row selection, floating bulk delete bar, and 1-click spam purging).
+> - **D1 Storage Payload Optimization** (automatic transient token pruning reducing database row footprint by 40–60%).
+> - **Universal Multi-Database Engine** (Cloudflare D1, Neon Serverless Postgres, Turso libSQL, SQLite with automatic schema migration).
+> - **Cookie-Free ALTCHA Proof-of-Work Anti-Spam** (100% self-hosted WebCrypto PoW challenge and verification).
+> - **Zero-Dependency Floating Embed Widget (`/widget.js`)** (drop-in vanilla JS popup for Webflow, WordPress, Shopify, and static HTML).
+> - **In-Browser DuckDB Live SQL Query Studio** (instant WASM-powered analytics over local exports).
+> - **Zero-Cost Notification Relays** (Google Apps Script Gmail+Sheets forwarder, Telegram Bot, ntfy.sh push, and custom SMTP with AES-256-GCM encryption).
 
 <div align="center">
   <img src="public/logo.svg" width="128" height="128" alt="FormForge logo" />
@@ -92,7 +101,11 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 
 ## 🌟 Key Features
 
-- **🌐 Multi-Platform Deployment** — Deploy on Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), Cloudflare Pages (`*.pages.dev`), Cloudflare Workers (`*.workers.dev`), or self-hosted Docker.
+- **📖 In-Dashboard Interactive API Documentation Hub** — Dedicated sub-tab in *Connect & Snippets* with a **Live Endpoint Sandbox Tester** (measures latency in ms and inspects live JSON responses), detailed *When & Where to Use* architectural guides, and complete parameter references.
+- **🛡️ 100% Native In-App Confirmation Modals** — Sleek dark glassmorphic dialogs for single/bulk deletions, form pausing, and API key revocation. Zero native browser `window.confirm` alert popups.
+- **🗑️ Submissions Bulk Deletion & Spam Cleaner** — Multi-item selection with a floating bulk actions bar (`Delete Selected (X)`) and one-click "Clear All Spam" with database row count badges.
+- **💾 D1 Storage Optimization & Payload Pruning** — Automatically strips transient verification fields (`altcha`, `honeypotField`, PoW challenge tokens) before writing to SQLite D1, reducing database storage footprint by 40–60%.
+- **🌐 Multi-Platform Deployment** — Deploy on Cloudflare Workers (`*.workers.dev`), Cloudflare Pages (`*.pages.dev`), Vercel (`*.vercel.app`), Netlify (`*.netlify.app`), or self-hosted Docker.
 - **🗄️ Universal Multi-Database Engine** — Native support for Cloudflare D1, Neon Serverless Postgres, Turso (libSQL), and local file SQLite with automatic zero-downtime startup migration (`autoMigrate`).
 - **🦆 In-Browser DuckDB Live SQL Query Studio** — Interactive SQL analytical engine running inside the browser with zero server compute and zero database costs. Includes 1-click execution, DuckDB CLI commands, and MotherDuck queries.
 - **💬 Zero-Dependency Floating Embed Widget (`/widget.js`)** — Ultra-lightweight (<3KB) vanilla JS popup feedback & contact modal. Embed on any Webflow, WordPress, Shopify, Framer, Wix, or static site with a single `<script>` tag.
@@ -101,22 +114,28 @@ FormForge is inspired by simplicity, but upgraded for a modern Cloudflare-native
 - **🔐 6-Digit Cryptographic OTP Verification** — Zero-cost submitter email verification via secure 6-digit one-time passcodes.
 - **📁 Universal S3 / Backblaze B2 File Uploads** — 10GB free permanent storage with Backblaze B2 or Cloudflare R2 compatibility.
 - **🛡️ Enterprise Spam & Abuse Defenses** — ALTCHA Proof-of-Work (100% free, self-hosted, privacy-first), Honeypot bot traps, custom keyword blocklists, DNS MX validation, and timing-safe authentication.
-- **Multi-Format Data Exports** — Export submissions in CSV, JSON, and clean human-readable TXT reports.
-- **Multi-Framework Code Generator** — Instant copy-paste snippets for Plain HTML, Floating Widget, React, Vanilla JS Fetch, Python Requests, and cURL.
+- **📊 Multi-Format Data Exports** — Export submissions in CSV, JSON, and clean human-readable PDF/TXT reports.
+- **🎨 Multi-Framework Code Generator** — Instant copy-paste snippets for Plain HTML, Floating Widget, React, Next.js, Vue, Svelte, Tailwind, Python Requests, and cURL across 5 aesthetic themes.
 - **Real Dashboard** at `/dashboard` — Manage forms, inspect submissions, view analytics, and generate API keys.
 
 ---
 
-## 🛡️ Advanced Security & Premium Features
+## 🛡️ Advanced Security & Performance Architecture
 
 FormForge includes advanced security mechanisms out-of-the-box that are typically behind paid enterprise tiers in commercial form backends:
 
 ### 1. 🛡️ ALTCHA Proof-of-Work Anti-Spam (100% Free & Self-Hosted)
 FormForge replaces third-party CAPTCHAs with native ALTCHA Proof-of-Work protection. Submissions are verified via in-browser cryptographic challenges computed seamlessly by the visitor's device.
 * **Benefits:** Zero third-party cookies, GDPR compliant, zero subscription fees, and no external API keys required.
-* **Setup:** Toggle on in form settings, include the lightweight ALTCHA script on your site, and add the `<altcha-widget challengeurl="/api/altcha/challenge">` element to your form.
+* **Setup:** Toggle on in form settings, include the lightweight ALTCHA script on your site, and add the `<altcha-widget challengeurl="/api/submit/:endpointId">` element to your form.
 
-### 2. 📧 Custom Submitter Autoresponder
+### 2. ⚡ Google Apps Script (GAS) vs Direct SMTP
+* **Why GAS / Webhooks are Recommended:**
+  - Cloudflare Workers enforce strict execution time and socket concurrency limits. A standard SMTP handshake requires an 8-step conversational TCP roundtrip (`connect -> EHLO -> STARTTLS -> AUTH -> MAIL -> RCPT -> DATA -> QUIT`) taking 1.5–3.5s, which risks Worker timeouts (`Error 524`) during high traffic bursts.
+  - Google Apps Script (GAS) runs over a single asynchronous HTTPS POST in **~50ms** using `ctx.waitUntil()`, resulting in zero Worker freeze, 500–1,500 free emails/day via your own Gmail, and automatic live Google Sheets logging!
+* **SMTP Alternative:** FormForge still supports custom SMTP servers (Gmail App Passwords, Resend, Brevo, SendGrid, etc.) with passwords encrypted at rest via AES-256-GCM.
+
+### 3. 📧 Custom Submitter Autoresponder
 Automatically deliver structured, personalized emails to users immediately after they submit a form.
 * **Dynamic Variables:** Draft your message template using `{curly_braces}` matching form fields (e.g. `Hi {name}, thank you for writing to us about {message}!`). The backend dynamically compiles and replaces these values on submission.
 

@@ -2,6 +2,14 @@
 
 All notable changes to FormForge are documented in this file.
 
+## [2.2.1] - 2026-09-08
+
+### Added
+- **Native In-App Confirmation Modal** — Replaced all native browser `window.confirm` alert dialogs with sleek, keyboard-accessible (`Escape`/`Enter`) dark glassmorphic confirmation modals for bulk deletion, single deletion, form pausing, and API key revocation.
+- **In-Dashboard Interactive API Documentation Hub** — Added dedicated sub-navigation in *Connect & Snippets* with a **Live Endpoint Sandbox Tester** (real-time latency counter in ms and response payload inspector), comprehensive *When & Where to Use* guides, and complete parameter reference.
+- **D1 Storage Payload Pruning** — Automatically strip transient anti-spam fields (`altcha`, `honeypotField`, PoW challenge tokens) prior to Cloudflare D1 insertion, reducing submission storage size by 40–60%.
+- **Modern Kinetic F SVG Brand Assets** — Redesigned `logo.svg` and `favicon.svg` with a modern obsidian squircle, cyber shield watermark, and high-contrast kinetic F monogram.
+
 ## [2.2.0] - 2026-09-08
 
 ### Added

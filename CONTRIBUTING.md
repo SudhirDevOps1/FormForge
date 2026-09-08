@@ -22,25 +22,33 @@ If you host, fork, or redistribute FormForge:
 2. **Clone** your fork: `git clone https://github.com/YOUR-USERNAME/FormForge.git`
 3. **Create** a feature branch: `git checkout -b feature/your-feature`
 4. **Make** your changes.
-5. **Test** locally: `npm run dev`
-6. **Build check**: `npx tsc --noEmit` (must pass with zero errors).
-7. **Commit**: `git commit -m "feat: your feature description"`
-8. **Push**: `git push origin feature/your-feature`
-9. **Open** a Pull Request on GitHub.
+5. **Verify locally**:
+   - `npm run typecheck` (must pass with zero errors)
+   - `npm run lint` (must pass with zero warnings)
+   - `npm test` (all 53 security tests across P1–P6 must pass)
+6. **Commit**: Use Conventional Commits (`feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`).
+7. **Push**: `git push origin feature/your-feature`
+8. **Open** a Pull Request on GitHub.
 
 ## 🧪 Development Setup
 
 ```bash
-# Clone and install
+# Clone and install dependencies
 git clone https://github.com/SudhirDevOps1/FormForge.git
 cd FormForge
 npm install
 
-# Run locally
+# Run locally in development mode
 npm run dev
 
-# Type check
-npx tsc --noEmit
+# Run strict TypeScript check
+npm run typecheck
+
+# Run zero-warning linter
+npm run lint
+
+# Run automated security test suite (53 assertions)
+npm test
 
 # Build for production
 npm run build

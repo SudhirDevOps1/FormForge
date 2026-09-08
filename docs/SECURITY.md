@@ -20,9 +20,10 @@ release with a coordinated disclosure note.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.2.x   | :white_check_mark: |
-| 1.1.x   | :white_check_mark: security fixes only |
-| < 1.1.0 | :x:                |
+| 2.2.x   | :white_check_mark: |
+| 2.1.x   | :white_check_mark: |
+| 2.0.x   | :white_check_mark: security fixes only |
+| < 2.0.0 | :x:                |
 
 Only the latest minor release receives full security support. Deployments
 should track the newest `v*` tag (see `docs/RELEASES.md`).
@@ -57,8 +58,8 @@ The server refuses to create sessions when it is missing or shorter than
   DNS-MX validation, retention auto-purge.
 - Public API errors are generic (`An error occurred …`, CWE-209); SMTP
   diagnostics return detail only to the authenticated form owner.
-- Automated evidence: `npm run test:security` (48 assertions across the
-  crypto / XSS / SSRF / auth-abuse / PII pillars), CodeQL SAST, `npm audit`
+- Automated evidence: `npm run test:security` (53 assertions across the
+  crypto / XSS / SSRF / auth-abuse / PII / repo-hygiene pillars), CodeQL SAST, `npm audit`
   at `--audit-level=high`, and Gitleaks secret scanning in CI.
 
 ## Reporting email

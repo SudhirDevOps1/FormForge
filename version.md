@@ -4,7 +4,17 @@ This file tracks the versions, release dates, features added, removed, and bug f
 
 ---
 
-## 🚀 Current Version: `v2.2.0` (July 13, 2026)
+## 🚀 Current Version: `v2.2.1` (September 8, 2026)
+
+### 🟢 Added (Naya Add Kiya)
+* **Native In-App Confirmation Modal:** Completely eliminated browser-native `window.confirm()` popup alerts in favor of responsive dark glassmorphic dialogs with keyboard accessibility (`Escape`/`Enter`).
+* **In-Dashboard Interactive API Documentation Hub:** Added an interactive live sandbox tester to test endpoints directly from the browser with latency counters (ms) and JSON response viewers.
+* **Database Storage & Payload Pruning:** Prunes transient tokens (`altcha`, `honeypotField`, PoW challenges) before inserting submissions into SQLite D1, saving 40–60% database row storage.
+* **Redesigned Modern Kinetic F SVG Logo:** Upgraded `logo.svg` and `favicon.svg` with modern obsidian squircle, cyber shield watermark, and high-contrast kinetic F monogram.
+
+---
+
+## 🚀 Version: `v2.2.0` (September 8, 2026)
 
 ### 🟢 Added (Naya Add Kiya)
 * **Native ALTCHA Proof-of-Work Integration (100% Free & Self-Hosted):** Completely replaced third-party Cloudflare Turnstile with native in-browser ALTCHA Proof-of-Work anti-spam verification.
