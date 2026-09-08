@@ -60,6 +60,8 @@ export async function POST(request: Request) {
           recipient: user.email,
           subject: "🧪 FormForge Universal GAS Integration Test",
           text: "Universal Google Apps Script integration test successful! All forms will forward responses to your Google Sheet / Gmail.",
+          html: "<div style='font-family: sans-serif; padding: 20px; background: #0f172a; color: #fff; border-radius: 12px;'><h2 style='color: #38bdf8;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful! All forms will forward responses to your Google Sheet / Gmail.</p></div>",
+          htmlBody: "<div style='font-family: sans-serif; padding: 20px; background: #0f172a; color: #fff; border-radius: 12px;'><h2 style='color: #38bdf8;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful! All forms will forward responses to your Google Sheet / Gmail.</p></div>",
         }),
       });
 

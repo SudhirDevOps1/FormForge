@@ -65,6 +65,17 @@ export async function GET(request: Request) {
       );
     }
 
+    // Dispatch Universal Admin Login Alert
+    try {
+      const { sendLoginAlert } = await import("@/lib/notifications");
+      const { getClientIp } = await import("@/lib/rate-limit");
+      const ip = getClientIp(request);
+      const userAgent = request.headers.get("user-agent") || "Magic Link Auth";
+      void sendLoginAlert(user, ip, userAgent);
+    } catch (e) {
+      console.warn("Failed to dispatch magic login alert:", e);
+    }
+
     return new Response(null, {
       status: 303,
       headers: {

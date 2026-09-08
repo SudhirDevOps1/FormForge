@@ -136,14 +136,19 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     await result.db.update(forms).set(update).where(eq(forms.id, formId));
+    const sanitizedUpdate = {
+      ...update,
+      smtpPass: update.smtpPass ? "__SMTP_PASSWORD_SET__" : null,
+    };
+
     await result.db.insert(auditLogs).values({
       userId: result.user.id,
       formId,
       action: "form.updated",
-      metadata: JSON.stringify(update),
+      metadata: JSON.stringify(sanitizedUpdate),
     });
 
-    return jsonOk({ form: { ...result.form, ...update } });
+    return jsonOk({ form: { ...result.form, ...sanitizedUpdate } });
   } catch (error) {
     return jsonError("DB_ERROR", "Failed to update form details.", 500);
   }

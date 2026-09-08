@@ -103,25 +103,24 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   let targetEmail = form.emailTo || ownerUser?.email;
   const shouldNotifyEmail = (form.notifyEmail || (ownerUser?.globalSmtpEnabled && ownerUser?.notifyOnSubmission !== false)) && !!targetEmail;
 
-  if (shouldNotifyEmail && targetEmail) {
-    const tableRows = Object.entries(payload)
-      .map(([k, v]) => `
-        <tr>
-          <td style="padding: 12px 15px; border-bottom: 1px solid #1E293B; font-weight: 600; color: #FFFFFF; font-size: 14px; width: 30%;">${k}</td>
-          <td style="padding: 12px 15px; border-bottom: 1px solid #1E293B; color: #9CA3AF; font-size: 14px; word-break: break-all;">${String(v)}</td>
-        </tr>
-      `).join("");
+  const tableRows = Object.entries(payload)
+    .map(([k, v]) => `
+      <tr>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #1E293B; font-weight: 600; color: #FFFFFF; font-size: 14px; width: 30%;">${k}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #1E293B; color: #9CA3AF; font-size: 14px; word-break: break-all;">${String(v)}</td>
+      </tr>
+    `).join("");
 
-    const text = `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`;
-    let subject = form.emailSubjectTemplate || `📩 New submission for ${form.name}`;
-    subject = subject.replace(/\{form_name\}/g, form.name);
-    subject = subject.replace(/\{name\}/g, (payload.name as string) || (payload.fullName as string) || form.name);
-    subject = subject.replace(/\{email\}/g, (submission.email || (payload.email as string)) || "");
-    Object.entries(payload).forEach(([k, v]) => {
-      subject = subject.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
-    });
+  const text = `FormForge received a new submission for ${form.name}.\n\n${JSON.stringify(payload, null, 2)}`;
+  let subject = form.emailSubjectTemplate || `📩 New submission for ${form.name}`;
+  subject = subject.replace(/\{form_name\}/g, form.name);
+  subject = subject.replace(/\{name\}/g, (payload.name as string) || (payload.fullName as string) || form.name);
+  subject = subject.replace(/\{email\}/g, (submission.email || (payload.email as string)) || "");
+  Object.entries(payload).forEach(([k, v]) => {
+    subject = subject.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+  });
 
-    const html = `
+  const html = `
 <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #0B0F19; color: #F1F5F9; padding: 40px 20px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
   <div style="text-align: center; margin-bottom: 30px;">
     <div style="font-size: 24px; font-weight: 800; color: #0EA5E9; letter-spacing: -0.05em; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
@@ -157,8 +156,9 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
     <p style="margin: 5px 0 0 0;">&copy; ${new Date().getFullYear()} FormForge. All rights reserved.</p>
   </div>
 </div>
-    `;
+  `;
 
+  if (shouldNotifyEmail && targetEmail) {
     const smtp = getSmtpConfig(form, env as Record<string, string | undefined>, ownerUser);
     if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
       try {
@@ -427,18 +427,20 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
 
   // Universal Account-Level Webhook Dispatch
   if (ownerUser?.globalWebhookUrl && ownerUser.globalWebhookUrl !== form.webhookUrl) {
-    try {
-      const gWhResult = await dispatchWebhook(db, form, submission, ownerUser.globalWebhookUrl);
-      if (gWhResult.success) {
-        results.push({ channel: "webhook", status: "sent" });
+    if (ownerUser.notifyOnSubmission !== false) {
+      try {
+        const gWhResult = await dispatchWebhook(db, form, submission, ownerUser.globalWebhookUrl);
+        if (gWhResult.success) {
+          results.push({ channel: "webhook", status: "sent" });
+        }
+      } catch (e) {
+        console.warn("Global webhook delivery error:", e);
       }
-    } catch (e) {
-      console.warn("Global webhook delivery error:", e);
     }
   }
 
   // Google Apps Script (GAS) Webhook & Free Email Relay
-  const gasUrl = form.gasUrl || ownerUser?.globalGasUrl || env.GAS_URL;
+  const gasUrl = form.gasUrl || (ownerUser?.notifyOnSubmission !== false ? ownerUser?.globalGasUrl : undefined) || env.GAS_URL;
   if (gasUrl) {
     try {
       const response = await fetch(gasUrl, {
@@ -451,6 +453,12 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           submission: { id: submission.id, email: submission.email, createdAt: submission.createdAt },
           payload,
           emailTo: targetEmail,
+          to: targetEmail,
+          recipient: targetEmail,
+          subject,
+          text,
+          html,
+          htmlBody: html,
         }),
       });
       const isSuccess = response.ok || response.status === 302 || response.type === "opaqueredirect";
@@ -1386,9 +1394,11 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
           event: "admin_login",
           emailTo: user.email,
           to: user.email,
+          recipient: user.email,
           subject,
           text,
           html,
+          htmlBody: html,
           payload: { ip, userAgent, timestamp, email: user.email, name: user.name },
         }),
       });
