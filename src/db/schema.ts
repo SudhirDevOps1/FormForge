@@ -21,6 +21,7 @@ export const users = sqliteTable(
     globalGasSecret: text("global_gas_secret"),
     globalWebhookUrl: text("global_webhook_url"),
     globalWebhookSecret: text("global_webhook_secret"),
+    globalNotifyEmail: text("global_notify_email"),
     notifyOnLogin: integer("notify_on_login", { mode: "boolean" }).notNull().default(true),
     notifyOnSubmission: integer("notify_on_submission", { mode: "boolean" }).notNull().default(true),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),

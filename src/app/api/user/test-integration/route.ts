@@ -84,6 +84,21 @@ export async function POST(request: Request) {
       }
     }
 
+    let targetEmail = user.email;
+    try {
+      const userRows = await db.select({ globalNotifyEmail: users.globalNotifyEmail }).from(users).where(eq(users.id, user.id)).limit(1);
+      if (userRows[0]?.globalNotifyEmail) {
+        targetEmail = userRows[0].globalNotifyEmail;
+      }
+    } catch {
+      // ignore
+    }
+    if (typeof body.recipientEmail === "string" && body.recipientEmail.trim()) {
+      targetEmail = body.recipientEmail.trim();
+    } else if (typeof body.emailTo === "string" && body.emailTo.trim()) {
+      targetEmail = body.emailTo.trim();
+    }
+
     try {
       const response = await fetch(finalGasUrl, {
         method: "POST",
@@ -92,13 +107,13 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           ...(gasSecret ? { secret: gasSecret } : {}),
           ...samplePayload,
-          emailTo: user.email,
-          to: user.email,
-          recipient: user.email,
+          emailTo: targetEmail,
+          to: targetEmail,
+          recipient: targetEmail,
           subject: "🧪 FormForge Universal GAS Integration Test",
-          text: "Universal Google Apps Script integration test successful! All forms will forward responses to your Google Sheet / Gmail.",
-          html: "<div style='font-family: sans-serif; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;'><h2 style='color: #38bdf8; margin-top: 0;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful!</p><p style='color: #94a3b8;'>All forms will forward responses to your Google Sheet / Gmail.</p></div>",
-          htmlBody: "<div style='font-family: sans-serif; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;'><h2 style='color: #38bdf8; margin-top: 0;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful!</p><p style='color: #94a3b8;'>All forms will forward responses to your Google Sheet / Gmail.</p></div>",
+          text: `Universal Google Apps Script integration test successful! All forms will forward responses to your Google Sheet / Gmail (${targetEmail}).`,
+          html: `<div style='font-family: sans-serif; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;'><h2 style='color: #38bdf8; margin-top: 0;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful!</p><p style='color: #94a3b8;'>Alert delivered to: <strong>${targetEmail}</strong></p></div>`,
+          htmlBody: `<div style='font-family: sans-serif; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;'><h2 style='color: #38bdf8; margin-top: 0;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful!</p><p style='color: #94a3b8;'>Alert delivered to: <strong>${targetEmail}</strong></p></div>`,
         }),
       });
 
@@ -129,7 +144,7 @@ export async function POST(request: Request) {
         success: isSuccess,
         status: response.status,
         message: isSuccess
-          ? (gasData?.message ? `✓ GAS: ${gasData.message}` : "✓ Universal Google Apps Script test passed! Connected successfully.")
+          ? (gasData?.message ? `✓ GAS: ${gasData.message} (Sent to: ${gasData?.recipient || user.email})` : "✓ Universal Google Apps Script test passed! Connected successfully.")
           : `GAS endpoint returned HTTP ${response.status}`,
       });
     } catch (err) {

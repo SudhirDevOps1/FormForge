@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       hasGlobalGasSecret: Boolean(user.globalGasSecret),
       globalWebhookUrl: user.globalWebhookUrl || "",
       hasGlobalWebhookSecret: Boolean(user.globalWebhookSecret),
+      globalNotifyEmail: user.globalNotifyEmail || "",
       notifyOnLogin: user.notifyOnLogin !== false,
       notifyOnSubmission: user.notifyOnSubmission !== false,
     };
@@ -134,6 +135,11 @@ export async function PATCH(request: Request) {
       updateData.globalWebhookSecret = await encryptText(body.globalWebhookSecret.trim());
     }
 
+    if (typeof body.globalNotifyEmail === "string") {
+      const email = body.globalNotifyEmail.trim();
+      updateData.globalNotifyEmail = email || null;
+    }
+
     if (typeof body.notifyOnLogin === "boolean") {
       updateData.notifyOnLogin = body.notifyOnLogin;
     }
@@ -159,6 +165,7 @@ export async function PATCH(request: Request) {
         "ALTER TABLE users ADD COLUMN global_gas_secret text;",
         "ALTER TABLE users ADD COLUMN global_webhook_url text;",
         "ALTER TABLE users ADD COLUMN global_webhook_secret text;",
+        "ALTER TABLE users ADD COLUMN global_notify_email text;",
         "ALTER TABLE users ADD COLUMN notify_on_login integer NOT NULL DEFAULT 1;",
         "ALTER TABLE users ADD COLUMN notify_on_submission integer NOT NULL DEFAULT 1;",
       ];

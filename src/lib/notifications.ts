@@ -119,7 +119,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
     }
   }
 
-  let targetEmail = form.emailTo || ownerUser?.email;
+  let targetEmail = form.emailTo || ownerUser?.globalNotifyEmail || ownerUser?.email;
   const shouldNotifyEmail = (form.notifyEmail || (ownerUser?.globalSmtpEnabled && ownerUser?.notifyOnSubmission !== false)) && !!targetEmail;
 
   const tableRows = Object.entries(payload)

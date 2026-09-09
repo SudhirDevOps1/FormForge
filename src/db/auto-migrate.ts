@@ -34,7 +34,10 @@ export async function autoMigrate(db: any): Promise<void> {
         global_smtp_pass TEXT,
         global_smtp_from TEXT,
         global_gas_url TEXT,
+        global_gas_secret TEXT,
         global_webhook_url TEXT,
+        global_webhook_secret TEXT,
+        global_notify_email TEXT,
         notify_on_login INTEGER DEFAULT 1 NOT NULL,
         notify_on_submission INTEGER DEFAULT 1 NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -341,6 +344,7 @@ export async function autoMigrate(db: any): Promise<void> {
       "ALTER TABLE users ADD COLUMN global_gas_secret TEXT;",
       "ALTER TABLE users ADD COLUMN global_webhook_url TEXT;",
       "ALTER TABLE users ADD COLUMN global_webhook_secret TEXT;",
+      "ALTER TABLE users ADD COLUMN global_notify_email TEXT;",
       "ALTER TABLE users ADD COLUMN notify_on_login INTEGER DEFAULT 1 NOT NULL;",
       "ALTER TABLE users ADD COLUMN notify_on_submission INTEGER DEFAULT 1 NOT NULL;",
     ];

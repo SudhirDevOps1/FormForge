@@ -5306,6 +5306,7 @@ function SettingsTab({ user }: { user: User }) {
     globalWebhookSecret?: string;
     hasGlobalWebhookSecret?: boolean;
     clearGlobalWebhookSecret?: boolean;
+    globalNotifyEmail?: string;
     notifyOnLogin: boolean;
     notifyOnSubmission: boolean;
   }>({
@@ -5322,6 +5323,7 @@ function SettingsTab({ user }: { user: User }) {
     globalWebhookUrl: "",
     globalWebhookSecret: "",
     hasGlobalWebhookSecret: false,
+    globalNotifyEmail: "",
     notifyOnLogin: true,
     notifyOnSubmission: true,
   });
@@ -5397,6 +5399,7 @@ function SettingsTab({ user }: { user: User }) {
       if (target === "gas") {
         payload.url = globalSettings.globalGasUrl;
         payload.secret = globalSettings.globalGasSecret;
+        payload.recipientEmail = globalSettings.globalNotifyEmail;
       }
       if (target === "webhook") {
         payload.url = globalSettings.globalWebhookUrl;
@@ -5877,7 +5880,7 @@ function doPost(e) {
                 </pre>
               </div>
             )}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">Web App Deployment URL</label>
                 <input
@@ -5887,6 +5890,17 @@ function doPost(e) {
                   onChange={(e) => setGlobalSettings(s => ({ ...s, globalGasUrl: e.target.value }))}
                   className="ff-input text-xs font-mono"
                 />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">Alert Recipient Email (Gmail)</label>
+                <input
+                  type="email"
+                  placeholder="e.g. yourname@gmail.com (defaults to account)"
+                  value={globalSettings.globalNotifyEmail || ""}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, globalNotifyEmail: e.target.value }))}
+                  className="ff-input text-xs font-mono"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Har submission aur security alert is Gmail address par aayega.</p>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">
