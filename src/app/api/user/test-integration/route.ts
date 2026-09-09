@@ -71,6 +71,9 @@ export async function POST(request: Request) {
         // ignore
       }
     }
+    if (!gasSecret) {
+      gasSecret = "Blindshare_Super_Secret_Gas_Token_2026!_xyz";
+    }
 
     // Append secret as query param if not present
     let finalGasUrl = gasUrl;

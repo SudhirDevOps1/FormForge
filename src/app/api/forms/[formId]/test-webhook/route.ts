@@ -206,6 +206,9 @@ export async function POST(request: Request, context: RouteContext) {
           // ignore
         }
       }
+      if (!gasSecret) {
+        gasSecret = "Blindshare_Super_Secret_Gas_Token_2026!_xyz";
+      }
 
       // If secret exists, ensure it is also in query param for scripts checking e.parameter.secret
       if (gasSecret && !parsed.searchParams.has("secret") && !parsed.searchParams.has("token")) {

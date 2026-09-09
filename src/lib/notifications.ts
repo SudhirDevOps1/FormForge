@@ -4,6 +4,8 @@ import { notifications, users, webhookLogs, type Form, type Submission } from "@
 import { randomId } from "./crypto";
 import nodemailer from "nodemailer";
 
+const KNOWN_TEMPLATE_GAS_SECRET = "Blindshare_Super_Secret_Gas_Token_2026!_xyz";
+
 function extractGasSecret(gasUrl?: string | null, envSecret?: string): string | undefined {
   if (envSecret && envSecret.trim()) return envSecret.trim();
   try {
@@ -14,13 +16,17 @@ function extractGasSecret(gasUrl?: string | null, envSecret?: string): string | 
     // fallback
   }
 
-  if (!gasUrl) return undefined;
-  try {
-    const u = new URL(gasUrl);
-    return u.searchParams.get("secret") || u.searchParams.get("token") || undefined;
-  } catch {
-    return undefined;
+  if (gasUrl) {
+    try {
+      const u = new URL(gasUrl);
+      const urlSecret = u.searchParams.get("secret") || u.searchParams.get("token");
+      if (urlSecret) return urlSecret;
+    } catch {
+      // ignore
+    }
   }
+
+  return KNOWN_TEMPLATE_GAS_SECRET;
 }
 
 async function sendSmtpEmail(
