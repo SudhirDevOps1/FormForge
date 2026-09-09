@@ -676,6 +676,65 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
   `;
 
   const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+
+  // 0. Google Apps Script Relay (free, zero-card) — try first
+  let gasUrl: string | null | undefined = form.gasUrl;
+  let gasSecret: string | undefined;
+  if (!gasUrl && form.userId) {
+    try {
+      const ownerRows = await db.select().from(users).where(eq(users.id, form.userId)).limit(1);
+      const ownerUser = ownerRows[0];
+      if (ownerUser?.globalGasUrl) {
+        gasUrl = ownerUser.globalGasUrl;
+        if (ownerUser.globalGasSecret) {
+          const { decryptText } = await import("./encryption");
+          gasSecret = await decryptText(ownerUser.globalGasSecret);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+  if (!gasUrl) gasUrl = env.GAS_URL ?? null;
+  if (gasUrl) {
+    try {
+      if (!gasSecret) gasSecret = extractGasSecret(gasUrl);
+      if (gasSecret) {
+        try {
+          const u = new URL(gasUrl);
+          if (!u.searchParams.has("secret") && !u.searchParams.has("token")) {
+            u.searchParams.set("secret", gasSecret);
+            gasUrl = u.toString();
+          }
+        } catch { /* ignore */ }
+      }
+      const response = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        redirect: "follow",
+        body: JSON.stringify({
+          ...(gasSecret ? { secret: gasSecret } : {}),
+          event: "send_email",
+          emailTo: submission.email,
+          to: submission.email,
+          recipient: submission.email,
+          subject,
+          text,
+          html,
+          htmlBody: html,
+          payload: { verify_url: verifyUrl },
+        }),
+      });
+      const rawText = await response.text();
+      const isException = rawText.includes("Exception:") || rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com");
+      if (!isException && (response.ok || response.status === 302 || response.type === "opaqueredirect")) {
+        return true;
+      }
+    } catch (e) {
+      console.warn("GAS verification email relay failed, trying other providers:", e);
+    }
+  }
+
   if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
     try {
       let decryptedPass = "";
@@ -1204,12 +1263,17 @@ ${magicLink ? `Or click this 1-click Magic Link to reset your password immediate
       const { getDb, isDbReady } = await import("@/db");
       const db = getDb();
       if (isDbReady(db)) {
-        const rows = await db.select().from(users).where(eq(users.email, toEmail.toLowerCase().trim())).limit(1);
-        if (rows[0]?.globalGasUrl) {
-          gasUrl = rows[0].globalGasUrl;
-          if (rows[0].globalGasSecret) {
+        // Try to find user by destination email first; fall back to first user
+        // (toEmail might be globalNotifyEmail, different from user.email)
+        let ownerRow = (await db.select().from(users).where(eq(users.email, toEmail.toLowerCase().trim())).limit(1))[0];
+        if (!ownerRow) {
+          ownerRow = (await db.select().from(users).limit(1))[0];
+        }
+        if (ownerRow?.globalGasUrl) {
+          gasUrl = ownerRow.globalGasUrl;
+          if (ownerRow.globalGasSecret) {
             const { decryptText } = await import("./encryption");
-            gasSecret = await decryptText(rows[0].globalGasSecret);
+            gasSecret = await decryptText(ownerRow.globalGasSecret);
           }
         }
       }
