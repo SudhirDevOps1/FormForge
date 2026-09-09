@@ -277,13 +277,26 @@ export async function autoMigrate(db: any): Promise<void> {
         expires_at TEXT NOT NULL,
         verified_at TEXT,
         attempts INTEGER DEFAULT 0 NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
     `);
 
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS otp_codes_form_id_idx ON otp_codes (form_id);`);
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS otp_codes_email_idx ON otp_codes (email);`);
+
+    // Ensure system forms exist for databases that have an existing FK constraint on otp_codes.form_id
+    try {
+      await executeQuery(db, sql`
+        INSERT OR IGNORE INTO forms (id, user_id, name, slug, endpoint_id, is_active)
+        VALUES ('__password_reset__', '__system__', 'Password Reset System', '__password_reset__', '__password_reset__', 0);
+      `);
+      await executeQuery(db, sql`
+        INSERT OR IGNORE INTO forms (id, user_id, name, slug, endpoint_id, is_active)
+        VALUES ('__magic_login__', '__system__', 'Magic Login System', '__magic_login__', '__magic_login__', 0);
+      `);
+    } catch {
+      // ignore
+    }
 
     // 11. Webhook logs table
     await executeQuery(db, sql`

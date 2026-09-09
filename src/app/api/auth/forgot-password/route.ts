@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       message: "A 6-digit password reset code and 1-click magic link have been sent to your email.",
     });
   } catch (error) {
+    console.error("Forgot password error:", error);
     return jsonError("SERVER_ERROR", "Failed to process password reset request.", 500);
   }
 }

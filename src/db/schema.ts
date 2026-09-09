@@ -218,9 +218,7 @@ export const otpCodes = sqliteTable(
   "otp_codes",
   {
     id: text("id").primaryKey(),
-    formId: text("form_id")
-      .notNull()
-      .references(() => forms.id, { onDelete: "cascade" }),
+    formId: text("form_id").notNull(),
     email: text("email").notNull(),
     codeHash: text("code_hash").notNull(),
     expiresAt: text("expires_at").notNull(),

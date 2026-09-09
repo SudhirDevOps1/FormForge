@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       message: "A 1-click magic sign-in link has been sent to your email.",
     });
   } catch (error) {
+    console.error("Magic link error:", error);
     return jsonError("SERVER_ERROR", "Failed to process magic link request.", 500);
   }
 }

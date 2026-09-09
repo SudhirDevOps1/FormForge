@@ -1,5 +1,5 @@
 import type { AppDb } from "@/db";
-import { otpCodes } from "@/db/schema";
+import { forms, otpCodes } from "@/db/schema";
 import { and, desc, eq, gte, isNotNull, isNull } from "drizzle-orm";
 import { randomToken } from "./crypto";
 
@@ -145,6 +145,24 @@ export async function isEmailVerifiedForForm(
   return records.length > 0;
 }
 
+async function ensureSystemForm(db: AppDb, formId: string, name: string): Promise<void> {
+  try {
+    const existing = await db.select({ id: forms.id }).from(forms).where(eq(forms.id, formId)).limit(1);
+    if (!existing.length) {
+      await db.insert(forms).values({
+        id: formId,
+        userId: "__system__",
+        name,
+        slug: formId,
+        endpointId: formId,
+        isActive: false,
+      });
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export async function createPasswordResetOtp(
   db: AppDb,
   email: string
@@ -156,6 +174,9 @@ export async function createPasswordResetOtp(
 
   const codeHash = await sha256Hex(`__password_reset__:${normalizedEmail}:${code}`);
   const tokenHash = await sha256Hex(`__password_reset__:${normalizedEmail}:${token}`);
+
+  // Ensure system dummy form exists in case of FK constraint
+  await ensureSystemForm(db, "__password_reset__", "Password Reset System");
 
   await db.insert(otpCodes).values([
     {
@@ -195,6 +216,9 @@ export async function createMagicLoginToken(
   const token = randomToken(32);
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   const tokenHash = await sha256Hex(`__magic_login__:${normalizedEmail}:${token}`);
+
+  // Ensure system dummy form exists in case of FK constraint
+  await ensureSystemForm(db, "__magic_login__", "Magic Login System");
 
   await db.insert(otpCodes).values({
     id: crypto.randomUUID(),
