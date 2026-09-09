@@ -546,6 +546,18 @@ export async function POST(request: Request, context: RouteContext) {
 
   // 6-Digit Email OTP Verification Enforcement
   let otpVerified = false;
+  // Guard: if OTP is required but no email was found in the payload, block immediately
+  if (form.otpEnabled && !email) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: "EMAIL_REQUIRED_FOR_OTP",
+      otpRequired: true,
+      message: "This form requires email verification. Please include your email address in the submission.",
+    }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
   if (form.otpEnabled && email) {
     const { verifyOtp, isEmailVerifiedForForm } = await import("@/lib/otp");
     // 1. Check if email was already verified during this session (within 15 min window)

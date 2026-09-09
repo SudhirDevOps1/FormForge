@@ -49,10 +49,17 @@ export async function POST(
     const { code } = await createOtp(db, form.id, email);
     const sent = await sendOtpEmail(form, email, code);
 
+    if (!sent) {
+      return Response.json({
+        ok: false,
+        error: "Failed to send verification code. Email delivery is not configured on this form. Please ask the form owner to set up Google Apps Script (GAS) or SMTP in their FormForge settings.",
+      }, { status: 503 });
+    }
+
     return Response.json({
       ok: true,
-      message: "OTP sent to your email address",
-      sentViaProvider: sent,
+      message: "Verification code sent to your email address",
+      sentViaProvider: true,
     });
   } catch (error) {
     return Response.json(

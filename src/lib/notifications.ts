@@ -675,24 +675,25 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
 </div>
   `;
 
-  const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+  // Fetch owner for global GAS + SMTP settings
+  let verifyOwnerUser: typeof users.$inferSelect | undefined;
+  if (form.userId) {
+    try {
+      const ownerRows = await db.select().from(users).where(eq(users.id, form.userId)).limit(1);
+      verifyOwnerUser = ownerRows[0];
+    } catch { /* ignore */ }
+  }
+
+  const smtp = getSmtpConfig(form, env as Record<string, string | undefined>, verifyOwnerUser);
 
   // 0. Google Apps Script Relay (free, zero-card) — try first
   let gasUrl: string | null | undefined = form.gasUrl;
   let gasSecret: string | undefined;
-  if (!gasUrl && form.userId) {
-    try {
-      const ownerRows = await db.select().from(users).where(eq(users.id, form.userId)).limit(1);
-      const ownerUser = ownerRows[0];
-      if (ownerUser?.globalGasUrl) {
-        gasUrl = ownerUser.globalGasUrl;
-        if (ownerUser.globalGasSecret) {
-          const { decryptText } = await import("./encryption");
-          gasSecret = await decryptText(ownerUser.globalGasSecret);
-        }
-      }
-    } catch {
-      // ignore
+  if (!gasUrl && verifyOwnerUser?.globalGasUrl) {
+    gasUrl = verifyOwnerUser.globalGasUrl;
+    if (verifyOwnerUser.globalGasSecret) {
+      const { decryptText } = await import("./encryption");
+      gasSecret = await decryptText(verifyOwnerUser.globalGasSecret);
     }
   }
   if (!gasUrl) gasUrl = env.GAS_URL ?? null;
@@ -883,18 +884,20 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
   // 1. Google Apps Script Relay (Zero-card Free)
   let gasUrl: string | null | undefined = form.gasUrl;
   let gasSecret: string | undefined;
-  if (!gasUrl && form.userId) {
+  // Hoist ownerUser so it can be reused for SMTP fallback below
+  let otpOwnerUser: typeof users.$inferSelect | undefined;
+  if (form.userId) {
     try {
       const { getDb, isDbReady } = await import("@/db");
       const db = getDb();
       if (isDbReady(db)) {
         const ownerRows = await db.select().from(users).where(eq(users.id, form.userId)).limit(1);
-        const ownerUser = ownerRows[0];
-        if (ownerUser?.globalGasUrl) {
-          gasUrl = ownerUser.globalGasUrl;
-          if (ownerUser.globalGasSecret) {
+        otpOwnerUser = ownerRows[0];
+        if (!gasUrl && otpOwnerUser?.globalGasUrl) {
+          gasUrl = otpOwnerUser.globalGasUrl;
+          if (otpOwnerUser.globalGasSecret) {
             const { decryptText } = await import("./encryption");
-            gasSecret = await decryptText(ownerUser.globalGasSecret);
+            gasSecret = await decryptText(otpOwnerUser.globalGasSecret);
           }
         }
       }
@@ -959,8 +962,8 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
     }
   }
 
-  // 2. SMTP
-  const smtp = getSmtpConfig(form, env as Record<string, string | undefined>);
+  // 2. SMTP (form-level first, then global dashboard SMTP via ownerUser)
+  const smtp = getSmtpConfig(form, env as Record<string, string | undefined>, otpOwnerUser);
   if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
     try {
       let decryptedPass = "";
@@ -1480,12 +1483,16 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
       const { getDb, isDbReady } = await import("@/db");
       const db = getDb();
       if (isDbReady(db)) {
-        const rows = await db.select().from(users).where(eq(users.email, toEmail.toLowerCase().trim())).limit(1);
-        if (rows[0]?.globalGasUrl) {
-          gasUrl = rows[0].globalGasUrl;
-          if (rows[0].globalGasSecret) {
+        // Try to find user by login email first; fall back to first user
+        let ownerRow = (await db.select().from(users).where(eq(users.email, toEmail.toLowerCase().trim())).limit(1))[0];
+        if (!ownerRow) {
+          ownerRow = (await db.select().from(users).limit(1))[0];
+        }
+        if (ownerRow?.globalGasUrl) {
+          gasUrl = ownerRow.globalGasUrl;
+          if (ownerRow.globalGasSecret) {
             const { decryptText } = await import("./encryption");
-            gasSecret = await decryptText(rows[0].globalGasSecret);
+            gasSecret = await decryptText(ownerRow.globalGasSecret);
           }
         }
       }
