@@ -279,6 +279,9 @@ export async function autoMigrate(db: any): Promise<void> {
       );
     `);
 
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS otp_codes_form_id_idx ON otp_codes (form_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS otp_codes_email_idx ON otp_codes (email);`);
+
     // 11. Webhook logs table
     await executeQuery(db, sql`
       CREATE TABLE IF NOT EXISTS webhook_logs (
@@ -315,6 +318,7 @@ export async function autoMigrate(db: any): Promise<void> {
       "ALTER TABLE forms ADD COLUMN email_verification_enabled INTEGER DEFAULT 0 NOT NULL;",
       "ALTER TABLE forms ADD COLUMN smtp_enabled INTEGER DEFAULT 0 NOT NULL;",
       "ALTER TABLE forms ADD COLUMN smtp_host TEXT;",
+      "ALTER TABLE api_keys ADD COLUMN expires_at TEXT;",
       "ALTER TABLE forms ADD COLUMN smtp_port INTEGER;",
       "ALTER TABLE forms ADD COLUMN smtp_user TEXT;",
       "ALTER TABLE forms ADD COLUMN smtp_pass TEXT;",

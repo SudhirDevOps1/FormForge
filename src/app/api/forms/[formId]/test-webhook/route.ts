@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { databaseUnavailableResponse, getDb, isDbReady } from "@/db";
 import { ensureSchema } from "@/db/ensure";
-import { forms } from "@/db/schema";
+import { forms, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { jsonError, jsonOk, readJson, readString } from "@/lib/http";
 import { isPrivateUrl } from "@/lib/url-validation";
@@ -171,7 +171,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     if (target === "gas") {
-      const targetUrl = customUrl || form.gasUrl;
+      let targetUrl = customUrl || form.gasUrl;
       if (!targetUrl) {
         return jsonError("MISSING_URL", "No Google Apps Script URL provided.", 400);
       }
@@ -187,11 +187,46 @@ export async function POST(request: Request, context: RouteContext) {
         return jsonError("INVALID_HOST", "GAS URL must be hosted on script.google.com.", 400);
       }
 
+      let gasSecret: string | undefined = readString(body.secret);
+      if (!gasSecret) {
+        try {
+          const userRows = await db.select({ globalGasSecret: users.globalGasSecret }).from(users).where(eq(users.id, user.id)).limit(1);
+          if (userRows[0]?.globalGasSecret) {
+            const { decryptText } = await import("@/lib/encryption");
+            gasSecret = await decryptText(userRows[0].globalGasSecret);
+          }
+        } catch {
+          // ignore decryption failure
+        }
+      }
+      if (!gasSecret) {
+        try {
+          gasSecret = parsed.searchParams.get("secret") || parsed.searchParams.get("token") || undefined;
+        } catch {
+          // ignore
+        }
+      }
+
+      // If secret exists, ensure it is also in query param for scripts checking e.parameter.secret
+      if (gasSecret && !parsed.searchParams.has("secret") && !parsed.searchParams.has("token")) {
+        parsed.searchParams.set("secret", gasSecret);
+        targetUrl = parsed.toString();
+      }
+
+      const toEmail = form.emailTo || user.email;
       const gasPayload = {
-        form: { id: form.id, name: form.name },
+        ...(gasSecret ? { secret: gasSecret } : {}),
+        event: "test_notification",
+        form: { id: form.id, name: form.name, slug: form.slug },
         submission: { id: "test-preview", createdAt: new Date().toISOString() },
         payload: testPayload.sampleData,
-        emailTo: form.emailTo || user.email,
+        emailTo: toEmail,
+        to: toEmail,
+        recipient: toEmail,
+        subject: `🧪 FormForge Live Test: ${form.name}`,
+        text: `Live test notification for form "${form.name}"! Your Google Apps Script integration is active and functioning properly.`,
+        html: `<div style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;"><h2 style="color: #38bdf8; margin-top: 0;">🧪 FormForge Live Test</h2><p>Live test notification for form <strong>"${form.name}"</strong>!</p><p style="color: #94a3b8;">Your Google Apps Script Web App is connected and receiving notifications successfully.</p></div>`,
+        htmlBody: `<div style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;"><h2 style="color: #38bdf8; margin-top: 0;">🧪 FormForge Live Test</h2><p>Live test notification for form <strong>"${form.name}"</strong>!</p><p style="color: #94a3b8;">Your Google Apps Script Web App is connected and receiving notifications successfully.</p></div>`,
         isTest: true,
       };
 
@@ -204,13 +239,34 @@ export async function POST(request: Request, context: RouteContext) {
       });
 
       const elapsed = Date.now() - startTime;
-      const text = await res.text();
+      const rawText = await res.text();
+      let gasData: any = null;
+      try {
+        gasData = JSON.parse(rawText);
+      } catch {
+        // Not JSON
+      }
+
+      if (gasData) {
+        if (gasData.ok === false || gasData.success === false) {
+          return jsonError("GAS_REJECTED", `Google Apps Script returned an error: "${gasData.error || gasData.message || 'Rejected'}"`, 400);
+        }
+      } else {
+        if (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com")) {
+          return jsonError("GAS_AUTH_REQUIRED", "Google Apps Script requires Google Login! Please re-deploy your Web App with 'Who has access' set to 'Anyone'.", 400);
+        }
+        if (rawText.includes("Exception:") || rawText.includes("Script function not found")) {
+          const match = rawText.match(/Exception:[^<]+/);
+          return jsonError("GAS_SCRIPT_ERROR", `Google Apps Script error: ${match ? match[0] : rawText.slice(0, 150)}`, 400);
+        }
+      }
+
       return jsonOk({
         status: res.status,
         statusText: res.statusText,
-        ok: res.ok,
+        ok: true,
         elapsedMs: elapsed,
-        responsePreview: text.slice(0, 300),
+        responsePreview: gasData?.message || rawText.slice(0, 300),
       });
     }
 

@@ -70,8 +70,22 @@ export async function POST(request: Request) {
       }
     }
 
+    // Append secret as query param if not present
+    let finalGasUrl = gasUrl;
+    if (gasSecret) {
+      try {
+        const u = new URL(finalGasUrl);
+        if (!u.searchParams.has("secret") && !u.searchParams.has("token")) {
+          u.searchParams.set("secret", gasSecret);
+          finalGasUrl = u.toString();
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     try {
-      const response = await fetch(gasUrl, {
+      const response = await fetch(finalGasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         redirect: "follow",
@@ -83,20 +97,31 @@ export async function POST(request: Request) {
           recipient: user.email,
           subject: "🧪 FormForge Universal GAS Integration Test",
           text: "Universal Google Apps Script integration test successful! All forms will forward responses to your Google Sheet / Gmail.",
-          html: "<div style='font-family: sans-serif; padding: 20px; background: #0f172a; color: #fff; border-radius: 12px;'><h2 style='color: #38bdf8;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful! All forms will forward responses to your Google Sheet / Gmail.</p></div>",
-          htmlBody: "<div style='font-family: sans-serif; padding: 20px; background: #0f172a; color: #fff; border-radius: 12px;'><h2 style='color: #38bdf8;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful! All forms will forward responses to your Google Sheet / Gmail.</p></div>",
+          html: "<div style='font-family: sans-serif; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;'><h2 style='color: #38bdf8; margin-top: 0;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful!</p><p style='color: #94a3b8;'>All forms will forward responses to your Google Sheet / Gmail.</p></div>",
+          htmlBody: "<div style='font-family: sans-serif; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;'><h2 style='color: #38bdf8; margin-top: 0;'>🧪 FormForge Universal GAS Test</h2><p>Universal Google Apps Script integration test successful!</p><p style='color: #94a3b8;'>All forms will forward responses to your Google Sheet / Gmail.</p></div>",
         }),
       });
 
+      const rawText = await response.text();
       let gasData: any = null;
       try {
-        gasData = await response.json();
+        gasData = JSON.parse(rawText);
       } catch {
         // Not JSON response
       }
 
-      if (gasData && gasData.success === false) {
-        return jsonError("GAS_REJECTED", `Google Apps Script returned an error: "${gasData.error || 'Failed'}"`, 400);
+      if (gasData) {
+        if (gasData.ok === false || gasData.success === false) {
+          return jsonError("GAS_REJECTED", `Google Apps Script returned an error: "${gasData.error || gasData.message || 'Rejected'}"`, 400);
+        }
+      } else {
+        if (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com")) {
+          return jsonError("GAS_AUTH_REQUIRED", "Google Apps Script requires Google Login! Please re-deploy your Web App in Google Apps Script with: 'Who has access' set to 'Anyone'.", 400);
+        }
+        if (rawText.includes("Exception:") || rawText.includes("Script function not found")) {
+          const match = rawText.match(/Exception:[^<]+/);
+          return jsonError("GAS_SCRIPT_ERROR", `Google Apps Script error: ${match ? match[0] : rawText.slice(0, 150)}`, 400);
+        }
       }
 
       const isSuccess = response.ok || response.status === 302 || response.type === "opaqueredirect";

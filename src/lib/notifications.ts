@@ -466,7 +466,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
   }
 
   // Google Apps Script (GAS) Webhook & Free Email Relay
-  const gasUrl = form.gasUrl || (ownerUser?.notifyOnSubmission !== false ? ownerUser?.globalGasUrl : undefined) || env.GAS_URL;
+  let gasUrl = form.gasUrl || (ownerUser?.notifyOnSubmission !== false ? ownerUser?.globalGasUrl : undefined) || env.GAS_URL;
   if (gasUrl) {
     try {
       let gasSecret = extractGasSecret(gasUrl);
@@ -478,6 +478,21 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           // ignore decryption error
         }
       }
+
+      // Append secret as query param if not present
+      if (gasSecret) {
+        try {
+          const u = new URL(gasUrl);
+          if (!u.searchParams.has("secret") && !u.searchParams.has("token")) {
+            u.searchParams.set("secret", gasSecret);
+            gasUrl = u.toString();
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const toEmail = targetEmail || ownerUser?.email || (payload.email as string) || "";
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -488,21 +503,39 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           form: { id: form.id, name: form.name, slug: form.slug },
           submission: { id: submission.id, email: submission.email, createdAt: submission.createdAt },
           payload,
-          emailTo: targetEmail,
-          to: targetEmail,
-          recipient: targetEmail,
+          emailTo: toEmail,
+          to: toEmail,
+          recipient: toEmail,
           subject,
           text,
           html,
           htmlBody: html,
         }),
       });
-      const isSuccess = response.ok || response.status === 302 || response.type === "opaqueredirect";
-      results.push(
-        isSuccess
-          ? { channel: "gas", status: "sent" }
-          : { channel: "gas", status: "failed", error: `GAS response: ${response.status}` }
-      );
+
+      const rawText = await response.text();
+      let gasData: any = null;
+      try {
+        gasData = JSON.parse(rawText);
+      } catch {
+        // Not JSON
+      }
+
+      if (gasData && (gasData.ok === false || gasData.success === false)) {
+        results.push({ channel: "gas", status: "failed", error: `GAS rejected: ${gasData.error || gasData.message || 'Error'}` });
+      } else if (!gasData && (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com"))) {
+        results.push({ channel: "gas", status: "failed", error: "GAS requires Google Login ('Anyone' access required in deployment)" });
+      } else if (!gasData && rawText.includes("Exception:")) {
+        const match = rawText.match(/Exception:[^<]+/);
+        results.push({ channel: "gas", status: "failed", error: match ? match[0] : "GAS script exception" });
+      } else {
+        const isSuccess = response.ok || response.status === 302 || response.type === "opaqueredirect";
+        results.push(
+          isSuccess
+            ? { channel: "gas", status: "sent" }
+            : { channel: "gas", status: "failed", error: `GAS response: ${response.status}` }
+        );
+      }
     } catch (error) {
       results.push({ channel: "gas", status: "failed", error: error instanceof Error ? error.message : "GAS delivery error" });
     }
@@ -781,10 +814,47 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
   `;
 
   // 1. Google Apps Script Relay (Zero-card Free)
-  const gasUrl = form.gasUrl || env.GAS_URL;
+  let gasUrl: string | null | undefined = form.gasUrl;
+  let gasSecret: string | undefined;
+  if (!gasUrl && form.userId) {
+    try {
+      const { getDb, isDbReady } = await import("@/db");
+      const db = getDb();
+      if (isDbReady(db)) {
+        const ownerRows = await db.select().from(users).where(eq(users.id, form.userId)).limit(1);
+        const ownerUser = ownerRows[0];
+        if (ownerUser?.globalGasUrl) {
+          gasUrl = ownerUser.globalGasUrl;
+          if (ownerUser.globalGasSecret) {
+            const { decryptText } = await import("./encryption");
+            gasSecret = await decryptText(ownerUser.globalGasSecret);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+  if (!gasUrl) {
+    gasUrl = env.GAS_URL ?? null;
+  }
+
   if (gasUrl) {
     try {
-      const gasSecret = extractGasSecret(gasUrl);
+      if (!gasSecret) {
+        gasSecret = extractGasSecret(gasUrl);
+      }
+      if (gasSecret) {
+        try {
+          const u = new URL(gasUrl);
+          if (!u.searchParams.has("secret") && !u.searchParams.has("token")) {
+            u.searchParams.set("secret", gasSecret);
+            gasUrl = u.toString();
+          }
+        } catch {
+          // ignore
+        }
+      }
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -803,7 +873,20 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
           payload: { verification_code: code },
         }),
       });
-      if (response.ok || response.status === 302 || response.type === "opaqueredirect") return true;
+      const rawText = await response.text();
+      let gasData: any = null;
+      try {
+        gasData = JSON.parse(rawText);
+      } catch {
+        // Not JSON
+      }
+      if (gasData && (gasData.ok === false || gasData.success === false)) {
+        console.warn("GAS verification code rejected:", gasData.error || gasData.message);
+      } else if (!gasData && (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com") || rawText.includes("Exception:"))) {
+        console.warn("GAS verification code auth or script exception:", rawText.slice(0, 150));
+      } else if (response.ok || response.status === 302 || response.type === "opaqueredirect") {
+        return true;
+      }
     } catch (e) {
       console.warn("GAS OTP relay failed, trying other providers:", e);
     }
@@ -1103,10 +1186,43 @@ ${magicLink ? `Or click this 1-click Magic Link to reset your password immediate
   `;
 
   // 1. Google Apps Script Relay (Zero-card Free)
-  const gasUrl = env.GAS_URL || env.GAS_WEBHOOK_URL;
+  let gasUrl = env.GAS_URL || env.GAS_WEBHOOK_URL;
+  let gasSecret: string | undefined;
+  if (!gasUrl) {
+    try {
+      const { getDb, isDbReady } = await import("@/db");
+      const db = getDb();
+      if (isDbReady(db)) {
+        const rows = await db.select().from(users).where(eq(users.email, toEmail.toLowerCase().trim())).limit(1);
+        if (rows[0]?.globalGasUrl) {
+          gasUrl = rows[0].globalGasUrl;
+          if (rows[0].globalGasSecret) {
+            const { decryptText } = await import("./encryption");
+            gasSecret = await decryptText(rows[0].globalGasSecret);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (gasUrl) {
     try {
-      const gasSecret = extractGasSecret(gasUrl);
+      if (!gasSecret) {
+        gasSecret = extractGasSecret(gasUrl);
+      }
+      if (gasSecret) {
+        try {
+          const u = new URL(gasUrl);
+          if (!u.searchParams.has("secret") && !u.searchParams.has("token")) {
+            u.searchParams.set("secret", gasSecret);
+            gasUrl = u.toString();
+          }
+        } catch {
+          // ignore
+        }
+      }
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1128,7 +1244,20 @@ ${magicLink ? `Or click this 1-click Magic Link to reset your password immediate
           payload: { reset_code: code, magic_link: magicLink, expires_in: "15 minutes" },
         }),
       });
-      if (response.ok || response.status === 302 || response.type === "opaqueredirect") return true;
+      const rawText = await response.text();
+      let gasData: any = null;
+      try {
+        gasData = JSON.parse(rawText);
+      } catch {
+        // Not JSON
+      }
+      if (gasData && (gasData.ok === false || gasData.success === false)) {
+        console.warn("GAS password reset rejected:", gasData.error || gasData.message);
+      } else if (!gasData && (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com") || rawText.includes("Exception:"))) {
+        console.warn("GAS password reset auth or script exception:", rawText.slice(0, 150));
+      } else if (response.ok || response.status === 302 || response.type === "opaqueredirect") {
+        return true;
+      }
     } catch (e) {
       console.warn("GAS password reset relay failed, trying other providers:", e);
     }
@@ -1269,10 +1398,43 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
   `;
 
   // 1. Google Apps Script Relay (Zero-card Free)
-  const gasUrl = env.GAS_URL || env.GAS_WEBHOOK_URL;
+  let gasUrl = env.GAS_URL || env.GAS_WEBHOOK_URL;
+  let gasSecret: string | undefined;
+  if (!gasUrl) {
+    try {
+      const { getDb, isDbReady } = await import("@/db");
+      const db = getDb();
+      if (isDbReady(db)) {
+        const rows = await db.select().from(users).where(eq(users.email, toEmail.toLowerCase().trim())).limit(1);
+        if (rows[0]?.globalGasUrl) {
+          gasUrl = rows[0].globalGasUrl;
+          if (rows[0].globalGasSecret) {
+            const { decryptText } = await import("./encryption");
+            gasSecret = await decryptText(rows[0].globalGasSecret);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (gasUrl) {
     try {
-      const gasSecret = extractGasSecret(gasUrl);
+      if (!gasSecret) {
+        gasSecret = extractGasSecret(gasUrl);
+      }
+      if (gasSecret) {
+        try {
+          const u = new URL(gasUrl);
+          if (!u.searchParams.has("secret") && !u.searchParams.has("token")) {
+            u.searchParams.set("secret", gasSecret);
+            gasUrl = u.toString();
+          }
+        } catch {
+          // ignore
+        }
+      }
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1293,7 +1455,20 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
           payload: { magic_link: magicLink, expires_in: "15 minutes" },
         }),
       });
-      if (response.ok || response.status === 302 || response.type === "opaqueredirect") return true;
+      const rawText = await response.text();
+      let gasData: any = null;
+      try {
+        gasData = JSON.parse(rawText);
+      } catch {
+        // Not JSON
+      }
+      if (gasData && (gasData.ok === false || gasData.success === false)) {
+        console.warn("GAS magic login rejected:", gasData.error || gasData.message);
+      } else if (!gasData && (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com") || rawText.includes("Exception:"))) {
+        console.warn("GAS magic login auth or script exception:", rawText.slice(0, 150));
+      } else if (response.ok || response.status === 302 || response.type === "opaqueredirect") {
+        return true;
+      }
     } catch (e) {
       console.warn("GAS magic login relay failed, trying other providers:", e);
     }

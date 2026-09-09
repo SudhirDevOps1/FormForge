@@ -4308,41 +4308,74 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
             <div className="rounded-xl border border-white/10 bg-slate-950 p-4 space-y-2 mt-2">
               <div className="flex justify-between items-center text-xs text-slate-300 font-semibold">
                 <span>Google Apps Script Code (Paste in script.google.com)</span>
-                <span className="text-[10px] text-sky-400">Deploy as Web App (Anyone)</span>
+                <span className="text-[10px] text-emerald-400 font-semibold">Deploy as Web App &rarr; Anyone</span>
               </div>
-              <pre className="text-[11px] font-mono bg-slate-900 p-3 rounded-lg overflow-x-auto text-slate-300 select-all max-h-48 whitespace-pre">
-{`function doPost(e) {
+              <p className="text-[11px] text-slate-400">
+                1. Open <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">script.google.com</a> &bull; 2. Paste code below &bull; 3. Click <strong>Deploy &rarr; New deployment &rarr; Web app</strong> &bull; 4. Execute as: <strong>Me</strong> &bull; 5. Who has access: <strong>Anyone</strong> (Mandatory!) &bull; 6. Authorize access &amp; paste Web App URL above.
+              </p>
+              <pre className="text-[11px] font-mono bg-slate-900 p-3 rounded-lg overflow-x-auto text-slate-300 select-all max-h-56 whitespace-pre">
+{`/**
+ * 🚀 FormForge Universal Google Apps Script
+ * Deploy: Web app | Execute as: Me | Who has access: Anyone
+ */
+var SECRET_TOKEN = ""; // (Optional) Yahan apna secret token daalein ya khali "" chhod dein
+
+function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
-    var recipient = data.emailTo || data.to || data.recipient;
-    var subject = data.subject || ("New FormForge Notification: " + (data.form ? data.form.name : "Alert"));
-    var body = data.body || data.text || (data.code ? ("Your verification code is: " + data.code) : (data.magicLink ? ("Your Magic Link: " + data.magicLink) : JSON.stringify(data.payload, null, 2)));
-    
-    // 1. Send free email via Gmail (500-1500/day free)
-    if (recipient) {
-      var mailOptions = {
-        to: recipient,
-        subject: subject,
-        body: body
-      };
-      if (data.html) {
-        mailOptions.htmlBody = data.html;
+    if (!e || !e.postData || !e.postData.contents) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, success: false, error: "No POST body received" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var payload = JSON.parse(e.postData.contents);
+    var tokenFromParam = (e.parameter && (e.parameter.secret || e.parameter.token)) || "";
+    var receivedToken = payload.secret || payload.token || tokenFromParam || "";
+
+    // 1. Security Check (Agar SECRET_TOKEN set kiya ho)
+    if (SECRET_TOKEN && SECRET_TOKEN.trim() !== "") {
+      if (receivedToken !== SECRET_TOKEN) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, success: false, error: "Unauthorized: Invalid secret token" }))
+          .setMimeType(ContentService.MimeType.JSON);
       }
-      MailApp.sendEmail(mailOptions);
     }
-    
-    // 2. Append to Google Sheet (optional)
-    var sheet = SpreadsheetApp.getActiveSpreadsheet();
-    if (sheet && data.payload) {
-      var row = [new Date(), data.form ? data.form.name : "", data.submission ? data.submission.id : ""];
-      for (var key in data.payload) { row.push(data.payload[key]); }
-      sheet.getActiveSheet().appendRow(row);
+
+    var recipient = payload.emailTo || payload.to || payload.recipient;
+    var subject = payload.subject || ("FormForge Alert: " + (payload.form ? payload.form.name : "Notification"));
+    var textBody = payload.text || payload.body || "";
+    var htmlBody = payload.html || payload.htmlBody || "";
+
+    // 2. Email Delivery via Gmail
+    if (recipient) {
+      var quotaLeft = MailApp.getRemainingDailyQuota();
+      if (quotaLeft > 0) {
+        var mailOptions = { to: recipient, subject: subject, body: textBody || "New notification from FormForge" };
+        if (htmlBody) { mailOptions.htmlBody = htmlBody; }
+        MailApp.sendEmail(mailOptions);
+      }
     }
-    
-    return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+
+    // 3. Google Sheet Logger (Appends row to active sheet if bound)
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      if (ss) {
+        var sheet = ss.getActiveSheet();
+        var formName = (payload.form && payload.form.name) ? payload.form.name : "FormForge";
+        var subId = (payload.submission && payload.submission.id) ? payload.submission.id : (payload.event || "event");
+        var dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT", "yyyy-MM-dd HH:mm:ss");
+        var row = [dateStr, formName, subId];
+        var dataObj = payload.payload || {};
+        for (var key in dataObj) {
+          if (dataObj.hasOwnProperty(key)) {
+            row.push(typeof dataObj[key] === "object" ? JSON.stringify(dataObj[key]) : String(dataObj[key]));
+          }
+        }
+        sheet.appendRow(row);
+      }
+    } catch (sheetErr) {}
+
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, success: true, message: "Processed successfully" }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }`}
@@ -5253,6 +5286,7 @@ function SettingsTab({ user }: { user: User }) {
   const [disableCode, setDisableCode] = useState("");
   const [disableBusy, setDisableBusy] = useState(false);
   const [disableError, setDisableError] = useState("");
+  const [showGlobalGasScript, setShowGlobalGasScript] = useState(false);
 
   // Universal Account-Level Integrations & Alerts state
   const [globalSettings, setGlobalSettings] = useState<{
@@ -5383,9 +5417,11 @@ function SettingsTab({ user }: { user: User }) {
       });
       const data = await res.json();
       if (data.ok) {
-        setTestStatus(prev => ({ ...prev, [target]: { loading: false, message: data.message || "✓ Test succeeded!" } }));
+        const msg = data.data?.message || data.message || "✓ Test succeeded!";
+        setTestStatus(prev => ({ ...prev, [target]: { loading: false, message: msg } }));
       } else {
-        setTestStatus(prev => ({ ...prev, [target]: { loading: false, error: data.error || "✕ Test failed." } }));
+        const errMsg = data.data?.error || data.message || data.error || "✕ Test failed.";
+        setTestStatus(prev => ({ ...prev, [target]: { loading: false, error: errMsg } }));
       }
     } catch (err: any) {
       setTestStatus(prev => ({ ...prev, [target]: { loading: false, error: err.message || "Network test failure" } }));
@@ -5738,15 +5774,109 @@ function SettingsTab({ user }: { user: User }) {
                   <p className="text-[11px] text-slate-400">All submissions without form-specific GAS will stream directly to your Google Sheet / Gmail.</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => handleTestIntegration("gas")}
-                disabled={testStatus.gas?.loading || !globalSettings.globalGasUrl}
-                className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 px-3 py-1.5 text-xs font-bold transition disabled:opacity-40"
-              >
-                {testStatus.gas?.loading ? "Testing…" : "🧪 Test Universal GAS"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowGlobalGasScript(!showGlobalGasScript)}
+                  className="text-[11px] text-sky-400 hover:text-sky-300 underline font-medium"
+                >
+                  {showGlobalGasScript ? "Hide Script Code" : "📜 Get Free Google Apps Script Code"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTestIntegration("gas")}
+                  disabled={testStatus.gas?.loading || !globalSettings.globalGasUrl}
+                  className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 px-3 py-1.5 text-xs font-bold transition disabled:opacity-40"
+                >
+                  {testStatus.gas?.loading ? "Testing…" : "🧪 Test Universal GAS"}
+                </button>
+              </div>
             </div>
+
+            {showGlobalGasScript && (
+              <div className="rounded-xl border border-sky-500/20 bg-slate-950 p-4 space-y-2 mt-2">
+                <div className="flex justify-between items-center text-xs text-slate-300 font-semibold">
+                  <span>Universal Google Apps Script Code (Google Sheet &amp; Gmail Alerts)</span>
+                  <span className="text-[10px] text-emerald-400 font-semibold">Deploy as Web App &rarr; Anyone</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  1. Open <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">script.google.com</a> (or in a Google Sheet: Extensions &rarr; Apps Script) &bull; 2. Paste code below &bull; 3. Click <strong>Deploy &rarr; New deployment &rarr; Web app</strong> &bull; 4. Execute as: <strong>Me</strong> &bull; 5. Who has access: <strong>Anyone</strong> (Mandatory!) &bull; 6. Authorize access &amp; paste Web App URL below.
+                </p>
+                <pre className="text-[11px] font-mono bg-slate-900 p-3 rounded-lg overflow-x-auto text-slate-300 select-all max-h-56 whitespace-pre">
+{`/**
+ * 🚀 FormForge Universal Google Apps Script
+ * Features:
+ * 1. Automatic Google Sheet Data Logger
+ * 2. Instant Gmail Alerts (Submissions, Login Alerts, Password Reset, OTP)
+ * 3. Daily Quota Protection
+ * 4. Optional Secret Token Protection
+ *
+ * Deploy: Web app | Execute as: Me | Who has access: Anyone
+ */
+var SECRET_TOKEN = ""; // (Optional) Yahan apna secret token daalein ya khali "" chhod dein
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, success: false, error: "No POST body received" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var payload = JSON.parse(e.postData.contents);
+    var tokenFromParam = (e.parameter && (e.parameter.secret || e.parameter.token)) || "";
+    var receivedToken = payload.secret || payload.token || tokenFromParam || "";
+
+    // 1. Security Check (Agar SECRET_TOKEN set kiya ho tabhi check karega)
+    if (SECRET_TOKEN && SECRET_TOKEN.trim() !== "") {
+      if (receivedToken !== SECRET_TOKEN) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, success: false, error: "Unauthorized: Invalid secret token" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    var recipient = payload.emailTo || payload.to || payload.recipient;
+    var subject = payload.subject || ("FormForge Alert: " + (payload.form ? payload.form.name : "Notification"));
+    var textBody = payload.text || payload.body || "";
+    var htmlBody = payload.html || payload.htmlBody || "";
+
+    // 2. Email Delivery via Gmail (Quota Protected)
+    if (recipient) {
+      var quotaLeft = MailApp.getRemainingDailyQuota();
+      if (quotaLeft > 0) {
+        var mailOptions = { to: recipient, subject: subject, body: textBody || "New notification from FormForge" };
+        if (htmlBody) { mailOptions.htmlBody = htmlBody; }
+        MailApp.sendEmail(mailOptions);
+      }
+    }
+
+    // 3. Google Sheet Logger (Appends row to active sheet if bound to a spreadsheet)
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      if (ss) {
+        var sheet = ss.getActiveSheet();
+        var formName = (payload.form && payload.form.name) ? payload.form.name : "FormForge";
+        var subId = (payload.submission && payload.submission.id) ? payload.submission.id : (payload.event || "event");
+        var dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT", "yyyy-MM-dd HH:mm:ss");
+        var row = [dateStr, formName, subId];
+        var dataObj = payload.payload || {};
+        for (var key in dataObj) {
+          if (dataObj.hasOwnProperty(key)) {
+            row.push(typeof dataObj[key] === "object" ? JSON.stringify(dataObj[key]) : String(dataObj[key]));
+          }
+        }
+        sheet.appendRow(row);
+      }
+    } catch (sheetErr) {}
+
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, success: true, message: "Processed successfully" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, success: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`}
+                </pre>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">Web App Deployment URL</label>
@@ -5773,6 +5903,17 @@ function SettingsTab({ user }: { user: User }) {
                     onChange={(e) => setGlobalSettings(s => ({ ...s, globalGasSecret: e.target.value, clearGlobalGasSecret: false }))}
                     className="ff-input text-xs font-mono flex-1"
                   />
+                  <button
+                    type="button"
+                    title="Generate a random secret token"
+                    onClick={() => {
+                      const rand = "ff_gas_" + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+                      setGlobalSettings(s => ({ ...s, globalGasSecret: rand, clearGlobalGasSecret: false }));
+                    }}
+                    className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-2 py-1 text-[11px] font-medium transition"
+                  >
+                    🎲 Gen
+                  </button>
                   {globalSettings.hasGlobalGasSecret && (
                     <button
                       type="button"
@@ -5783,6 +5924,7 @@ function SettingsTab({ user }: { user: User }) {
                     </button>
                   )}
                 </div>
+                <p className="text-[10px] text-slate-500 mt-1">Optional: Agar script me SECRET_TOKEN set hai toh yahan wahi token daalein, warna khali chhod dein.</p>
               </div>
             </div>
             {testStatus.gas?.message && (
@@ -5833,11 +5975,22 @@ function SettingsTab({ user }: { user: User }) {
                 <div className="flex gap-2">
                   <input
                     type="password"
-                    placeholder={globalSettings.hasGlobalWebhookSecret ? "•••••••• (leave blank to keep)" : "Signature key / Bearer token (optional)"}
+                    placeholder={globalSettings.hasGlobalWebhookSecret ? "•••••••• (leave blank to keep)" : "Signature key (optional for Stoat/Discord)"}
                     value={globalSettings.globalWebhookSecret || ""}
                     onChange={(e) => setGlobalSettings(s => ({ ...s, globalWebhookSecret: e.target.value, clearGlobalWebhookSecret: false }))}
                     className="ff-input text-xs font-mono flex-1"
                   />
+                  <button
+                    type="button"
+                    title="Generate a random secret signing key"
+                    onClick={() => {
+                      const rand = "whsec_" + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+                      setGlobalSettings(s => ({ ...s, globalWebhookSecret: rand, clearGlobalWebhookSecret: false }));
+                    }}
+                    className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-2 py-1 text-[11px] font-medium transition"
+                  >
+                    🎲 Gen
+                  </button>
                   {globalSettings.hasGlobalWebhookSecret && (
                     <button
                       type="button"
@@ -5848,6 +6001,7 @@ function SettingsTab({ user }: { user: User }) {
                     </button>
                   )}
                 </div>
+                <p className="text-[10px] text-slate-500 mt-1">Optional: Stoat Chat, Discord ya Slack ke liye ise khali chhod dein. Custom webhook verify karne ke liye yahan koi bhi secret likhein ya 🎲 Gen dabayein.</p>
               </div>
             </div>
             {testStatus.webhook?.message && (
