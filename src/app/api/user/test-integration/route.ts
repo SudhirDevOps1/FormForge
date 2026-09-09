@@ -130,7 +130,15 @@ export async function POST(request: Request) {
 
       if (gasData) {
         if (gasData.ok === false || gasData.success === false) {
-          return jsonError("GAS_REJECTED", `Google Apps Script returned an error: "${gasData.error || gasData.message || 'Rejected'}"`, 400);
+          const errMsg = gasData.error || gasData.message || 'Rejected';
+          if (String(errMsg).includes("Invalid secret token")) {
+            return jsonError(
+              "GAS_SECRET_MISMATCH",
+              `Google Apps Script secret token mismatch! Google Apps Script me SECRET_TOKEN aur FormForge ka token match nahi hua. IMPORTANT: Google Apps Script me code save karne ke baad 'Deploy' -> 'Manage deployments' -> Pencil (Edit) -> Version me 'New version' select karke 'Deploy' karna padta hai, warna Google purana code hi chalata rehta hai!`,
+              400
+            );
+          }
+          return jsonError("GAS_REJECTED", `Google Apps Script returned an error: "${errMsg}"`, 400);
         }
       } else {
         if (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com")) {
