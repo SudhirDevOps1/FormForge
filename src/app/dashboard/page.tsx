@@ -5329,6 +5329,7 @@ function SettingsTab({ user }: { user: User }) {
   });
   const [loadingGlobal, setLoadingGlobal] = useState(true);
   const [savingGlobal, setSavingGlobal] = useState(false);
+  const [showGasSecret, setShowGasSecret] = useState(false);
   const [globalSaveMsg, setGlobalSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [testStatus, setTestStatus] = useState<Record<string, { loading: boolean; message?: string; error?: string }>>({});
 
@@ -5927,12 +5928,20 @@ function doPost(e) {
                 </label>
                 <div className="flex gap-2">
                   <input
-                    type="password"
+                    type={showGasSecret ? "text" : "password"}
                     placeholder={globalSettings.hasGlobalGasSecret ? "•••••••• (leave blank to keep)" : "SECRET_TOKEN in script (optional)"}
                     value={globalSettings.globalGasSecret || ""}
                     onChange={(e) => setGlobalSettings(s => ({ ...s, globalGasSecret: e.target.value, clearGlobalGasSecret: false }))}
                     className="ff-input text-xs font-mono flex-1"
                   />
+                  <button
+                    type="button"
+                    title={showGasSecret ? "Hide secret token" : "Show secret token"}
+                    onClick={() => setShowGasSecret(v => !v)}
+                    className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-2 py-1 text-[11px] font-medium transition"
+                  >
+                    {showGasSecret ? "👁️" : "👁️‍🗨️"}
+                  </button>
                   <button
                     type="button"
                     title="Generate a random secret token"
