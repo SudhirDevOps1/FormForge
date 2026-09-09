@@ -5399,11 +5399,13 @@ function SettingsTab({ user }: { user: User }) {
       if (target === "gas") {
         payload.url = globalSettings.globalGasUrl;
         payload.secret = globalSettings.globalGasSecret;
+        payload.clearSecret = globalSettings.clearGlobalGasSecret;
         payload.recipientEmail = globalSettings.globalNotifyEmail;
       }
       if (target === "webhook") {
         payload.url = globalSettings.globalWebhookUrl;
         payload.secret = globalSettings.globalWebhookSecret;
+        payload.clearSecret = globalSettings.clearGlobalWebhookSecret;
       }
       if (target === "smtp") {
         payload.host = globalSettings.globalSmtpHost;
@@ -5836,18 +5838,27 @@ function doPost(e) {
       }
     }
 
-    var recipient = payload.emailTo || payload.to || payload.recipient;
+    // 2. Email Recipient (Auto-fallback to your own Google Account Gmail if blank)
+    var recipient = payload.emailTo || payload.to || payload.recipient || Session.getEffectiveUser().getEmail();
     var subject = payload.subject || ("FormForge Alert: " + (payload.form ? payload.form.name : "Notification"));
     var textBody = payload.text || payload.body || "";
     var htmlBody = payload.html || payload.htmlBody || "";
+    var emailSent = false;
+    var emailError = null;
 
-    // 2. Email Delivery via Gmail (Quota Protected)
     if (recipient) {
       var quotaLeft = MailApp.getRemainingDailyQuota();
       if (quotaLeft > 0) {
-        var mailOptions = { to: recipient, subject: subject, body: textBody || "New notification from FormForge" };
-        if (htmlBody) { mailOptions.htmlBody = htmlBody; }
-        MailApp.sendEmail(mailOptions);
+        try {
+          var mailOptions = { to: recipient, subject: subject, body: textBody || "New notification from FormForge" };
+          if (htmlBody) { mailOptions.htmlBody = htmlBody; }
+          MailApp.sendEmail(mailOptions);
+          emailSent = true;
+        } catch (mailErr) {
+          emailError = mailErr.toString();
+        }
+      } else {
+        emailError = "Daily Gmail quota limit reached (0 remaining).";
       }
     }
 
@@ -5870,8 +5881,13 @@ function doPost(e) {
       }
     } catch (sheetErr) {}
 
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, success: true, message: "Processed successfully" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      ok: true, 
+      success: true, 
+      emailSent: emailSent, 
+      recipient: recipient, 
+      message: emailSent ? ("FormForge notification processed & sent via Gmail (" + recipient + ")") : ("Processed (Email: " + (emailError || "skipped") + ")") 
+    })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);

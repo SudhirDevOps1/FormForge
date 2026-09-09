@@ -500,7 +500,8 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
         }
       }
 
-      const toEmail = targetEmail || ownerUser?.email || (payload.email as string) || "";
+      // If specific email configured, use it; otherwise leave blank so GAS defaults to Session.getEffectiveUser().getEmail()
+      const toEmail = form.emailTo || ownerUser?.globalNotifyEmail || "";
       const response = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -511,9 +512,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           form: { id: form.id, name: form.name, slug: form.slug },
           submission: { id: submission.id, email: submission.email, createdAt: submission.createdAt },
           payload,
-          emailTo: toEmail,
-          to: toEmail,
-          recipient: toEmail,
+          ...(toEmail ? { emailTo: toEmail, to: toEmail, recipient: toEmail } : {}),
           subject,
           text,
           html,
@@ -1713,7 +1712,7 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
           // ignore
         }
       }
-      const toEmail = user.globalNotifyEmail || user.email;
+      const toEmail = user.globalNotifyEmail || "";
       await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1721,9 +1720,7 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
         body: JSON.stringify({
           ...(gasSecret ? { secret: gasSecret } : {}),
           event: "admin_login",
-          emailTo: toEmail,
-          to: toEmail,
-          recipient: toEmail,
+          ...(toEmail ? { emailTo: toEmail, to: toEmail, recipient: toEmail } : {}),
           subject,
           text,
           html,

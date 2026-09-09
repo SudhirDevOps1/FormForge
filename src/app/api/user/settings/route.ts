@@ -194,6 +194,7 @@ export async function PATCH(request: Request) {
       hasGlobalGasSecret: Boolean(updatedUser.globalGasSecret),
       globalWebhookUrl: updatedUser.globalWebhookUrl || "",
       hasGlobalWebhookSecret: Boolean(updatedUser.globalWebhookSecret),
+      globalNotifyEmail: updatedUser.globalNotifyEmail || "",
       notifyOnLogin: updatedUser.notifyOnLogin !== false,
       notifyOnSubmission: updatedUser.notifyOnSubmission !== false,
     };
