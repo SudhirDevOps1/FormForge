@@ -190,7 +190,7 @@ export async function POST(request: Request, context: RouteContext) {
       let gasSecret: string | undefined = readString(body.secret);
       if (!gasSecret) {
         try {
-          const userRows = await db.select({ globalGasSecret: users.globalGasSecret }).from(users).where(eq(users.id, user.id)).limit(1);
+          const userRows = await db.select({ globalGasSecret: users.globalGasSecret, globalNotifyEmail: users.globalNotifyEmail }).from(users).where(eq(users.id, user.id)).limit(1);
           if (userRows[0]?.globalGasSecret) {
             const { decryptText } = await import("@/lib/encryption");
             gasSecret = await decryptText(userRows[0].globalGasSecret);
@@ -213,7 +213,13 @@ export async function POST(request: Request, context: RouteContext) {
         targetUrl = parsed.toString();
       }
 
-      const toEmail = form.emailTo || user.email;
+      let toEmail = form.emailTo || user.email;
+      try {
+        const uRow = await db.select({ globalNotifyEmail: users.globalNotifyEmail }).from(users).where(eq(users.id, user.id)).limit(1);
+        if (uRow[0]?.globalNotifyEmail) {
+          toEmail = form.emailTo || uRow[0].globalNotifyEmail;
+        }
+      } catch {}
       const gasPayload = {
         ...(gasSecret ? { secret: gasSecret } : {}),
         event: "test_notification",

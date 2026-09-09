@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     try {
       const { sendLoginAlert } = await import("@/lib/notifications");
       const userAgent = request.headers.get("user-agent") || "Unknown Browser";
-      void sendLoginAlert(user, ip, userAgent);
+      await sendLoginAlert(user, ip, userAgent);
     } catch (e) {
       console.warn("Failed to dispatch login alert:", e);
     }

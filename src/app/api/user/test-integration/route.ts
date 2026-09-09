@@ -204,7 +204,9 @@ export async function POST(request: Request) {
       };
       if (webhookSecret) {
         headers["X-FormForge-Secret"] = webhookSecret;
-        headers["Authorization"] = `Bearer ${webhookSecret}`;
+        if (!isStoat && !isDiscord && !isSlack) {
+          headers["Authorization"] = `Bearer ${webhookSecret}`;
+        }
       }
 
       const response = await fetch(webhookUrl, {

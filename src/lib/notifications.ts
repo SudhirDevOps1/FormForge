@@ -118,6 +118,14 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       // Ignore error
     }
   }
+  if (!ownerUser) {
+    try {
+      const firstOwnerRows = await db.select().from(users).limit(1);
+      ownerUser = firstOwnerRows[0];
+    } catch {
+      // Ignore error
+    }
+  }
 
   let targetEmail = form.emailTo || ownerUser?.globalNotifyEmail || ownerUser?.email;
   const shouldNotifyEmail = (form.notifyEmail || (ownerUser?.globalSmtpEnabled && ownerUser?.notifyOnSubmission !== false)) && !!targetEmail;
@@ -1094,7 +1102,10 @@ export async function dispatchWebhook(
     }
     if (secretToken) {
       webhookHeaders["X-FormForge-Secret"] = secretToken;
-      webhookHeaders["Authorization"] = `Bearer ${secretToken}`;
+      const isPlatformWithUrlAuth = lowercaseUrl.includes("stoat.chat") || lowercaseUrl.includes("discord") || lowercaseUrl.includes("slack");
+      if (!isPlatformWithUrlAuth) {
+        webhookHeaders["Authorization"] = `Bearer ${secretToken}`;
+      }
     }
 
     const response = await fetch(normalizedUrl, {
@@ -1608,7 +1619,7 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
   `;
 
   // 1. Universal / Global GAS Relay
-  const gasUrl = user.globalGasUrl || env.GAS_URL;
+  let gasUrl = user.globalGasUrl || env.GAS_URL;
   if (gasUrl) {
     try {
       let gasSecret = extractGasSecret(gasUrl);
@@ -1620,6 +1631,18 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
           // ignore decryption error
         }
       }
+      if (gasSecret) {
+        try {
+          const u = new URL(gasUrl);
+          if (!u.searchParams.has("secret") && !u.searchParams.has("token")) {
+            u.searchParams.set("secret", gasSecret);
+            gasUrl = u.toString();
+          }
+        } catch {
+          // ignore
+        }
+      }
+      const toEmail = user.globalNotifyEmail || user.email;
       await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1627,9 +1650,9 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
         body: JSON.stringify({
           ...(gasSecret ? { secret: gasSecret } : {}),
           event: "admin_login",
-          emailTo: user.email,
-          to: user.email,
-          recipient: user.email,
+          emailTo: toEmail,
+          to: toEmail,
+          recipient: toEmail,
           subject,
           text,
           html,
@@ -1695,7 +1718,9 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
       };
       if (webhookSecret) {
         webhookHeaders["X-FormForge-Secret"] = webhookSecret;
-        webhookHeaders["Authorization"] = `Bearer ${webhookSecret}`;
+        if (!isStoat && !isDiscord && !isSlack) {
+          webhookHeaders["Authorization"] = `Bearer ${webhookSecret}`;
+        }
       }
 
       await fetch(targetUrl, {
