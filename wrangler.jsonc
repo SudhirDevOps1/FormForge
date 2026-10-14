@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "formforge",
+  "name": "apnaform",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-06",
   "compatibility_flags": ["nodejs_compat"],
