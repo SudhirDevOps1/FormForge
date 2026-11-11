@@ -237,10 +237,22 @@ on rule/prefill keys, and the raw-IP regression test for §5.1.
 | --- | --- | --- |
 | Types | `npm run typecheck` | ✅ 0 errors |
 | Lint | `npm run lint` | ✅ 0 errors, 0 warnings (`--max-warnings=0`) |
-| Security | `npm run test:security` | ✅ **65 / 65** |
+| Security | `npm run test:security` | ✅ **66 / 66** |
 | Behaviour | `npm run test:features` | ✅ **40 / 40** — the new engines exercised for real |
 | Integration | `npm run test:e2e` | ✅ **24 / 24** — the real HTTP surface, end to end |
+| Worker runtime | `npm run test:worker` | ✅ **4 / 4** — the built bundle booted under `wrangler dev` |
 | Build | `npm run build` | ✅ OpenNext → Cloudflare Workers bundle produced (`worker.js`) |
+| Runtime audit | `npm audit --omit=dev` | ✅ 0 vulnerabilities |
+
+### Production outage postmortem — `Error 1101` (2026-11-11)
+
+**Symptom.** The deployed Worker answered *"Worker threw a JavaScript exception"* (Cloudflare `1101`) on every request — the site was down, while the build job and all 130 local assertions were green.
+
+**Root cause.** Next.js 16's server constructor calls `getPreviewProps()`, which resolves `/.next/server/preview-props.json` through `loadManifest`. `@opennextjs/cloudflare@1.20.6` inlined every other runtime manifest at build time but not `preview-props.json`, so the adapter's patched loader threw `Unexpected loadManifest(/.next/server/preview-props.json) call!` while constructing `NextNodeServer` — before routing any request. Upstream fixed it in `1.20.12` (`#1356`); the repo pinned `1.20.6`.
+
+**Fix.** `@opennextjs/cloudflare` 1.20.6 → 1.20.16, plus `cacheComponents: false` / `partialPrefetching: false` in `next.config.ts` (unsupported by the adapter). Verified by booting the real bundle: `/`, `/dashboard`, `/f/:slug`, `/api/health`, `/api/openapi.json` → 200, no error in the Worker log.
+
+**Guard.** `tests/worker-smoke.mjs` now boots `.open-next/worker.js` and asserts those routes serve, inside the Cloudflare Build job. A green `next build` is a compile check, not a runtime check; this closes the gap that let the outage ship.
 
 ### Incidental fixes surfaced by the verification gate
 
