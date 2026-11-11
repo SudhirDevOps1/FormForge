@@ -2,7 +2,10 @@
 /node_modules
 /.pnp
 .pnp.js
-/package-lock.json
+# NOTE: package-lock.json IS tracked on purpose. CI runs `npm ci`, and
+# actions/setup-node's npm cache needs a lockfile to hash. With the lockfile
+# ignored, every workflow failed at the setup step and the quality gates
+# never ran.
 
 # testing
 /coverage
@@ -59,4 +62,5 @@ Thumbs.db
 # feature-test compilation scratch directory
 /.tmp-feature-tests/
 /.tmp-e2e.log
+/.tmp-ci.log
 /.tmp-featurestest/
