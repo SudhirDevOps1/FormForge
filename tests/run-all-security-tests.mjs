@@ -1206,6 +1206,31 @@ await test("P7", "hidden prefill values are injected server-side only", async ()
   );
 });
 
+await test("P7", "every third-party GitHub Action is pinned to a commit SHA", async () => {
+  const { readdirSync } = await import("node:fs");
+  const workflowsDir = join(REPO_ROOT, ".github", "workflows");
+  const files = readdirSync(workflowsDir).filter((name) => name.endsWith(".yml"));
+
+  let pinned = 0;
+  for (const file of files) {
+    const source = readFileSync(join(workflowsDir, file), "utf8");
+    const pattern = /uses:\s*["']?([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([^\s"']+)["']?/g;
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const [, repo, ref] = match;
+      // Local actions (`./.github/...`) are part of this repository.
+      if (repo.startsWith(".")) continue;
+      assert(
+        /^[0-9a-f]{40}$/i.test(ref),
+        `${file}: ${repo}@${ref} must be pinned to a full commit SHA (a mutable tag can be re-pointed at malicious code)`,
+      );
+      pinned += 1;
+    }
+  }
+
+  assert(pinned > 0, "the workflows must reference at least one third-party action");
+});
+
 await test("P7", "a client-side failure can never leave the page blank", async () => {
   const layout = readSrc("src/app/layout.tsx");
   const css = readSrc("src/app/globals.css");
