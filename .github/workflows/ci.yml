@@ -197,6 +197,17 @@ jobs:
           path: .open-next/
           retention-days: 7
           if-no-files-found: error
+          # .open-next begins with a dot, so upload-artifact treats it as a
+          # hidden path and skipped it entirely ("No files were found"),
+          # failing the build job even though the bundle was written.
+          include-hidden-files: true
+
+      # A green `next build` does not prove the Worker serves. Next.js 16 and
+      # the OpenNext adapter can disagree about runtime manifests, which made
+      # every page answer 500 (Error 1101) in production while the build and
+      # the unit tests were both green. This step boots the real bundle.
+      - name: Smoke test the Worker bundle
+        run: npm run test:worker
 
       - name: Write build summary
         if: always()
@@ -204,6 +215,7 @@ jobs:
           echo "## 🏗️ Cloudflare Build" >> "$GITHUB_STEP_SUMMARY"
           echo "- Runtime: OpenNext → Cloudflare Workers" >> "$GITHUB_STEP_SUMMARY"
           echo "- Artifact: \`cloudflare-build-${{ github.sha }}\` (7 day retention)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Worker smoke test: the bundle is booted under \`wrangler dev\` and must serve 200" >> "$GITHUB_STEP_SUMMARY"
 
   # ── 4. Migration Lint (Drizzle schema check) ──────────────────────────────
   migration-check:

@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
     "@libsql\\isomorphic-ws",
     "@neondatabase/serverless",
   ],
+  // Cache Components and partial prefetching are opt-in Next.js 16 features
+  // that are not yet supported by the OpenNext Cloudflare adapter: with them
+  // enabled the Worker can hang ("Worker's code had hung") on concurrent
+  // renders. They stay off until the adapter supports them.
+  cacheComponents: false,
+  partialPrefetching: false,
   async headers() {
     return [
       {
