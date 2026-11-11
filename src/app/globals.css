@@ -1,65 +1,342 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
+
+/* ==================================================================
+   FormForge Design System — "Aurora"
+   ------------------------------------------------------------------
+   Layer 1  @theme          → Tailwind token registration
+   Layer 2  :root          → raw CSS custom properties (runtime access)
+   Layer 3  base           → element defaults, a11y, scrollbars
+   Layer 4  components     → .btn-*, .card, .chip, .input, .badge …
+   Layer 5  motion         → keyframes + reveal/reduced-motion contract
+   ================================================================== */
+
+/* ==================================================================
+   LAYER 1 — Tailwind token registration
+   ================================================================== */
+
+@theme {
+  /* Surfaces: a deep, slightly-blue night ramp */
+  --color-ink-950: #05070f;
+  --color-ink-900: #070b16;
+  --color-ink-850: #0a0f1e;
+  --color-ink-800: #0e1424;
+  --color-ink-750: #131a2d;
+  --color-ink-700: #1a2338;
+  --color-ink-600: #263149;
+  --color-ink-500: #3a4763;
+
+  /* Accent — "aurora" cyan → sky → violet */
+  --color-aurora-50: #ecfeff;
+  --color-aurora-100: #cffafe;
+  --color-aurora-200: #a5f3fc;
+  --color-aurora-300: #67e8f9;
+  --color-aurora-400: #22d3ee;
+  --color-aurora-500: #06b6d4;
+  --color-aurora-600: #0891b2;
+  --color-aurora-700: #0e7490;
+
+  --color-iris-300: #a5b4fc;
+  --color-iris-400: #818cf8;
+  --color-iris-500: #6366f1;
+  --color-iris-600: #4f46e5;
+
+  --color-mint-300: #6ee7b7;
+  --color-mint-400: #34d399;
+  --color-mint-500: #10b981;
+
+  --color-amber-amber: #fbbf24;
+
+  /* Semantic */
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #fb7185;
+  --color-info: #60a5fa;
+
+  /* Radii */
+  --radius-card: 1.5rem;
+  --radius-panel: 2rem;
+
+  /* Font */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Motion — mirrors src/lib/motion.ts so CSS and JS never diverge */
+  --duration-instant: 120ms;
+  --duration-fast: 200ms;
+  --duration-base: 320ms;
+  --duration-slow: 520ms;
+  --duration-deliberate: 780ms;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ==================================================================
+   LAYER 2 — Raw custom properties (runtime + non-Tailwind consumers)
+   ================================================================== */
 
 :root {
   color-scheme: dark;
+
+  --ff-accent: #22d3ee;
+  --ff-accent-soft: rgba(34, 211, 238, 0.14);
+  --ff-accent-line: rgba(34, 211, 238, 0.32);
+  --ff-iris: #818cf8;
+  --ff-mint: #34d399;
+  --ff-danger: #fb7185;
+  --ff-warning: #fbbf24;
+
+  --ff-surface: rgba(15, 23, 42, 0.62);
+  --ff-surface-strong: rgba(10, 15, 30, 0.78);
+  --ff-border: rgba(255, 255, 255, 0.09);
+  --ff-border-strong: rgba(255, 255, 255, 0.16);
+
+  --ff-text: #f1f5f9;
+  --ff-text-muted: #94a3b8;
+  --ff-text-subtle: #64748b;
+
+  --ff-radius-sm: 0.625rem;
+  --ff-radius-md: 0.875rem;
+  --ff-radius-lg: 1.25rem;
+  --ff-radius-xl: 1.75rem;
+  --ff-radius-2xl: 2.25rem;
+
+  --ff-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ff-shadow-md: 0 10px 30px -12px rgba(0, 0, 0, 0.65);
+  --ff-shadow-lg: 0 30px 70px -25px rgba(0, 0, 0, 0.75);
+  --ff-shadow-glow: 0 0 0 1px var(--ff-accent-line), 0 12px 40px -12px rgba(34, 211, 238, 0.35);
+
+  --ff-duration-fast: 200ms;
+  --ff-duration-base: 320ms;
+  --ff-duration-slow: 520ms;
+  --ff-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ff-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --ff-nav-h: 4.5rem;
 }
+
+/* ==================================================================
+   LAYER 3 — Base
+   ================================================================== */
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--ff-nav-h) + 1.5rem);
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #060911;
+  font-family: var(--font-sans);
+  background-color: #05070f;
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -15%, rgba(14, 165, 233, 0.15) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 30% at 0% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 50%);
+    radial-gradient(ellipse 80% 50% at 50% -15%, rgba(14, 165, 233, 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(99, 102, 241, 0.09) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 0% 50%, rgba(56, 189, 248, 0.06) 0%, transparent 50%);
   background-attachment: fixed;
-  color: #f1f5f9;
+  color: var(--ff-text);
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: rgba(14, 165, 233, 0.35);
+  background: rgba(34, 211, 238, 0.32);
   color: #ffffff;
 }
 
-/* Modern Glass Panels with subtle inner specular highlight */
+/* Accessible focus ring — one ring, everywhere. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ff-accent);
+  outline-offset: 2px;
+  border-radius: var(--ff-radius-sm);
+}
+
+h1, h2, h3, h4 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Premium scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(3, 7, 18, 0.55);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: 2px solid #030712;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ==================================================================
+   LAYER 4 — Components
+   ================================================================== */
+
+/* --- Surfaces ---------------------------------------------------- */
+
 .glass-panel {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.65) 0%, rgba(10, 15, 30, 0.75) 100%);
-  box-shadow: 
-    0 10px 30px -5px rgba(0, 0, 0, 0.5),
+  border: 1px solid var(--ff-border);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.66) 0%, rgba(10, 15, 30, 0.78) 100%);
+  box-shadow:
+    var(--ff-shadow-md),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  transition: border-color var(--ff-duration-base) var(--ff-ease-out),
+              box-shadow var(--ff-duration-base) var(--ff-ease-out),
+              transform var(--ff-duration-base) var(--ff-ease-out);
 }
 
 .glass-panel:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--ff-border-strong);
+}
+
+/* Elevated surface used by cards inside the dashboard shell. */
+.surface-card {
+  border: 1px solid var(--ff-border);
+  background: linear-gradient(160deg, rgba(19, 26, 45, 0.72) 0%, rgba(10, 15, 30, 0.68) 100%);
+  border-radius: var(--ff-radius-lg);
+  box-shadow: var(--ff-shadow-sm);
+  transition: border-color var(--ff-duration-base) var(--ff-ease-out),
+              transform var(--ff-duration-base) var(--ff-ease-out),
+              box-shadow var(--ff-duration-base) var(--ff-ease-out);
 }
 
 .grid-mask {
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
   background-size: 36px 36px;
   mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black 50%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black 50%, transparent 100%);
 }
+
+/* --- Buttons ----------------------------------------------------- */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--ff-radius-md);
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1;
+  padding: 0.875rem 1.5rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  isolation: isolate;
+  overflow: hidden;
+  transition: transform var(--ff-duration-fast) var(--ff-ease-out),
+              box-shadow var(--ff-duration-base) var(--ff-ease-out),
+              background-color var(--ff-duration-base) var(--ff-ease-out),
+              border-color var(--ff-duration-base) var(--ff-ease-out),
+              color var(--ff-duration-base) var(--ff-ease-out);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #67e8f9 0%, #38bdf8 45%, #818cf8 100%);
+  color: #05070f;
+  box-shadow: 0 10px 34px -12px rgba(56, 189, 248, 0.75);
+}
+
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.55) 50%, transparent 80%);
+  transform: translateX(-120%);
+  transition: transform 700ms var(--ff-ease-out);
+  z-index: -1;
+}
+
+.btn-primary:hover::after {
+  transform: translateX(120%);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px -14px rgba(56, 189, 248, 0.9);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--ff-border);
+  color: var(--ff-text);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--ff-border-strong);
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--ff-accent-line);
+  color: #a5f3fc;
+}
+
+.btn-outline:hover {
+  background: rgba(34, 211, 238, 0.12);
+  border-color: rgba(34, 211, 238, 0.55);
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background: rgba(251, 113, 133, 0.14);
+  border-color: rgba(251, 113, 133, 0.35);
+  color: #fda4af;
+}
+
+.btn-danger:hover {
+  background: rgba(251, 113, 133, 0.22);
+  border-color: rgba(251, 113, 133, 0.55);
+}
+
+.btn-sm {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  border-radius: var(--ff-radius-sm);
+}
+
+/* --- Form controls ------------------------------------------------ */
 
 .ff-input {
   width: 100%;
-  border-radius: 0.75rem;
+  border-radius: var(--ff-radius-md);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(15, 23, 42, 0.6);
   padding: 0.65rem 1rem;
   color: #ffffff;
   font-size: 0.875rem;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color var(--ff-duration-fast) var(--ff-ease-out),
+              background-color var(--ff-duration-fast) var(--ff-ease-out),
+              box-shadow var(--ff-duration-fast) var(--ff-ease-out);
 }
 
 .ff-input:focus-visible {
@@ -76,44 +353,145 @@ body {
   color: rgba(148, 163, 184, 0.4);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+.ff-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-/* Custom Premium Scrollbars */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(3, 7, 18, 0.5);
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+/* --- Chips / badges ---------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   border-radius: 9999px;
-  border: 2px solid #030712;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--ff-border);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ff-text-muted);
+  transition: all var(--ff-duration-fast) var(--ff-ease-out);
 }
 
-/* Animations */
-@keyframes fadeIn {
+.chip:hover {
+  border-color: var(--ff-accent-line);
+  color: var(--ff-text);
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.badge-success { background: rgba(52, 211, 153, 0.14); color: #6ee7b7; border-color: rgba(52, 211, 153, 0.3); }
+.badge-warning { background: rgba(251, 191, 36, 0.14); color: #fcd34d; border-color: rgba(251, 191, 36, 0.3); }
+.badge-danger  { background: rgba(251, 113, 133, 0.14); color: #fda4af; border-color: rgba(251, 113, 133, 0.3); }
+.badge-info    { background: rgba(96, 165, 250, 0.14); color: #93c5fd; border-color: rgba(96, 165, 250, 0.3); }
+.badge-neutral { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.25); }
+
+/* --- Spotlight card (bento hover) -------------------------------- */
+
+.spotlight {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity var(--ff-duration-base) var(--ff-ease-out);
+  background: radial-gradient(340px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+              rgba(34, 211, 238, 0.16), transparent 62%);
+  z-index: -1;
+}
+
+.spotlight:hover::before {
+  opacity: 1;
+}
+
+/* --- Skeleton ----------------------------------------------------- */
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: var(--ff-radius-sm);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+  animation: ff-shimmer 1.8s infinite;
+}
+
+/* --- Keycap ------------------------------------------------------- */
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.375rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--ff-border-strong);
+  border-bottom-width: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--ff-text-muted);
+}
+
+/* --- Gradient text ------------------------------------------------ */
+
+.gradient-text {
+  background-image: linear-gradient(100deg, #ffffff 0%, #cbd5e1 30%, #67e8f9 60%, #a5b4fc 85%, #ffffff 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ff-gradient-pan 9s ease-in-out infinite;
+}
+
+.gradient-text-aurora {
+  background-image: linear-gradient(100deg, #22d3ee 0%, #38bdf8 30%, #818cf8 70%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ==================================================================
+   LAYER 5 — Motion
+   ================================================================== */
+
+@keyframes ff-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes slideUp {
-  from { transform: translateY(12px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+@keyframes ff-slide-up {
+  from { transform: translate3d(0, 12px, 0); opacity: 0; }
+  to { transform: translate3d(0, 0, 0); opacity: 1; }
 }
 
-@keyframes pulseGlow {
+@keyframes ff-pulse-glow {
   0%, 100% {
     box-shadow: 0 0 12px rgba(14, 165, 233, 0.2);
     border-color: rgba(56, 189, 248, 0.3);
@@ -124,50 +502,148 @@ body {
   }
 }
 
-@keyframes floatAnimation {
-  0%, 100% { transform: translateY(0px); }
+@keyframes ff-float {
+  0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
 }
 
-@keyframes shimmerEffect {
+@keyframes ff-shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
-@keyframes scaleInModal {
+@keyframes ff-scale-in {
   from { opacity: 0; transform: scale(0.96) translateY(6px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+@keyframes ff-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
-.animate-slide-up {
-  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+@keyframes ff-aurora-drift {
+  0%   { transform: translate3d(-6%, -4%, 0) scale(1); }
+  33%  { transform: translate3d(8%, 4%, 0) scale(1.12); }
+  66%  { transform: translate3d(-4%, 8%, 0) scale(1.06); }
+  100% { transform: translate3d(-6%, -4%, 0) scale(1); }
 }
 
-.animate-pulse-glow {
-  animation: pulseGlow 3s ease-in-out infinite;
+@keyframes ff-gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
-.animate-float {
-  animation: floatAnimation 4s ease-in-out infinite;
+@keyframes ff-blink {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
 
-.animate-shimmer {
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
-  background-size: 200% 100%;
-  animation: shimmerEffect 2.5s infinite;
+@keyframes ff-spin-slow {
+  to { transform: rotate(360deg); }
 }
 
-.animate-scale-in {
-  animation: scaleInModal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+@keyframes ff-draw {
+  to { stroke-dashoffset: 0; }
 }
 
-/* Micro-interaction Hover utilities */
+@keyframes ff-ring {
+  0%   { transform: rotate(-90deg) scale(0.92); opacity: 0.6; }
+  50%  { transform: rotate(270deg) scale(1.04); opacity: 1; }
+  100% { transform: rotate(450deg) scale(0.92); opacity: 0.6; }
+}
+
+/* --- Utility animation classes ------------------------------------ */
+
+.animate-fade-in { animation: ff-fade-in 0.4s var(--ff-ease-out) forwards; }
+.animate-slide-up { animation: ff-slide-up 0.5s var(--ff-ease-out) forwards; }
+.animate-pulse-glow { animation: ff-pulse-glow 3s ease-in-out infinite; }
+.animate-float { animation: ff-float 4s ease-in-out infinite; }
+.animate-shimmer { background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%); background-size: 200% 100%; animation: ff-shimmer 2.5s infinite; }
+.animate-scale-in { animation: ff-scale-in 0.25s var(--ff-ease-out) forwards; }
+.animate-blink { animation: ff-blink 1.05s step-end infinite; }
+.animate-spin-slow { animation: ff-spin-slow 14s linear infinite; }
+.animate-ring { animation: ff-ring 8s ease-in-out infinite; }
+
+/* --- Scroll reveal (progressive enhancement) ---------------------- */
+/*
+   Elements carrying [data-reveal] start hidden and are revealed when the
+   `Reveal` component observes them.
+
+   The hidden state is gated behind the `.ff-js` class, which a tiny inline
+   script in the document head sets before first paint. Consequences:
+     • No-JS visitors see every section immediately (no `<noscript>` needed).
+     • JS visitors never see a flash of visible-then-hidden content.
+     • If the client bundle fails to load, content stays visible.
+*/
+
+.ff-js [data-reveal] {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+/* The travel distance is a custom property so the cascade — not an inline
+   style — always decides whether the element is offset or settled. */
+.ff-js [data-reveal="up"]    { transform: translate3d(0, var(--reveal-distance, 18px), 0); }
+.ff-js [data-reveal="down"]  { transform: translate3d(0, calc(-1 * var(--reveal-distance, 18px)), 0); }
+.ff-js [data-reveal="left"]  { transform: translate3d(var(--reveal-distance, 18px), 0, 0); }
+.ff-js [data-reveal="right"] { transform: translate3d(calc(-1 * var(--reveal-distance, 18px)), 0, 0); }
+.ff-js [data-reveal="none"]  { transform: none; }
+
+.ff-js [data-reveal][data-revealed="true"] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--ff-duration-slow) var(--ff-ease-out),
+    transform var(--ff-duration-slow) var(--ff-ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.no-js [data-reveal] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The inline head script in `layout.tsx` flips this before first paint. */
+.ff-js [data-reveal][data-revealed="false"] {
+  transition: none;
+}
+
+/* --- Marquee ------------------------------------------------------ */
+
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: ff-marquee var(--marquee-duration, 42s) linear infinite;
+}
+
+.marquee:hover {
+  animation-play-state: paused;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+}
+
+/* --- Aurora backdrop ---------------------------------------------- */
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(72px);
+  opacity: 0.5;
+  will-change: transform;
+  animation: ff-aurora-drift var(--blob-duration, 22s) ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* --- Micro-interaction utilities ---------------------------------- */
+
 .hover-lift {
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s var(--ff-ease-spring),
+              box-shadow 0.2s ease,
+              border-color 0.2s ease;
 }
 .hover-lift:hover {
   transform: translateY(-2px);
@@ -175,7 +651,48 @@ body {
   border-color: rgba(56, 189, 248, 0.3);
 }
 
-html {
-  scroll-behavior: smooth;
+/* --- Reduced motion ----------------------------------------------- */
+/*
+   One authoritative block: reduced motion disables *every* animation and
+   transition, including ambient loops and the scroll-reveal transform.
+   Elements still fade (opacity only) which does not trigger vestibular
+   responses.
+*/
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .marquee {
+    animation: none;
+    transform: none;
+  }
+
+  .aurora-blob {
+    animation: none;
+  }
+
+  .gradient-text {
+    animation: none;
+    background-position: 0% 50%;
+  }
+
+  .btn-primary::after {
+    display: none;
+  }
 }
 
+/* --- Print -------------------------------------------------------- */
+
+@media print {
+  body { background: #fff; color: #000; }
+  .no-print { display: none !important; }
+}

@@ -54,8 +54,26 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <html lang="en" className="scroll-smooth">
+    <html
+      lang="en"
+      className="scroll-smooth"
+      // The inline head script below adds the `ff-js` class before React
+      // hydrates, so the client DOM intentionally differs from the server
+      // HTML for this one attribute.
+      suppressHydrationWarning
+    >
       <head>
+        {/*
+          Marks the document as JS-capable before first paint so the scroll
+          reveal system can hide elements before they animate in — without
+          ever flashing hidden content for no-JS visitors, and without
+          leaving content invisible if the client bundle fails to load.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `document.documentElement.classList.add("ff-js");`,
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -1,4 +1,23 @@
 import type { NextConfig } from "next";
+import {
+  embedHostedFormHeaders,
+  SECURITY_HEADERS,
+  contentSecurityPolicy,
+} from "./src/lib/security-headers";
+
+/**
+ * React's development build calls `eval()` to reconstruct component stacks
+ * and the dev server needs it for source maps. Neither is used in a
+ * production build, so `'unsafe-eval'` is granted in development only —
+ * the production Content-Security-Policy stays strict.
+ */
+const isDevelopment = process.env.NODE_ENV !== "production";
+
+const securityHeaders = SECURITY_HEADERS.map((header) =>
+  header.key === "Content-Security-Policy"
+    ? { ...header, value: contentSecurityPolicy({ allowEval: isDevelopment }) }
+    : header,
+);
 
 const nextConfig: NextConfig = {
   serverExternalPackages: [
@@ -10,14 +29,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // The hosted form page is designed to be embedded in an iframe on a
+        // customer's site, so framing is permitted for this path only.
+        // It is declared first so the more specific rule wins for
+        // `/f/*` while every other path keeps the strict policy.
+        source: "/f/:slug",
+        headers: embedHostedFormHeaders({ allowEval: isDevelopment }),
+      },
+      {
         source: "/(.*)",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
-        ],
+        headers: securityHeaders,
       },
     ];
   },

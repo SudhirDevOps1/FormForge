@@ -5,6 +5,20 @@ import { sessions, users, type User } from "@/db/schema";
 import { hmacSha256, randomId, randomToken } from "./crypto";
 
 const COOKIE_NAME = "ff_session";
+/**
+ * `__Host-` prefixed cookie name.
+ *
+ * The `__Host-` prefix is a browser-enforced guarantee: the cookie is only
+ * accepted when it is `Secure`, has `Path=/` and carries **no** `Domain`
+ * attribute. That means a sibling subdomain (or an attacker who controls
+ * one) can neither set nor overwrite the session cookie — closing off a
+ * whole class of session-fixation and cookie-injection attacks.
+ *
+ * It requires HTTPS, so local development over plain `http://localhost`
+ * falls back to the legacy name. Reads accept both names so an existing
+ * deployment keeps working across the upgrade.
+ */
+const HOST_COOKIE_NAME = "__Host-ff_session";
 const SESSION_DAYS = 30;
 
 export type AuthenticatedUser = Pick<User, "id" | "email" | "name" | "role" | "createdAt"> & {
@@ -46,20 +60,44 @@ function isSecureConnection(request: Request): boolean {
   // Always secure on production cloudflare workers, check request URL/headers for local dev
   const url = new URL(request.url);
   const host = url.hostname;
-  if (host === "localhost" || host === "127.0.0.1") {
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
     return false;
   }
   return true;
 }
 
+/**
+ * The cookie name to use for the current connection.
+ * `__Host-` requires `Secure`, which browsers reject over plain HTTP.
+ */
+function activeCookieName(request: Request): string {
+  return isSecureConnection(request) ? HOST_COOKIE_NAME : COOKIE_NAME;
+}
+
+/** Read the session token from either the current or the legacy cookie. */
+function readSessionToken(request: Request): string | undefined {
+  const cookies = parseCookies(request.headers.get("cookie"));
+  return cookies.get(activeCookieName(request)) ?? cookies.get(COOKIE_NAME);
+}
+
 function cookieHeader(request: Request, token: string, expiresAt: Date): string {
-  const secure = isSecureConnection(request) ? "; Secure" : "";
-  return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${secure}; Expires=${expiresAt.toUTCString()}; Max-Age=${SESSION_DAYS * 24 * 60 * 60}`;
+  const secure = isSecureConnection(request);
+  const name = secure ? HOST_COOKIE_NAME : COOKIE_NAME;
+  const attributes = secure
+    ? `Path=/; HttpOnly; SameSite=Lax; Secure`
+    : `Path=/; HttpOnly; SameSite=Lax`;
+  return `${name}=${encodeURIComponent(token)}; ${attributes}; Expires=${expiresAt.toUTCString()}; Max-Age=${SESSION_DAYS * 24 * 60 * 60}`;
 }
 
 export function clearSessionCookie(request: Request): string {
-  const secure = isSecureConnection(request) ? "; Secure" : "";
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax${secure}; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0`;
+  const secure = isSecureConnection(request);
+  const attributes = secure ? `Path=/; HttpOnly; SameSite=Lax; Secure` : `Path=/; HttpOnly; SameSite=Lax`;
+  // Clear both the current and the legacy cookie so an upgrade does not
+  // leave a stale session behind.
+  return [
+    `${secure ? HOST_COOKIE_NAME : COOKIE_NAME}=; ${attributes}; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0`,
+    `${COOKIE_NAME}=; ${attributes}; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0`,
+  ].join(", ");
 }
 
 export function isAuthConfigured(): boolean {
@@ -80,10 +118,33 @@ export async function createSession(db: AppDb, userId: string, request?: Request
   }
 
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+
+  // Record a *hashed* IP so the dashboard can show where a session was
+  // created without ever storing the raw address. The salt rotates daily,
+  // which is enough to spot a suspicious sign-in but not enough to build a
+  // long-term location history.
+  let ipHash: string | undefined;
+  let userAgent: string | undefined;
+  if (request) {
+    try {
+      const { getClientIp } = await import("./rate-limit");
+      const ip = getClientIp(request);
+      if (ip && ip !== "127.0.0.1") {
+        const { sha256 } = await import("./crypto");
+        ipHash = await sha256(`session:${ip}:${new Date().toISOString().slice(0, 10)}`);
+      }
+    } catch {
+      // best-effort metadata only
+    }
+    userAgent = request.headers.get("user-agent") ?? undefined;
+  }
+
   await db.insert(sessions).values({
     id: randomId("sess"),
     userId,
     tokenHash,
+    ipHash: ipHash ?? null,
+    userAgent: userAgent ?? null,
     expiresAt: expiresAt.toISOString(),
   });
 
@@ -94,7 +155,7 @@ export async function createSession(db: AppDb, userId: string, request?: Request
 
 export async function getCurrentUser(request: Request, db: AppDb): Promise<AuthenticatedUser | null> {
   // Try Session Cookie Auth First
-  const token = parseCookies(request.headers.get("cookie")).get(COOKIE_NAME);
+  const token = readSessionToken(request);
   if (!token) {
     // API key auth fallback
     const authHeader = request.headers.get("Authorization");
@@ -158,7 +219,7 @@ export async function getCurrentUser(request: Request, db: AppDb): Promise<Authe
 }
 
 export async function deleteCurrentSession(request: Request, db: AppDb): Promise<void> {
-  const token = parseCookies(request.headers.get("cookie")).get(COOKIE_NAME);
+  const token = readSessionToken(request);
   if (!token) {
     return;
   }

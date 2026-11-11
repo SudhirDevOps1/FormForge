@@ -2,6 +2,21 @@
 
 import { useEffect, useState, use } from "react";
 import { TurnstileAltcha } from "@/components/TurnstileAltcha";
+import { HostedFormEngine } from "@/components/HostedFormEngine";
+import type { FormRule } from "@/lib/rules";
+
+interface HostedPrefill {
+  fieldKey: string;
+  paramName: string;
+  isHidden: boolean;
+}
+
+interface HostedField {
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+}
 
 interface FormPublicData {
   id: string;
@@ -17,6 +32,14 @@ interface FormPublicData {
   allowedFileExtensions: string;
   displayMode?: string;
   isClosed: boolean;
+  closedByDate?: boolean;
+  closeAt?: string | null;
+  passwordRequired?: boolean;
+  captureUtm?: boolean;
+  partialSubmissionsEnabled?: boolean;
+  rules?: FormRule[];
+  prefills?: HostedPrefill[];
+  fields?: HostedField[];
 }
 
 export default function HostedFormPage({
@@ -122,6 +145,38 @@ export default function HostedFormPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Password gate state
+  const [formToken, setFormToken] = useState<string | null>(null);
+  const [unlockPassword, setUnlockPassword] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+
+  async function handleUnlock(event: React.FormEvent) {
+    event.preventDefault();
+    if (!form || unlocking) return;
+
+    setUnlocking(true);
+    setUnlockError(null);
+    try {
+      const res = await fetch(`/api/f/${encodeURIComponent(slug)}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: unlockPassword }),
+      });
+      const data = await res.json();
+      if (data.ok && data.token) {
+        setFormToken(data.token);
+        setUnlockPassword("");
+      } else {
+        setUnlockError(data.message || "Incorrect password.");
+      }
+    } catch {
+      setUnlockError("Network error. Please try again.");
+    } finally {
+      setUnlocking(false);
+    }
+  }
 
   useEffect(() => {
     async function loadForm() {
@@ -251,9 +306,75 @@ export default function HostedFormPage({
               <span className="text-3xl">🛑</span>
               <h3 className="text-base font-bold text-white">Submissions Closed</h3>
               <p className="text-xs text-slate-400">
-                This form has reached its designated response quota and is no longer accepting new submissions.
+                {form.closedByDate
+                  ? "This form closed on its scheduled date and is no longer accepting submissions."
+                  : "This form has reached its designated response quota and is no longer accepting new submissions."}
               </p>
             </div>
+          ) : form.passwordRequired && !formToken ? (
+            /* Password-gated form */
+            <form onSubmit={handleUnlock} className="space-y-4">
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-xl text-cyan-300">
+                  🔒
+                </div>
+                <h3 className="text-base font-bold text-white">This form is protected</h3>
+                <p className="mt-1.5 text-xs text-slate-400">
+                  Enter the access password to continue.
+                </p>
+              </div>
+
+              <input
+                type="password"
+                required
+                autoFocus
+                value={unlockPassword}
+                onChange={(e) => setUnlockPassword(e.target.value)}
+                placeholder="Access password"
+                aria-label="Access password"
+                className="w-full rounded-2xl border border-white/15 bg-black/40 px-4 py-3.5 text-base text-white placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition"
+              />
+
+              {unlockError && (
+                <p role="alert" className="text-xs font-medium text-rose-400">
+                  {unlockError}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={unlocking}
+                className="w-full rounded-2xl bg-gradient-to-r from-cyan-400 to-sky-500 px-6 py-4 font-bold text-slate-950 transition hover:from-cyan-300 hover:to-sky-400 disabled:opacity-60"
+              >
+                {unlocking ? "Checking…" : "Unlock form"}
+              </button>
+            </form>
+          ) : (form.fields?.length ?? 0) > 0 ? (
+            /* Owner-defined dynamic field list */
+            <HostedFormEngine
+              formId={form.id}
+              endpointId={form.endpointId}
+              name={form.name}
+              description={null}
+              successMessage={form.successMessage}
+              redirectUrl={form.redirectUrl}
+              altchaEnabled={form.altchaEnabled}
+              otpEnabled={Boolean(form.otpEnabled)}
+              maxAttachmentSizeMb={form.maxAttachmentSizeMb ?? 10}
+              allowedFileExtensions={form.allowedFileExtensions ?? ""}
+              fields={form.fields ?? []}
+              rules={form.rules ?? []}
+              prefills={form.prefills ?? []}
+              captureUtm={Boolean(form.captureUtm)}
+              partialSubmissionsEnabled={Boolean(form.partialSubmissionsEnabled)}
+              formToken={formToken}
+              otpVerified={otpVerified}
+              onOtpRequired={(email) => setOtpSent(true)}
+              onVerified={(email) => {
+                setOtpVerified(true);
+                setOtpSuccess(`Email verified for ${email}.`);
+              }}
+            />
           ) : submitted ? (
             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-8 text-center space-y-3 animate-fade-in">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-2xl text-emerald-400">

@@ -20,6 +20,7 @@ release with a coordinated disclosure note.
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 1.1.x   | :white_check_mark: |
 | 1.0.x   | :white_check_mark: |
 | < 1.0.0 | :x:                |
 
@@ -31,7 +32,7 @@ should track the newest `v*` tag (see `docs/RELEASES.md`).
 | Usage | Construction | Parameters |
 | ----- | ------------ | ---------- |
 | Password storage | PBKDF2-SHA256 (`src/lib/crypto.ts`) | 100,000 iterations, 16-byte random salt, 256-bit output, constant-time verify |
-| Session tokens | HMAC-SHA256 (`src/lib/auth.ts`) | 40-byte random token, HMAC stored in D1, HttpOnly `SameSite=Lax` cookie (`Secure` off localhost), 30-day expiry |
+| Session tokens | HMAC-SHA256 (`src/lib/auth.ts`) | 40-byte random token, HMAC stored in D1, `__Host-` prefixed cookie on secure origins (`Secure; Path=/; HttpOnly; SameSite=Lax`, no `Domain`), 30-day expiry |
 | API keys | HMAC-SHA256 (`src/lib/api-key-auth.ts`) | `ff_<prefix>.<secret>`, hash-only storage, expiry + revocation enforced |
 | Secrets at rest | AES-256-GCM (`src/lib/encryption.ts`) | SMTP passwords, Telegram bot tokens; random 12-byte IV per value |
 | PII anonymization | SHA-256 (`src/lib/security.ts`, submit route) | Per-form scopes (`form:<id>:ip`), emails lowercased/trimmed before hashing |
@@ -44,20 +45,38 @@ The server refuses to create sessions when it is missing or shorter than
 
 ## Edge security posture
 
-- Strict headers (`next.config.ts`): `nosniff`, `DENY` framing,
-  `strict-origin-when-cross-origin`, restrictive `Permissions-Policy`, HSTS.
+- Strict headers from a single source of truth (`src/lib/security-headers.ts`,
+  applied by `next.config.ts`): `nosniff`, `strict-origin-when-cross-origin`,
+  restrictive `Permissions-Policy`, HSTS, `Cross-Origin-Opener-Policy`,
+  `Cross-Origin-Resource-Policy`, and a strict **Content-Security-Policy**
+  (`default-src 'self'`, `object-src 'none'`, `base-uri 'self'`,
+  `form-action 'self'`, `frame-ancestors 'none'`).
+  The hosted form page (`/f/*`) is the only path that permits framing, because
+  embedding it is a documented feature.
+- `script-src` includes `'unsafe-inline'`. Next.js injects inline
+  bootstrap/hydration scripts and a per-request nonce is not available on
+  every runtime FormForge targets. This is a deliberate, documented
+  trade-off — it is safe here because there is no user-authored markup, every
+  stored string is sanitized on the way in (`sanitizeHtml`) and escaped on
+  the way out.
 - SSRF guard (`src/lib/url-validation.ts`): webhooks/redirects blocked for
   RFC-1918, loopback (`127/8`, `::1`), `0.0.0.0/8`, link-local/metadata
   (`169.254/16`), `.localhost`/`.internal`, non-`http(s)` schemes, and
   hex/octal-obfuscated IPv4.
 - Throttles: login **5 / 15 min**, registration **30 / min**, public form
-  submission **60 / min** (429 + `Retry-After`).
+  submission **60 / min** (429 + `Retry-After`, configurable per form),
+  password reset **5 / 15 min per IP** and **3 / 15 min per address**,
+  form unlock **10 / 5 min per IP**.
 - Spam defense: honeypot trap, ALTCHA Proof-of-Work (100% free, zero cookies, self-hosted),
   DNS-MX validation, retention auto-purge.
+- IP addresses are never stored in plaintext. When IP hashing is enabled the
+  value is a SHA-256 hash salted with the current UTC day (correlatable
+  within a day, not across days); when it is disabled **no value is stored at
+  all**.
 - Public API errors are generic (`An error occurred …`, CWE-209); SMTP
   diagnostics return detail only to the authenticated form owner.
-- Automated evidence: `npm run test:security` (53 assertions across the
-  crypto / XSS / SSRF / auth-abuse / PII / repo-hygiene pillars), CodeQL SAST, `npm audit`
+- Automated evidence: `npm run test:security` (64 assertions across the
+  crypto / XSS / SSRF / auth-abuse / PII / repo-hygiene / new-feature pillars), CodeQL SAST, `npm audit`
   at `--audit-level=high`, and Gitleaks secret scanning in CI.
 
 ## Reporting email

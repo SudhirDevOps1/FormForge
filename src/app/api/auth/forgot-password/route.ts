@@ -31,6 +31,20 @@ export async function POST(request: Request) {
     return jsonError("INVALID_EMAIL", "A valid email address is required.", 400);
   }
 
+  // A second bucket keyed on the *address* (not the IP) so a single attacker
+  // cannot rotate IPs to hammer one victim's inbox.
+  {
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+    const emailLimit = await checkRateLimit(db, `forgot_pw:email:${email}`, 3, 900);
+    if (!emailLimit.allowed) {
+      return jsonError(
+        "RATE_LIMITED",
+        "Too many reset requests for this address. Please try again later.",
+        429,
+      );
+    }
+  }
+
   try {
     const userRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
     const user = userRows[0];

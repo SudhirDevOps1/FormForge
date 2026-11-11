@@ -46,4 +46,11 @@ yarn-error.log*
 Thumbs.db
 
 # github
-/.github/
+# NOTE: `.github/` used to be ignored here, which silently disabled CI (the
+# workflows were never pushed) and broke the repository's own security test
+# suite, which asserts that `.github/workflows/{ci,security-scan,release}.yml`
+# exist and enforce the quality gates. The workflows are tracked again.
+
+# feature-test compilation scratch directory
+/.tmp-feature-tests/
+/.tmp-featurestest/

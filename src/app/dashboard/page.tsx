@@ -1,9 +1,15 @@
 "use client";
 
-import { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { TurnstileAltcha } from "@/components/TurnstileAltcha";
 import { classifyIntent, getIntentMeta } from "@/lib/intent";
+import { RulesEditor } from "@/components/dashboard/RulesEditor";
+import { PrefillsEditor } from "@/components/dashboard/PrefillsEditor";
+import { SecurityPanel } from "@/components/dashboard/SecurityPanel";
+import { SubmissionInbox } from "@/components/dashboard/SubmissionInbox";
+import { CommandPalette, type CommandAction } from "@/components/dashboard/CommandPalette";
 
 type User = { id: string; email: string; name: string; role: string; totpEnabled?: boolean };
 type Form = {
@@ -44,12 +50,38 @@ type Form = {
   maxAttachmentSizeMb?: number;
   allowedFileExtensions?: string;
   displayMode?: string;
+  tags?: string;
+  rateLimitPerMinute?: number;
+  passwordEnabled?: boolean;
+  passwordHash?: string | null;
+  slackWebhookUrl?: string | null;
+  discordWebhookUrl?: string | null;
+  captureUtm?: boolean;
+  partialSubmissionsEnabled?: boolean;
+  closeAt?: string | null;
   createdAt: string;
 };
+
+/**
+ * The field keys a form exposes.
+ *
+ * Every FormForge form accepts the classic four (`name`, `email`, `subject`,
+ * `message`); owner-defined fields are appended when the API reports them.
+ */
+function formFieldKeys(form: Form): string[] {
+  const base = ["name", "email", "subject", "message"];
+  const extra = (form as unknown as { fields?: Array<{ key?: string }> }).fields ?? [];
+  const keys = extra
+    .map((field) => field?.key)
+    .filter((key): key is string => typeof key === "string" && key.length > 0);
+  return [...new Set([...base, ...keys])];
+}
 type Submission = {
   id: string;
   createdAt: string;
   status: string;
+  workflowStatus?: string;
+  duplicateOf?: string | null;
   email: string | null;
   spamScore: number;
   payload: string;
@@ -238,7 +270,9 @@ function ConfirmDialogModal({
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"forms" | "keys" | "settings">("forms");
+  const [tab, setTab] = useState<"forms" | "keys" | "security" | "settings">("forms");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const router = useRouter();
   const [confirmDialog, setConfirmDialog] = useState<(ConfirmOptions & {
     resolve: (val: boolean) => void;
   }) | null>(null);
@@ -270,16 +304,93 @@ export default function DashboardPage() {
     loadMe();
   }, [loadMe]);
 
+  const paletteActions = useMemo<CommandAction[]>(
+    () => [
+      {
+        id: "tab-forms",
+        label: "Go to Forms",
+        group: "Navigate",
+        keywords: "forms inbox submissions create",
+        shortcut: "G F",
+        run: () => setTab("forms"),
+      },
+      {
+        id: "tab-keys",
+        label: "Go to API Keys",
+        group: "Navigate",
+        keywords: "api keys tokens scopes",
+        run: () => setTab("keys"),
+      },
+      {
+        id: "tab-security",
+        label: "Go to Security",
+        group: "Navigate",
+        keywords: "security sessions audit trail devices",
+        run: () => setTab("security"),
+      },
+      {
+        id: "tab-settings",
+        label: "Go to Settings",
+        group: "Navigate",
+        keywords: "settings smtp gas telegram integrations",
+        run: () => setTab("settings"),
+      },
+      {
+        id: "new-form",
+        label: "Create a new form",
+        group: "Actions",
+        keywords: "create add new form",
+        run: () => setTab("forms"),
+      },
+      {
+        id: "docs",
+        label: "Open documentation",
+        group: "Help",
+        keywords: "docs documentation guide reference",
+        run: () => window.open("/docs.html", "_blank", "noopener"),
+      },
+      {
+        id: "guide",
+        label: "Open the integration guide",
+        group: "Help",
+        keywords: "integration guide recipes react nextjs wordpress",
+        run: () => window.open("/guide.html", "_blank", "noopener"),
+      },
+      {
+        id: "privacy",
+        label: "Read the privacy policy",
+        group: "Help",
+        keywords: "privacy gdpr policy data",
+        run: () => window.open("/privacypolicy.html", "_blank", "noopener"),
+      },
+      {
+        id: "github",
+        label: "Open the GitHub repository",
+        group: "Help",
+        keywords: "github source repository star issue",
+        run: () => window.open("https://github.com/SudhirDevOps1/FormForge", "_blank", "noopener"),
+      },
+      {
+        id: "home",
+        label: "Back to the marketing site",
+        group: "Help",
+        keywords: "home landing marketing site",
+        run: () => router.push("/"),
+      },
+    ],
+    [router],
+  );
+
   if (loading) return <Spinner />;
   if (!user) return <AuthCard onAuthed={loadMe} />;
 
   return (
     <ConfirmContext.Provider value={confirm}>
       <div className="min-h-screen">
-        <DashHeader user={user} onLogout={() => setUser(null)} />
+        <DashHeader user={user} onLogout={() => setUser(null)} onOpenPalette={() => setPaletteOpen(true)} />
         <main className="mx-auto w-full max-w-7xl px-4 pb-24 sm:px-8">
           <div role="tablist" aria-label="Dashboard sections" className="mb-6 flex flex-wrap gap-1.5 rounded-xl bg-white/[0.02] border border-white/5 p-1 max-w-max">
-            {(["forms", "keys", "settings"] as const).map((t) => (
+            {(["forms", "keys", "security", "settings"] as const).map((t) => (
               <button
                 key={t}
                 role="tab"
@@ -299,6 +410,9 @@ export default function DashboardPage() {
             <div id="tabpanel-keys" role="tabpanel" aria-label="keys" className={tab === "keys" ? "block animate-fade-in" : "hidden"}>
               {tab === "keys" && <KeysTab />}
             </div>
+            <div id="tabpanel-security" role="tabpanel" aria-label="security" className={tab === "security" ? "block animate-fade-in" : "hidden"}>
+              {tab === "security" && <SecurityPanel />}
+            </div>
             <div id="tabpanel-settings" role="tabpanel" aria-label="settings" className={tab === "settings" ? "block animate-fade-in" : "hidden"}>
               <SettingsTab user={user} />
             </div>
@@ -313,13 +427,19 @@ export default function DashboardPage() {
           onCancel={() => confirmDialog.resolve(false)}
         />
       )}
+
+      <CommandPalette
+        actions={paletteActions}
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+      />
     </ConfirmContext.Provider>
   );
 }
 
 /* ─────────────────── Header ─────────────────── */
 
-function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
+function DashHeader({ user, onLogout, onOpenPalette }: { user: User; onLogout: () => void; onOpenPalette?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -339,7 +459,7 @@ function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
           <span className="font-bold tracking-tight text-white flex items-center gap-1.5">
             FormForge
             <span className="rounded-md bg-gradient-to-r from-sky-500/20 to-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
-              v1.0.0 Universal
+              v1.1 Aurora
             </span>
           </span>
         </Link>
@@ -350,6 +470,21 @@ function DashHeader({ user, onLogout }: { user: User; onLogout: () => void }) {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {onOpenPalette && (
+          <button
+            type="button"
+            onClick={onOpenPalette}
+            className="hidden items-center gap-2 rounded-full border border-white/12 bg-white/[0.03] px-3.5 py-2 text-xs text-slate-400 transition hover:border-white/25 hover:text-white md:inline-flex"
+            aria-label="Open the command palette"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <span>Search…</span>
+            <kbd className="kbd">⌘K</kbd>
+          </button>
+        )}
         <span className="hidden text-sm text-slate-400 sm:inline">{user.email}</span>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
@@ -1153,7 +1288,7 @@ function CreateFormInline({ onCreated }: { onCreated: () => void }) {
 
 function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) {
   const confirm = useConfirm();
-  const [view, setView] = useState<"submissions" | "connect" | "analytics" | "settings">("submissions");
+  const [view, setView] = useState<"submissions" | "connect" | "logic" | "analytics" | "settings">("submissions");
   const [subs, setSubs] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -1864,6 +1999,22 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
           <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           <span>Connect &amp; Snippets</span>
           <span className="rounded-full bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 text-[10px] text-amber-300 font-medium">Embed</span>
+        </button>
+
+        <button
+          role="tab"
+          aria-selected={view === "logic"}
+          aria-controls="view-logic-panel"
+          onClick={() => setView("logic")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            view === "logic"
+              ? "border-cyan-400 text-cyan-300"
+              : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+          }`}
+        >
+          <svg className="w-4 h-4 text-fuchsia-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h6M4 6v4"/><path d="M10 10h4a4 4 0 0 1 4 4v4"/><circle cx="4" cy="6" r="1.5"/><circle cx="18" cy="18" r="1.5"/></svg>
+          <span>Logic &amp; Prefill</span>
+          <span className="rounded-full bg-fuchsia-400/10 border border-fuchsia-400/20 px-1.5 py-0.5 text-[10px] text-fuchsia-300 font-medium">New</span>
         </button>
 
         <button
@@ -2673,6 +2824,27 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
             })()}
           </div>
         )}
+        {view === "logic" && (
+          <div id="view-logic-panel" role="tabpanel" aria-label="Conditional Logic and Prefill" className="space-y-6 pt-2">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <h3 className="mb-1 text-sm font-bold text-white">Conditional logic</h3>
+              <p className="mb-4 text-xs text-slate-400">
+                Show, hide, or require a field based on an earlier answer. Rules are
+                enforced server-side on every submission.
+              </p>
+              <RulesEditor formId={form.id} fieldKeys={formFieldKeys(form)} />
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <h3 className="mb-1 text-sm font-bold text-white">Prefill &amp; hidden fields</h3>
+              <p className="mb-4 text-xs text-slate-400">
+                Fill fields from the URL, and inject server-side hidden values that
+                the respondent cannot change.
+              </p>
+              <PrefillsEditor formId={form.id} fieldKeys={formFieldKeys(form)} />
+            </div>
+          </div>
+        )}
         {view === "analytics" && (
           <div id="view-analytics-panel" role="tabpanel" aria-label="Form Analytics">
             <FormAnalyticsPanel form={form} />
@@ -2739,6 +2911,15 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
 
   const deviceBreakdown = Array.isArray(data.deviceBreakdown) ? data.deviceBreakdown : [];
   const browserBreakdown = Array.isArray(data.browserBreakdown) ? data.browserBreakdown : [];
+  const dropoff =
+    data.dropoff && typeof data.dropoff === "object"
+      ? {
+          partialsStarted: Number(data.dropoff.partialsStarted) || 0,
+          partialsCompleted: Number(data.dropoff.partialsCompleted) || 0,
+          completionRate: Number(data.dropoff.completionRate) || 0,
+          fields: Array.isArray(data.dropoff.fields) ? data.dropoff.fields : [],
+        }
+      : null;
 
   return (
     <div className="space-y-6">
@@ -2851,7 +3032,56 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
         </div>
       </div>
 
-      {/* 4. Categorical Breakdowns: Referrers, Submitters, Devices, Browsers */}
+      {/* 4. Drop-off Funnel (from saved partial submissions) */}
+      {dropoff && dropoff.partialsStarted > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+              <span>📉 Drop-off Funnel</span>
+            </h3>
+            <div className="flex items-center gap-4 text-[11px] text-slate-500">
+              <span>
+                Started: <strong className="font-mono text-slate-300">{dropoff.partialsStarted}</strong>
+              </span>
+              <span>
+                Completed:{" "}
+                <strong className="font-mono text-emerald-300">{dropoff.partialsCompleted}</strong>
+              </span>
+              <span>
+                Rate: <strong className="font-mono text-cyan-300">{dropoff.completionRate}%</strong>
+              </span>
+            </div>
+          </div>
+
+          {dropoff.fields.length > 0 ? (
+            <div className="space-y-2.5">
+              {dropoff.fields.map((entry: any) => (
+                <div key={entry.field}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="truncate font-medium text-slate-300">{entry.field}</span>
+                    <span className="font-mono text-[11px] text-slate-500">
+                      {entry.completed}/{entry.started} · {entry.rate}%
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-rose-500 to-amber-400 transition-[width] duration-700 ease-out"
+                      style={{ width: `${Math.max(2, entry.rate)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-3 text-xs text-slate-500">
+              No saved progress recorded yet. Enable &quot;Save &amp; resume&quot; in the form
+              settings to start collecting drop-off data.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 5. Categorical Breakdowns: Referrers, Submitters, Devices, Browsers */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Referrers */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
@@ -3316,8 +3546,20 @@ function SubmissionRow({
                 </code>
               </span>
             )}
+            {sub.duplicateOf && (
+              <span className="text-amber-400/80">
+                Duplicate of <code className="select-all">{sub.duplicateOf.slice(0, 18)}…</code>
+              </span>
+            )}
             <span>ID: <code className="select-all">{sub.id}</code></span>
           </div>
+
+          {/* Triage: workflow status, internal notes and reply-by-email */}
+          <SubmissionInbox
+            submissionId={sub.id}
+            email={sub.email}
+            workflowStatus={sub.workflowStatus ?? "new"}
+          />
         </div>
       )}
     </div>
@@ -3583,6 +3825,19 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [telegramChatId, setTelegramChatId] = useState(form.telegramChatId ?? "");
   const [ntfyTopic, setNtfyTopic] = useState(form.ntfyTopic ?? "");
   const [otpEnabled, setOtpEnabled] = useState(form.otpEnabled ?? false);
+  const [tags, setTags] = useState(form.tags ?? "");
+  const [rateLimitPerMinute, setRateLimitPerMinute] = useState(
+    form.rateLimitPerMinute ? String(form.rateLimitPerMinute) : "60",
+  );
+  const [passwordEnabled, setPasswordEnabled] = useState(form.passwordEnabled ?? false);
+  const [formPassword, setFormPassword] = useState("");
+  const [slackWebhookUrl, setSlackWebhookUrl] = useState(form.slackWebhookUrl ?? "");
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState(form.discordWebhookUrl ?? "");
+  const [captureUtm, setCaptureUtm] = useState(form.captureUtm ?? false);
+  const [partialSubmissionsEnabled, setPartialSubmissionsEnabled] = useState(
+    form.partialSubmissionsEnabled ?? false,
+  );
+  const [closeAt, setCloseAt] = useState(form.closeAt ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [testingTarget, setTestingTarget] = useState<string | null>(null);
@@ -3742,10 +3997,19 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           telegramChatId: telegramChatId || null,
           ntfyTopic: ntfyTopic || null,
           otpEnabled,
+          tags: tags.trim(),
+          rateLimitPerMinute: rateLimitPerMinute ? Number(rateLimitPerMinute) : 60,
+          passwordEnabled,
+          password: formPassword || undefined,
+          slackWebhookUrl: slackWebhookUrl.trim() || null,
+          discordWebhookUrl: discordWebhookUrl.trim() || null,
+          captureUtm,
+          partialSubmissionsEnabled,
+          closeAt: closeAt || null,
         }),
       });
       const data = await res.json();
-      if (data.ok) { setMsg("Saved ✓"); onSaved(); } else { setMsg(data.message ?? "Error"); }
+      if (data.ok) { setMsg("Saved ✓"); setFormPassword(""); onSaved(); } else { setMsg(data.message ?? "Error"); }
     } finally { setBusy(false); }
   }
 
@@ -4041,7 +4305,166 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         </div>
       </div>
 
-      {/* Section 2: Spam & Security */}
+      {/* Section 2: Access, Limits & Channels */}
+      <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
+        <h4 className="text-sm font-bold text-white flex items-center gap-2">🔐 Access, Limits &amp; Channels</h4>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="settings-tags" className="mb-1 block text-xs text-slate-400">
+              Tags (comma-separated — used for cross-form search)
+            </label>
+            <input
+              id="settings-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="leads, newsletter, 2026"
+              className="ff-input text-sm"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="settings-rate-limit" className="mb-1 block text-xs text-slate-400">
+              Submissions per minute (per IP)
+            </label>
+            <input
+              id="settings-rate-limit"
+              type="number"
+              min={1}
+              max={600}
+              value={rateLimitPerMinute}
+              onChange={(e) => setRateLimitPerMinute(e.target.value)}
+              className="ff-input text-sm"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="settings-close-at" className="mb-1 block text-xs text-slate-400">
+            Close this form on (optional ISO date &amp; time — submissions stop automatically)
+          </label>
+          <input
+            id="settings-close-at"
+            type="datetime-local"
+            value={closeAt ? closeAt.slice(0, 16) : ""}
+            onChange={(e) =>
+              setCloseAt(e.target.value ? new Date(e.target.value).toISOString() : "")
+            }
+            className="ff-input text-sm"
+          />
+        </div>
+
+        {/* Password gate */}
+        <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-950/20 p-3.5 space-y-3">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={passwordEnabled}
+              onChange={(e) => setPasswordEnabled(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-fuchsia-400"
+            />
+            <span>
+              <span className="block text-xs font-bold text-fuchsia-200">
+                Protect this form with a password
+              </span>
+              <span className="mt-0.5 block text-[11px] text-slate-400">
+                Visitors must unlock the form before it renders. Stored as a PBKDF2
+                hash — the plaintext is never saved.
+              </span>
+            </span>
+          </label>
+
+          {passwordEnabled && (
+            <div>
+              <label htmlFor="settings-form-password" className="mb-1 block text-xs text-slate-400">
+                {form.passwordHash ? "New password (leave blank to keep the current one)" : "Access password"}
+              </label>
+              <input
+                id="settings-form-password"
+                type="password"
+                autoComplete="new-password"
+                value={formPassword}
+                onChange={(e) => setFormPassword(e.target.value)}
+                placeholder={form.passwordHash ? "••••••••" : "At least 8 characters"}
+                className="ff-input text-sm"
+              />
+              <p className="mt-1 text-[10px] text-slate-500">
+                At least 8 characters, mixing letters with a number or symbol.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Native channels */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="settings-slack" className="mb-1 block text-xs text-slate-400">
+              Slack incoming webhook URL (optional)
+            </label>
+            <input
+              id="settings-slack"
+              value={slackWebhookUrl}
+              onChange={(e) => setSlackWebhookUrl(e.target.value)}
+              placeholder="https://hooks.slack.com/services/..."
+              className="ff-input text-sm"
+            />
+            <p className="mt-1 text-[10px] text-slate-500">
+              Posts a Block Kit message per submission. No OAuth app required.
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="settings-discord" className="mb-1 block text-xs text-slate-400">
+              Discord webhook URL (optional)
+            </label>
+            <input
+              id="settings-discord"
+              value={discordWebhookUrl}
+              onChange={(e) => setDiscordWebhookUrl(e.target.value)}
+              placeholder="https://discord.com/api/webhooks/..."
+              className="ff-input text-sm"
+            />
+            <p className="mt-1 text-[10px] text-slate-500">
+              Posts an embed per submission. No relay service involved.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3">
+            <input
+              type="checkbox"
+              checked={captureUtm}
+              onChange={(e) => setCaptureUtm(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-sky-400"
+            />
+            <span>
+              <span className="block text-xs font-bold text-white">Capture UTM parameters</span>
+              <span className="mt-0.5 block text-[11px] text-slate-400">
+                Store campaign data as hidden fields on every submission.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3">
+            <input
+              type="checkbox"
+              checked={partialSubmissionsEnabled}
+              onChange={(e) => setPartialSubmissionsEnabled(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-sky-400"
+            />
+            <span>
+              <span className="block text-xs font-bold text-white">Save &amp; resume</span>
+              <span className="mt-0.5 block text-[11px] text-slate-400">
+                Let respondents save progress and continue later. Unlocks drop-off
+                analytics.
+              </span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      {/* Section 3: Spam & Security */}
       <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
         <h4 className="text-sm font-bold text-white flex items-center gap-2">🛡️ Spam & Security</h4>
         <div>

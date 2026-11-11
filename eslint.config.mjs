@@ -1,18 +1,29 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { defineConfig, globalIgnores } from "eslint/config";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 
-const compat = new FlatCompat({
-  baseDirectory: dirname(fileURLToPath(import.meta.url)),
-});
-
+/**
+ * FormForge ESLint configuration.
+ *
+ * `eslint-config-next@16` ships native flat config, so it is consumed
+ * directly — no `FlatCompat` shim is needed (the shim breaks on the v16
+ * plugin graph because of a circular reference in the plugin registry).
+ *
+ * Only `core-web-vitals` is enabled, matching the rule set the project has
+ * always linted against. The optional `typescript` preset is intentionally
+ * left off: it turns on `no-explicit-any` / `no-unused-vars` across the
+ * whole tree, which is a separate, deliberate change rather than a
+ * dependency bump.
+ */
 export default defineConfig([
-  // Next.js core-web-vitals rules: the pinned eslint-config-next is legacy
-  // eslintrc-style, so it is consumed in ESLint 9 flat mode via the
-  // official compatibility layer.
-  ...compat.extends("next/core-web-vitals"),
-  globalIgnores([".next/**", ".open-next/**", "out/**", "build/**", "next-env.d.ts"]),
+  ...nextCoreWebVitals,
+  globalIgnores([
+    ".next/**",
+    ".open-next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "node_modules/**",
+  ]),
   {
     rules: {
       // Calling async data-fetching functions inside useEffect is the standard React pattern.

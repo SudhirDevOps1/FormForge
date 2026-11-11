@@ -319,6 +319,79 @@ export async function autoMigrate(db: any): Promise<void> {
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_submission_id_idx ON webhook_logs (submission_id);`);
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_created_at_idx ON webhook_logs (created_at);`);
 
+    // 12. Form rules (conditional logic)
+    await executeQuery(db, sql`
+      CREATE TABLE IF NOT EXISTS form_rules (
+        id TEXT PRIMARY KEY NOT NULL,
+        form_id TEXT NOT NULL,
+        source_field TEXT NOT NULL,
+        operator TEXT DEFAULT 'equals' NOT NULL,
+        value TEXT DEFAULT '' NOT NULL,
+        action TEXT DEFAULT 'hide' NOT NULL,
+        target_field TEXT NOT NULL,
+        position INTEGER DEFAULT 0 NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS form_rules_form_id_idx ON form_rules (form_id);`);
+
+    // 13. Form prefills (URL param → field mappings)
+    await executeQuery(db, sql`
+      CREATE TABLE IF NOT EXISTS form_prefills (
+        id TEXT PRIMARY KEY NOT NULL,
+        form_id TEXT NOT NULL,
+        field_key TEXT NOT NULL,
+        param_name TEXT NOT NULL,
+        is_hidden INTEGER DEFAULT 0 NOT NULL,
+        position INTEGER DEFAULT 0 NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS form_prefills_form_id_idx ON form_prefills (form_id);`);
+
+    // 14. Partial submissions (save & resume)
+    await executeQuery(db, sql`
+      CREATE TABLE IF NOT EXISTS partial_submissions (
+        id TEXT PRIMARY KEY NOT NULL,
+        form_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL,
+        payload TEXT DEFAULT '{}' NOT NULL,
+        completed_field_keys TEXT DEFAULT '[]' NOT NULL,
+        last_step INTEGER DEFAULT 0 NOT NULL,
+        user_agent TEXT,
+        referer TEXT,
+        ip_hash TEXT,
+        converted_submission_id TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        expires_at TEXT NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await executeQuery(db, sql`CREATE UNIQUE INDEX IF NOT EXISTS partial_submissions_token_hash_idx ON partial_submissions (token_hash);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS partial_submissions_form_id_idx ON partial_submissions (form_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS partial_submissions_expires_at_idx ON partial_submissions (expires_at);`);
+
+    // 15. Submission notes (internal, never exported)
+    await executeQuery(db, sql`
+      CREATE TABLE IF NOT EXISTS submission_notes (
+        id TEXT PRIMARY KEY NOT NULL,
+        submission_id TEXT NOT NULL,
+        author TEXT DEFAULT 'owner' NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (submission_id) REFERENCES submissions(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS submission_notes_submission_id_idx ON submission_notes (submission_id);`);
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS submission_notes_created_at_idx ON submission_notes (created_at);`);
+
     // Safe column additions for existing databases (SQLite & Postgres compatible)
     const columnsToAdd = [
       "ALTER TABLE forms ADD COLUMN gas_url TEXT;",
@@ -360,6 +433,23 @@ export async function autoMigrate(db: any): Promise<void> {
       "ALTER TABLE users ADD COLUMN global_notify_email TEXT;",
       "ALTER TABLE users ADD COLUMN notify_on_login INTEGER DEFAULT 1 NOT NULL;",
       "ALTER TABLE users ADD COLUMN notify_on_submission INTEGER DEFAULT 1 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN tags TEXT DEFAULT '' NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN rate_limit_per_minute INTEGER DEFAULT 60 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN password_enabled INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN password_hash TEXT;",
+      "ALTER TABLE forms ADD COLUMN slack_webhook_url TEXT;",
+      "ALTER TABLE forms ADD COLUMN discord_webhook_url TEXT;",
+      "ALTER TABLE forms ADD COLUMN capture_utm INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN partial_submissions_enabled INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN close_at TEXT;",
+      "ALTER TABLE submissions ADD COLUMN workflow_status TEXT DEFAULT 'new' NOT NULL;",
+      "ALTER TABLE submissions ADD COLUMN duplicate_of TEXT;",
+      "ALTER TABLE submissions ADD COLUMN fingerprint TEXT;",
+      "ALTER TABLE webhook_logs ADD COLUMN attempts INTEGER DEFAULT 1 NOT NULL;",
+      "ALTER TABLE webhook_logs ADD COLUMN max_attempts INTEGER DEFAULT 5 NOT NULL;",
+      "ALTER TABLE webhook_logs ADD COLUMN next_retry_at TEXT;",
+      "ALTER TABLE sessions ADD COLUMN ip_hash TEXT;",
+      "ALTER TABLE sessions ADD COLUMN user_agent TEXT;",
     ];
 
     for (const ddl of columnsToAdd) {

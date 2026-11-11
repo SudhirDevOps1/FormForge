@@ -55,11 +55,13 @@ export async function GET(request: Request, context: RouteContext) {
           id: row.id,
           createdAt: row.createdAt,
           status: row.status,
+          workflowStatus: row.workflowStatus ?? "new",
           spamScore: row.spamScore,
           email: row.email,
           referer: row.referer,
           userAgent: row.userAgent,
           ipHash: row.ipHash,
+          duplicateOf: row.duplicateOf ?? null,
           payload: parsedPayload,
         };
       });
@@ -282,15 +284,73 @@ export async function GET(request: Request, context: RouteContext) {
         },
       });
     } else {
-      // Default to CSV
-      const header = ["id", "created_at", "status", "spam_score", "email", "referer", "payload"];
+      // Default to CSV.
+      //
+      // The payload is flattened into one column per field so the export
+      // opens directly in a spreadsheet — no JSON parsing required. Fixed
+      // metadata columns always come first, then the discovered field keys
+      // in a stable order.
+      const payloadRows = rows.map((row) => {
+        try {
+          const parsed = JSON.parse(row.payload);
+          return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+        } catch {
+          return {};
+        }
+      });
+
+      const fieldKeys: string[] = [];
+      const seen = new Set<string>();
+      for (const payload of payloadRows) {
+        for (const key of Object.keys(payload)) {
+          if (!seen.has(key)) {
+            seen.add(key);
+            fieldKeys.push(key);
+          }
+        }
+      }
+
+      const header = [
+        "id",
+        "created_at",
+        "status",
+        "workflow_status",
+        "spam_score",
+        "email",
+        "referer",
+        "duplicate_of",
+        ...fieldKeys,
+      ];
+
       const csv = [
         header.map(csvEscape).join(","),
-        ...rows.map((row) =>
-          [row.id, row.createdAt, row.status, row.spamScore, row.email ?? "", row.referer ?? "", row.payload]
+        ...rows.map((row, index) => {
+          const payload = payloadRows[index] ?? {};
+          return [
+            row.id,
+            row.createdAt,
+            row.status,
+            row.workflowStatus ?? "new",
+            row.spamScore,
+            row.email ?? "",
+            row.referer ?? "",
+            row.duplicateOf ?? "",
+            ...fieldKeys.map((key) => {
+              const value = payload[key];
+              if (value === null || value === undefined) return "";
+              if (typeof value === "object") {
+                try {
+                  return JSON.stringify(value);
+                } catch {
+                  return "";
+                }
+              }
+              return String(value);
+            }),
+          ]
             .map(csvEscape)
-            .join(","),
-        ),
+            .join(",");
+        }),
       ].join("\n");
 
       return new Response(csv, {

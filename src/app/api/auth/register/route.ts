@@ -46,8 +46,18 @@ export async function POST(request: Request) {
     return jsonError("WEAK_PASSWORD", "Password must be at least 10 characters.");
   }
 
-  if (password.length > 128) {
-    return jsonError("WEAK_PASSWORD", "Password must not exceed 128 characters.");
+  if (password.length > 256) {
+    return jsonError("WEAK_PASSWORD", "Password must not exceed 256 characters.");
+  }
+
+  // Full strength policy: length, character diversity and a common-password
+  // blocklist. A weak-but-long password is still rejected.
+  {
+    const { passwordPolicyError } = await import("@/lib/password-policy");
+    const policyError = passwordPolicyError(password);
+    if (policyError) {
+      return jsonError("WEAK_PASSWORD", policyError);
+    }
   }
 
   const altchaPayload = readString(body.altcha);

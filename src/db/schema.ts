@@ -40,6 +40,8 @@ export const sessions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: text("token_hash").notNull(),
+    ipHash: text("ip_hash"),
+    userAgent: text("user_agent"),
     expiresAt: text("expires_at").notNull(),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     lastSeenAt: text("last_seen_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -95,6 +97,15 @@ export const forms = sqliteTable(
     maxAttachmentSizeMb: integer("max_attachment_size_mb").default(10),
     allowedFileExtensions: text("allowed_file_extensions").default(""),
     displayMode: text("display_mode").notNull().default("classic"),
+    tags: text("tags").notNull().default(""),
+    rateLimitPerMinute: integer("rate_limit_per_minute").notNull().default(60),
+    passwordEnabled: integer("password_enabled", { mode: "boolean" }).notNull().default(false),
+    passwordHash: text("password_hash"),
+    slackWebhookUrl: text("slack_webhook_url"),
+    discordWebhookUrl: text("discord_webhook_url"),
+    captureUtm: integer("capture_utm", { mode: "boolean" }).notNull().default(false),
+    partialSubmissionsEnabled: integer("partial_submissions_enabled", { mode: "boolean" }).notNull().default(false),
+    closeAt: text("close_at"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
@@ -138,6 +149,9 @@ export const submissions = sqliteTable(
     userAgent: text("user_agent"),
     referer: text("referer"),
     status: text("status").notNull().default("accepted"),
+    workflowStatus: text("workflow_status").notNull().default("new"),
+    duplicateOf: text("duplicate_of"),
+    fingerprint: text("fingerprint"),
     spamScore: integer("spam_score").notNull().default(0),
     spamReasons: text("spam_reasons").notNull().default("[]"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -246,6 +260,9 @@ export const webhookLogs = sqliteTable(
     latencyMs: integer("latency_ms"),
     status: text("status").notNull(),
     error: text("error"),
+    attempts: integer("attempts").notNull().default(1),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    nextRetryAt: text("next_retry_at"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => ({
@@ -265,4 +282,122 @@ export type OtpCode = typeof otpCodes.$inferSelect;
 export type NewOtpCode = typeof otpCodes.$inferInsert;
 export type WebhookLog = typeof webhookLogs.$inferSelect;
 export type NewWebhookLog = typeof webhookLogs.$inferInsert;
+
+/**
+ * Conditional logic rules.
+ *
+ * A rule reads one source field, compares it against a value, and applies an
+ * action (`show` | `hide` | `require`) to a target field. Rules are evaluated
+ * server-side on every submission so a hidden field can never be smuggled
+ * back in by a crafted request.
+ */
+export const formRules = sqliteTable(
+  "form_rules",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id")
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    sourceField: text("source_field").notNull(),
+    operator: text("operator").notNull().default("equals"),
+    value: text("value").notNull().default(""),
+    action: text("action").notNull().default("hide"),
+    targetField: text("target_field").notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    formIdx: index("form_rules_form_id_idx").on(table.formId),
+  }),
+);
+
+/**
+ * URL prefill + hidden-field mappings.
+ *
+ * `paramName` is the query-string key read from the hosted form URL. When
+ * `isHidden` is true the value is injected server-side and the field is
+ * excluded from the rendered form, so it cannot be tampered with by the
+ * respondent.
+ */
+export const formPrefills = sqliteTable(
+  "form_prefills",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id")
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    fieldKey: text("field_key").notNull(),
+    paramName: text("param_name").notNull(),
+    isHidden: integer("is_hidden", { mode: "boolean" }).notNull().default(false),
+    position: integer("position").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    formIdx: index("form_prefills_form_id_idx").on(table.formId),
+  }),
+);
+
+/**
+ * Partial submissions — the "save and resume" record for long forms.
+ *
+ * The resume token is stored only as a SHA-256 hash, so a leaked database
+ * row cannot be replayed as a resume link.
+ */
+export const partialSubmissions = sqliteTable(
+  "partial_submissions",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id")
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    payload: text("payload").notNull().default("{}"),
+    completedFieldKeys: text("completed_field_keys").notNull().default("[]"),
+    lastStep: integer("last_step").notNull().default(0),
+    userAgent: text("user_agent"),
+    referer: text("referer"),
+    ipHash: text("ip_hash"),
+    convertedSubmissionId: text("converted_submission_id"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    expiresAt: text("expires_at").notNull(),
+  },
+  (table) => ({
+    formIdx: index("partial_submissions_form_id_idx").on(table.formId),
+    tokenIdx: uniqueIndex("partial_submissions_token_hash_idx").on(table.tokenHash),
+    expiryIdx: index("partial_submissions_expires_at_idx").on(table.expiresAt),
+  }),
+);
+
+/**
+ * Internal notes attached to a submission.
+ *
+ * Notes are private to the dashboard owner — they are never included in
+ * webhook payloads, email notifications, or exports.
+ */
+export const submissionNotes = sqliteTable(
+  "submission_notes",
+  {
+    id: text("id").primaryKey(),
+    submissionId: text("submission_id")
+      .notNull()
+      .references(() => submissions.id, { onDelete: "cascade" }),
+    author: text("author").notNull().default("owner"),
+    body: text("body").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    submissionIdx: index("submission_notes_submission_id_idx").on(table.submissionId),
+    createdIdx: index("submission_notes_created_at_idx").on(table.createdAt),
+  }),
+);
+
+export type FormRule = typeof formRules.$inferSelect;
+export type NewFormRule = typeof formRules.$inferInsert;
+export type FormPrefill = typeof formPrefills.$inferSelect;
+export type NewFormPrefill = typeof formPrefills.$inferInsert;
+export type PartialSubmission = typeof partialSubmissions.$inferSelect;
+export type NewPartialSubmission = typeof partialSubmissions.$inferInsert;
+export type SubmissionNote = typeof submissionNotes.$inferSelect;
+export type NewSubmissionNote = typeof submissionNotes.$inferInsert;
 

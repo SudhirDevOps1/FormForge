@@ -458,6 +458,38 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
     results.push({ channel: "webhook", status: "skipped" });
   }
 
+  // ── Native Slack channel ─────────────────────────────────────────────
+  // A Slack *incoming webhook* URL is posted to directly — no OAuth app, no
+  // relay service. The dispatcher already renders Slack Block Kit payloads.
+  if (form.slackWebhookUrl) {
+    try {
+      const slackResult = await dispatchWebhook(db, form, submission, form.slackWebhookUrl);
+      results.push(
+        slackResult.success
+          ? { channel: "webhook", status: "sent" }
+          : { channel: "webhook", status: "failed", error: slackResult.error }
+      );
+    } catch (e) {
+      results.push({ channel: "webhook", status: "failed", error: "Slack delivery failed" });
+    }
+  }
+
+  // ── Native Discord channel ───────────────────────────────────────────
+  // Discord incoming webhooks use an embed payload, also handled natively by
+  // the dispatcher.
+  if (form.discordWebhookUrl) {
+    try {
+      const discordResult = await dispatchWebhook(db, form, submission, form.discordWebhookUrl);
+      results.push(
+        discordResult.success
+          ? { channel: "webhook", status: "sent" }
+          : { channel: "webhook", status: "failed", error: discordResult.error }
+      );
+    } catch (e) {
+      results.push({ channel: "webhook", status: "failed", error: "Discord delivery failed" });
+    }
+  }
+
   // Universal Account-Level Webhook Dispatch
   if (ownerUser?.globalWebhookUrl && ownerUser.globalWebhookUrl !== form.webhookUrl) {
     if (ownerUser.notifyOnSubmission !== false) {
@@ -1025,6 +1057,182 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
   return false;
 }
 
+/**
+ * Reply to a form submission by email.
+ *
+ * Uses the same delivery cascade as every other FormForge email — GAS relay
+ * first (cardless free tier), then the owner's SMTP, then Resend, then Brevo.
+ * The reply body is sanitized before it is embedded in the HTML template so a
+ * crafted submission can never smuggle markup into the outgoing email.
+ */
+export async function sendSubmissionReply(
+  form: Form,
+  toEmail: string,
+  replyBody: string,
+  replySubject?: string,
+  replyTo?: string,
+): Promise<boolean> {
+  const env = getRuntimeEnv();
+  const { sanitizeHtml } = await import("./security");
+
+  const safeText = sanitizeHtml(replyBody).slice(0, 8000);
+  const subject = (replySubject || `Re: Your submission to ${form.name}`).slice(0, 200);
+  const text = safeText;
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #030712; padding: 40px 10px;">
+  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 560px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden;">
+    <tr>
+      <td style="padding: 32px 28px;">
+        <p style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #38bdf8; margin: 0 0 16px;">${form.name}</p>
+        <div style="font-size: 15px; line-height: 1.7; color: #e2e8f0;">${safeText.replace(/\n/g, "<br />")}</div>
+      </td>
+    </tr>
+  </table>
+</div>
+  `;
+
+  // Resolve the owner once so the global SMTP settings can be reused.
+  let ownerUser: typeof users.$inferSelect | undefined;
+  if (form.userId) {
+    try {
+      const { getDb, isDbReady } = await import("@/db");
+      const db = getDb();
+      if (isDbReady(db)) {
+        const ownerRows = await db.select().from(users).where(eq(users.id, form.userId)).limit(1);
+        ownerUser = ownerRows[0];
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 1. Google Apps Script relay
+  let gasUrl: string | null | undefined = form.gasUrl || ownerUser?.globalGasUrl || env.GAS_URL || null;
+  let gasSecret: string | undefined;
+  if (ownerUser?.globalGasSecret) {
+    try {
+      const { decryptText } = await import("./encryption");
+      gasSecret = await decryptText(ownerUser.globalGasSecret);
+    } catch {
+      gasSecret = undefined;
+    }
+  }
+
+  if (gasUrl) {
+    try {
+      if (!gasSecret) gasSecret = extractGasSecret(gasUrl);
+      if (gasSecret) {
+        try {
+          const u = new URL(gasUrl);
+          if (!u.searchParams.has("secret") && !u.searchParams.has("token")) {
+            u.searchParams.set("secret", gasSecret);
+            gasUrl = u.toString();
+          }
+        } catch {
+          // ignore
+        }
+        const response = await fetch(gasUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          redirect: "follow",
+          body: JSON.stringify({
+            ...(gasSecret ? { secret: gasSecret } : {}),
+            event: "send_email",
+            emailTo: toEmail,
+            to: toEmail,
+            recipient: toEmail,
+            subject,
+            text,
+            html,
+            htmlBody: html,
+            payload: { reply: safeText },
+          }),
+        });
+        if (response.ok || response.status === 302 || response.type === "opaqueredirect") {
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn("GAS reply delivery failed, trying other providers:", e);
+    }
+  }
+
+  // 2. SMTP (form-level, then the owner's global dashboard SMTP)
+  const smtp = getSmtpConfig(form, env as Record<string, string | undefined>, ownerUser);
+  if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
+    try {
+      let decryptedPass = "";
+      if (smtp.hasDbPass && smtp.dbPass) {
+        const { decryptText } = await import("./encryption");
+        decryptedPass = await decryptText(smtp.dbPass);
+      } else {
+        decryptedPass = smtp.envPass || "";
+      }
+      const res = await sendSmtpEmail(
+        smtp.host!,
+        smtp.port,
+        smtp.user!,
+        decryptedPass,
+        smtp.from!,
+        toEmail,
+        subject,
+        text,
+        html,
+        replyTo,
+      );
+      if (res.success) return true;
+    } catch (e) {
+      console.warn("SMTP reply delivery failed:", e);
+    }
+  }
+
+  // 3. Resend
+  if (env.RESEND_API_KEY && env.RESEND_FROM) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM,
+          to: toEmail,
+          subject,
+          text,
+          html,
+          ...(replyTo ? { reply_to: replyTo } : {}),
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Resend reply delivery failed:", e);
+    }
+  }
+
+  // 4. Brevo
+  if (env.BREVO_API_KEY && env.BREVO_FROM) {
+    try {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "api-key": env.BREVO_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: { email: env.BREVO_FROM, name: form.name },
+          to: [{ email: toEmail }],
+          subject,
+          textContent: text,
+          htmlContent: html,
+        }),
+      });
+      if (response.ok) return true;
+    } catch (e) {
+      console.warn("Brevo reply delivery failed:", e);
+    }
+  }
+
+  return false;
+}
+
 export async function dispatchWebhook(
   db: AppDb,
   form: Form,
@@ -1036,6 +1244,7 @@ export async function dispatchWebhook(
   const env = getRuntimeEnv();
   const deliveryId = randomId("whk");
   const startTime = Date.now();
+  const { planRetry, MAX_DELIVERY_ATTEMPTS } = await import("./webhook-retry");
 
   try {
     const { isPrivateUrl, normalizeWebhookUrl } = await import("./url-validation");
@@ -1053,6 +1262,11 @@ export async function dispatchWebhook(
           latencyMs: 0,
           status: "failed",
           error: err,
+          attempts: 1,
+          maxAttempts: MAX_DELIVERY_ATTEMPTS,
+          // A blocked URL is a permanent configuration error — retrying it
+          // would only repeat an SSRF refusal.
+          nextRetryAt: null,
           createdAt: new Date().toISOString(),
         });
       } catch {
@@ -1186,6 +1400,9 @@ export async function dispatchWebhook(
     const responseText = response.ok ? "" : (await response.text().catch(() => ""));
     const errorMsg = response.ok ? null : (responseText.slice(0, 500) || `HTTP ${response.status}`);
 
+    // Schedule the next attempt when the failure looks transient.
+    const retryPlan = response.ok ? null : planRetry(1, response.status, false);
+
     try {
       await db.insert(webhookLogs).values({
         id: deliveryId,
@@ -1197,6 +1414,9 @@ export async function dispatchWebhook(
         latencyMs,
         status: response.ok ? "success" : "failed",
         error: errorMsg,
+        attempts: retryPlan?.attempt ?? 1,
+        maxAttempts: MAX_DELIVERY_ATTEMPTS,
+        nextRetryAt: retryPlan?.nextRetryAt ?? null,
         createdAt: new Date().toISOString(),
       });
     } catch {
@@ -1213,6 +1433,10 @@ export async function dispatchWebhook(
     const latencyMs = Date.now() - startTime;
     const errMsg = error instanceof Error ? error.message : "Unknown error";
 
+    // A transport error (timeout, DNS failure, connection refused) is always
+    // worth another attempt.
+    const retryPlan = planRetry(1, null, true);
+
     try {
       await db.insert(webhookLogs).values({
         id: deliveryId,
@@ -1224,6 +1448,9 @@ export async function dispatchWebhook(
         latencyMs,
         status: "failed",
         error: errMsg,
+        attempts: retryPlan?.attempt ?? 1,
+        maxAttempts: MAX_DELIVERY_ATTEMPTS,
+        nextRetryAt: retryPlan?.nextRetryAt ?? null,
         createdAt: new Date().toISOString(),
       });
     } catch {

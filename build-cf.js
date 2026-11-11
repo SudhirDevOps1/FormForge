@@ -33,12 +33,27 @@ if (isVercel || isNetlify || isStandard) {
   console.log("--- Starting OpenNext Cloudflare Build wrapper ---");
   // Set environment variable to break recursive loops
   process.env.IN_OPEN_NEXT = 'true';
+
+  // On Windows, OpenNext recreates the standalone `node_modules` layout with
+  // symbolic links, which require Administrator privileges or Developer Mode.
+  // A preload script falls back to junction points (which need neither) so
+  // the bundle can be produced on a normal Windows workstation. On other
+  // platforms the script is a no-op.
+  const symlinkFallback = path.join(__dirname, 'scripts', 'windows-symlink-fallback.cjs');
+  const childEnv = { ...process.env };
+  if (process.platform === 'win32' && fs.existsSync(symlinkFallback)) {
+    const requireFlag = `--require ${symlinkFallback}`;
+    childEnv.NODE_OPTIONS = childEnv.NODE_OPTIONS
+      ? `${childEnv.NODE_OPTIONS} ${requireFlag}`
+      : requireFlag;
+    console.log('--- Windows symlink fallback enabled (junction points) ---');
+  }
   
   // Choose correct package manager command
   const isBun = process.versions.bun !== undefined || process.env.BUN_VERSION !== undefined;
   const cmd = isBun ? 'bunx' : 'npx';
   
-  execSync(`${cmd} opennextjs-cloudflare build`, { stdio: 'inherit', env: process.env });
+  execSync(`${cmd} opennextjs-cloudflare build`, { stdio: 'inherit', env: childEnv });
   console.log("--- OpenNext Cloudflare Build completed successfully ---");
 
   // --- WINDOWS COMPATIBILITY FIX: Manually copy static assets ---

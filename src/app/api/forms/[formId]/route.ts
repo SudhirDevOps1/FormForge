@@ -53,6 +53,7 @@ export async function GET(request: Request, context: RouteContext) {
   const sanitizedForm = {
     ...result.form,
     smtpPass: result.form.smtpPass ? "__SMTP_PASSWORD_SET__" : null,
+    passwordHash: result.form.passwordHash ? "__PASSWORD_SET__" : null,
   };
   return jsonOk({ form: sanitizedForm, endpointPath: `/api/submit/${result.form.endpointId}` });
 }
@@ -93,6 +94,57 @@ export async function PATCH(request: Request, context: RouteContext) {
     smtpPassVal = await encryptText(rawSmtpPass);
   }
 
+  // ── Form password gate ──────────────────────────────────────────────
+  // The password is stored only as a PBKDF2-SHA256 hash. Sending an empty
+  // string clears the password and disables the gate.
+  let passwordHashVal = result.form.passwordHash ?? null;
+  let passwordEnabledVal =
+    typeof body.passwordEnabled === "boolean" ? body.passwordEnabled : result.form.passwordEnabled;
+
+  const rawPassword = readString(body.password);
+  if (rawPassword === "") {
+    passwordHashVal = null;
+    passwordEnabledVal = false;
+  } else if (rawPassword && rawPassword !== "__PASSWORD_SET__") {
+    const { validateFormPassword, hashFormPassword } = await import("@/lib/form-password");
+    const validation = validateFormPassword(rawPassword);
+    if (!validation.ok) {
+      return jsonError("WEAK_PASSWORD", validation.error ?? "Password is too weak.", 400);
+    }
+    passwordHashVal = await hashFormPassword(rawPassword);
+    passwordEnabledVal = true;
+  } else if (passwordEnabledVal && !passwordHashVal) {
+    return jsonError(
+      "PASSWORD_REQUIRED",
+      "Set a password before enabling the password gate.",
+      400,
+    );
+  }
+
+  // ── New channel URLs ────────────────────────────────────────────────
+  const slackWebhookUrlVal = body.slackWebhookUrl !== undefined
+    ? readString(body.slackWebhookUrl) || null
+    : result.form.slackWebhookUrl ?? null;
+  const discordWebhookUrlVal = body.discordWebhookUrl !== undefined
+    ? readString(body.discordWebhookUrl) || null
+    : result.form.discordWebhookUrl ?? null;
+
+  for (const [label, value] of [
+    ["Slack", slackWebhookUrlVal],
+    ["Discord", discordWebhookUrlVal],
+  ] as const) {
+    if (!value) continue;
+    const { isPrivateUrl, normalizeWebhookUrl } = await import("@/lib/url-validation");
+    const normalized = normalizeWebhookUrl(value);
+    if (isPrivateUrl(normalized)) {
+      return jsonError(
+        "INVALID_WEBHOOK_URL",
+        `SSRF Block: ${label} webhooks cannot target private or internal IP addresses.`,
+        400,
+      );
+    }
+  }
+
   const update = {
     name: readString(body.name, result.form.name).slice(0, 120),
     slug: slugify(readString(body.slug, result.form.slug)),
@@ -131,6 +183,24 @@ export async function PATCH(request: Request, context: RouteContext) {
     maxAttachmentSizeMb: typeof body.maxAttachmentSizeMb === "number" ? body.maxAttachmentSizeMb : (body.maxAttachmentSizeMb ? Number(body.maxAttachmentSizeMb) : (result.form as any).maxAttachmentSizeMb ?? 10),
     allowedFileExtensions: readString(body.allowedFileExtensions, (result.form as any).allowedFileExtensions ?? "") || "",
     displayMode: body.displayMode === "conversational" ? "conversational" : (body.displayMode === "classic" ? "classic" : ((result.form as any).displayMode || "classic")),
+    tags: readString(body.tags, result.form.tags ?? "") || "",
+    rateLimitPerMinute:
+      typeof body.rateLimitPerMinute === "number"
+        ? Math.max(1, Math.min(600, Math.floor(body.rateLimitPerMinute)))
+        : result.form.rateLimitPerMinute ?? 60,
+    passwordEnabled: passwordEnabledVal,
+    passwordHash: passwordHashVal,
+    slackWebhookUrl: slackWebhookUrlVal,
+    discordWebhookUrl: discordWebhookUrlVal,
+    captureUtm:
+      typeof body.captureUtm === "boolean" ? body.captureUtm : result.form.captureUtm,
+    partialSubmissionsEnabled:
+      typeof body.partialSubmissionsEnabled === "boolean"
+        ? body.partialSubmissionsEnabled
+        : result.form.partialSubmissionsEnabled,
+    closeAt: body.closeAt !== undefined
+      ? (readString(body.closeAt) || null)
+      : (result.form.closeAt ?? null),
     updatedAt: new Date().toISOString(),
   };
 
@@ -139,6 +209,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const sanitizedUpdate = {
       ...update,
       smtpPass: update.smtpPass ? "__SMTP_PASSWORD_SET__" : null,
+      passwordHash: update.passwordHash ? "__PASSWORD_SET__" : null,
     };
 
     await result.db.insert(auditLogs).values({

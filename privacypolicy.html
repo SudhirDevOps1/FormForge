@@ -181,7 +181,7 @@
       <h2>3. Privacy-First IP & Metadata Handling</h2>
       <p>To defend against spambots while maintaining compliance with strict global privacy laws (such as GDPR and CCPA):</p>
       <ul>
-        <li><strong>IP Hashing:</strong> We do not store raw IP addresses. If enabled in configuration, submission IP addresses are instantly hashed using SHA-256 with a unique form salt.</li>
+        <li><strong>IP Hashing:</strong> We never store raw IP addresses. When IP hashing is enabled, the address is hashed with SHA-256 using a per-form salt that rotates every UTC day, so values can be correlated within a day for abuse forensics but not across days. When IP hashing is disabled, no IP-derived value is written to the database at all.</li>
         <li><strong>Zero Third-Party Analytics:</strong> FormForge has no Google Analytics, no trackers, and no external tracking pixels. Your dashboard telemetry is entirely self-hosted.</li>
       </ul>
 

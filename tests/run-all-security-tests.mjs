@@ -973,6 +973,239 @@ await test("P6", "release flow triggers on tags and reads docs/CHANGELOG.md", as
   assert(changelog.includes("Keep a Changelog"), "docs changelog follows Keep a Changelog");
 });
 
+/* ================================================================== */
+/* P7 — v1.1 "Aurora" additions: new attack surface                   */
+/* ================================================================== */
+
+pillar("P7 — v1.1 Aurora: new feature security");
+
+await test("P7", "raw IP is never persisted when IP hashing is disabled", async () => {
+  const source = readSrc("src/app/api/submit/[endpointId]/route.ts");
+  // The old shape stored the plaintext IP in the fallback branch:
+  //   `: (ip ?? undefined)`
+  // That leaked the address whenever `storeIpHash` was off.
+  assert(
+    !/:\s*\(ip\s*\?\?\s*undefined\)/.test(source),
+    "submit route must not fall back to storing the raw client IP",
+  );
+  assert(
+    source.includes("ipHash ?? undefined"),
+    "submit route must store no value at all when IP hashing is disabled",
+  );
+  // The stored value must be a hash, never the address itself.
+  const hashBlock = source.slice(source.indexOf("ipHash"), source.indexOf("ipHash") + 400);
+  assert(
+    hashBlock.includes("sha256("),
+    "stored IP must be a SHA-256 hash",
+  );
+});
+
+await test("P7", "a strict Content-Security-Policy ships with the app", async () => {
+  const headers = readSrc("src/lib/security-headers.ts");
+  const config = readSrc("next.config.ts");
+  assert(config.includes("security-headers"), "next.config must use the shared header policy");
+  assert(headers.includes("default-src 'self'"), "CSP must default to self");
+  assert(headers.includes("object-src 'none'"), "CSP must forbid plugins");
+  assert(headers.includes("base-uri 'self'"), "CSP must pin base-uri");
+  assert(headers.includes("frame-ancestors 'none'"), "CSP must block framing by default");
+  assert(headers.includes("form-action 'self'"), "CSP must restrict form submissions");
+  assert(
+    headers.includes("Cross-Origin-Opener-Policy"),
+    "COOP header must be present",
+  );
+  assert(
+    headers.includes("Strict-Transport-Security"),
+    "HSTS header must be present",
+  );
+  assert(
+    headers.includes("Permissions-Policy"),
+    "Permissions-Policy header must be present",
+  );
+});
+
+await test("P7", "session cookie uses the __Host- prefix on secure origins", async () => {
+  const source = readSrc("src/lib/auth.ts");
+  assert(
+    source.includes("__Host-ff_session"),
+    "session cookie must use the __Host- prefix in production",
+  );
+  // The __Host- prefix is only valid with Secure + Path=/ and no Domain.
+  const headerFn = source.slice(source.indexOf("function cookieHeader"));
+  assert(headerFn.includes("Path=/"), "__Host- cookie must set Path=/");
+  assert(headerFn.includes("Secure"), "__Host- cookie must set Secure");
+  assert(!/;\s*Domain=/.test(headerFn), "__Host- cookie must not set a Domain attribute");
+  assert(
+    source.includes("SameSite=Lax"),
+    "session cookie must remain SameSite=Lax",
+  );
+});
+
+await test("P7", "conditional-logic rules reject prototype-pollution field keys", async () => {
+  const source = readSrc("src/lib/rules.ts");
+  assert(source.includes("isSafeFieldKey"), "rules must validate field keys with isSafeFieldKey");
+  // The blocklist itself lives in the shared security module — verify it is
+  // actually enforced there, and that the rule engine delegates to it.
+  const security = readSrc("src/lib/security.ts");
+  assert(
+    security.includes("__proto__") && security.includes("constructor") && security.includes("prototype"),
+    "the shared field-key blocklist must cover the prototype-pollution names",
+  );
+  assert(
+    /!isSafeFieldKey\(sourceField\)\s*\|\|\s*!isSafeFieldKey\(targetField\)/.test(source),
+    "both the source and the target field key must be validated before a rule is accepted",
+  );
+  // Unknown operators must never match — a malformed rule must not hide a field.
+  assert(source.includes("default:"), "unknown operators must fall through to a non-match");
+});
+
+await test("P7", "new dashboard APIs require authentication and ownership", async () => {
+  for (const file of [
+    "src/app/api/forms/[formId]/rules/route.ts",
+    "src/app/api/forms/[formId]/prefills/route.ts",
+    "src/app/api/submissions/[submissionId]/notes/route.ts",
+    "src/app/api/submissions/[submissionId]/reply/route.ts",
+    "src/app/api/user/sessions/route.ts",
+    "src/app/api/user/audit-logs/route.ts",
+  ]) {
+    const source = readSrc(file);
+    assert(
+      source.includes("getCurrentUser") || source.includes("requireOwnedForm"),
+      `${file} must authenticate the caller`,
+    );
+  }
+
+  // Ownership scoping: per-form routes must bind the form to the caller.
+  for (const file of [
+    "src/app/api/forms/[formId]/rules/route.ts",
+    "src/app/api/forms/[formId]/prefills/route.ts",
+  ]) {
+    assert(
+      readSrc(file).includes("requireOwnedForm"),
+      `${file} must use the ownership guard`,
+    );
+  }
+  const access = readSrc("src/lib/form-access.ts");
+  assert(
+    access.includes("eq(forms.userId, user.id)"),
+    "ownership guard must scope the form query to the caller's user id",
+  );
+  // The shared guard is what answers 401 — verify it once, centrally.
+  assert(
+    access.includes("UNAUTHENTICATED") && access.includes("401"),
+    "the ownership guard must answer 401 for an unauthenticated caller",
+  );
+});
+
+await test("P7", "password-gated forms use constant-time verification and hashed storage", async () => {
+  const source = readSrc("src/lib/form-password.ts");
+  assert(source.includes("hashPassword"), "form passwords must be hashed with PBKDF2");
+  assert(source.includes("verifyPassword"), "form passwords must be verified with PBKDF2");
+  assert(
+    source.includes("timingSafeEqualHex"),
+    "form unlock tokens must be compared in constant time",
+  );
+  assert(
+    !source.includes("password TEXT NOT NULL"),
+    "form passwords must never be stored in plaintext",
+  );
+
+  const formsRoute = readSrc("src/app/api/forms/[formId]/route.ts");
+  assert(
+    formsRoute.includes("hashFormPassword"),
+    "form PATCH must hash a new password before storing it",
+  );
+  assert(
+    formsRoute.includes("__PASSWORD_SET__"),
+    "the stored password hash must be redacted from API responses",
+  );
+});
+
+await test("P7", "password policy blocks weak and common credentials", async () => {
+  const source = readSrc("src/lib/password-policy.ts");
+  assert(source.includes("COMMON_PASSWORDS"), "a common-password blocklist must exist");
+  assert(source.includes("MIN_PASSWORD_LENGTH"), "a minimum length must be enforced");
+  assert(
+    source.includes("api.pwnedpasswords.com/range"),
+    "the breach check must use the k-anonymity range API",
+  );
+  assert(
+    source.includes("slice(0, 5)"),
+    "only the first five hash characters may leave the browser",
+  );
+});
+
+await test("P7", "webhook retries use a bounded exponential backoff", async () => {
+  const source = readSrc("src/lib/webhook-retry.ts");
+  assert(source.includes("RETRY_BACKOFF_MS"), "a backoff schedule must be defined");
+  assert(
+    source.includes("MAX_DELIVERY_ATTEMPTS"),
+    "the number of attempts must be bounded",
+  );
+  // 4xx (other than 408/429) is terminal — retrying it would only repeat a
+  // deliberate rejection.
+  assert(
+    source.includes("shouldRetry"),
+    "the retry decision must be explicit",
+  );
+  const retry = source.slice(source.indexOf("export function shouldRetry"));
+  const shouldRetryBody = retry.slice(0, retry.indexOf("\n}"));
+  assert(
+    shouldRetryBody.includes("statusCode >= 500"),
+    "server errors must be retryable",
+  );
+  assert(
+    shouldRetryBody.includes("408") && shouldRetryBody.includes("429"),
+    "timeouts and rate limits must be retryable",
+  );
+});
+
+await test("P7", "reply-by-email can only target the captured submission address", async () => {
+  const source = readSrc("src/app/api/submissions/[submissionId]/reply/route.ts");
+  assert(
+    source.includes("match.submission.email"),
+    "the reply target must come from the stored submission, not the request body",
+  );
+  assert(
+    !source.includes("body.email"),
+    "the request body must not be able to choose the recipient",
+  );
+  assert(source.includes("getCurrentUser"), "replying must require authentication");
+});
+
+await test("P7", "partial submissions store only a hash of the resume token", async () => {
+  const source = readSrc("src/app/api/submit/[endpointId]/partial/route.ts");
+  assert(
+    source.includes("sha256"),
+    "the resume token must be hashed before storage",
+  );
+  assert(
+    !/tokenHash:\s*resumeToken/.test(source),
+    "the raw resume token must never be stored",
+  );
+  const submissionsSource = readSrc("src/app/api/submit/[endpointId]/route.ts");
+  assert(
+    submissionsSource.includes("convertedSubmissionId"),
+    "a completed partial must be linked to its final submission",
+  );
+});
+
+await test("P7", "hidden prefill values are injected server-side only", async () => {
+  const source = readSrc("src/lib/prefill.ts");
+  assert(
+    source.includes("applyHiddenPrefills"),
+    "hidden prefill values must be applied server-side",
+  );
+  const submit = readSrc("src/app/api/submit/[endpointId]/route.ts");
+  assert(
+    submit.includes("applyHiddenPrefills"),
+    "the submit route must overwrite hidden fields with server-resolved values",
+  );
+  assert(
+    submit.includes("resolvePrefills"),
+    "the submit route must resolve prefills from the request URL",
+  );
+});
+
 /* ------------------------------ summary ---------------------------- */
 
 console.log("\n==============================");

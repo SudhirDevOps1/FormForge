@@ -430,6 +430,18 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
+  // Scheduled close: the owner can stop accepting responses on a given date.
+  if (form.closeAt && new Date(form.closeAt).getTime() <= Date.now()) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: "FORM_CLOSED",
+      message: "This form is closed and is no longer accepting new responses.",
+    }), {
+      status: 403,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
   if (origin && !allowedOrigin) {
     return new Response(JSON.stringify({ ok: false, code: "ORIGIN_BLOCKED", message: "Origin is not allowed." }), {
       status: 403,
@@ -437,10 +449,14 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
-  // Rate Limiting
+  // Rate Limiting — per-form, configurable, with a safe default of 60/min.
   const { checkRateLimit, rateLimitResponse, getClientIp } = await import("@/lib/rate-limit");
   const ip = getClientIp(request);
-  const limitRes = await checkRateLimit(db, `submit:${form.id}:${ip}`, 60, 60); // 60 submissions per min
+  const [maxAttempts, windowSeconds] =
+    form.rateLimitPerMinute && form.rateLimitPerMinute > 0
+      ? [form.rateLimitPerMinute, 60]
+      : [60, 60];
+  const limitRes = await checkRateLimit(db, `submit:${form.id}:${ip}`, maxAttempts, windowSeconds);
   if (!limitRes.allowed) {
     return new Response(JSON.stringify({ ok: false, code: "RATE_LIMITED", message: "Too many submissions. Please try again later." }), {
       status: 429,
@@ -544,6 +560,110 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
+  // ── Password-gated forms ────────────────────────────────────────────
+  // A form with a password requires a valid unlock token. The token is an
+  // HMAC bound to this form id, so it cannot be replayed on another form.
+  if (form.passwordEnabled && form.passwordHash) {
+    const { verifyFormToken } = await import("@/lib/form-password");
+    const { getAuthSecret } = await import("@/lib/auth");
+    const secret = getAuthSecret() || form.id;
+
+    const providedToken =
+      request.headers.get("x-formforge-form-token") ||
+      (typeof payload._ff_form_token === "string" ? payload._ff_form_token : "");
+
+    const unlocked = providedToken ? await verifyFormToken(providedToken, form.id, secret) : false;
+
+    if (!unlocked) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: "FORM_LOCKED",
+        passwordRequired: true,
+        message: "This form is protected. Unlock it before submitting.",
+      }), {
+        status: 403,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    delete payload._ff_form_token;
+  }
+
+  // ── Server-side prefill & hidden fields ─────────────────────────────
+  // Hidden values are injected here, after the client payload is parsed and
+  // before anything is stored — so the client can never forge them.
+  {
+    const { resolvePrefills, applyHiddenPrefills } = await import("@/lib/prefill");
+    const { formPrefills } = await import("@/db/schema");
+
+    const mappingRows = await db
+      .select()
+      .from(formPrefills)
+      .where(eq(formPrefills.formId, form.id));
+
+    const mappings = mappingRows.map((row) => ({
+      fieldKey: row.fieldKey,
+      paramName: row.paramName,
+      isHidden: Boolean(row.isHidden),
+    }));
+
+    if (mappings.length || form.captureUtm) {
+      const requestUrl = new URL(request.url);
+      const resolved = resolvePrefills(mappings, requestUrl.searchParams, form.captureUtm);
+
+      // Only hidden mappings are enforced server-side. Editable prefills are a
+      // convenience for the hosted page and are applied by the browser.
+      const hiddenValues: Record<string, string> = {};
+      for (const fieldKey of resolved.hiddenFields) {
+        if (resolved.values[fieldKey] !== undefined) {
+          hiddenValues[fieldKey] = resolved.values[fieldKey];
+        }
+      }
+
+      if (Object.keys(hiddenValues).length) {
+        Object.assign(payload, applyHiddenPrefills(payload, hiddenValues));
+      }
+    }
+  }
+
+  // ── Conditional logic enforcement ────────────────────────────────────
+  // Rules are evaluated on the server. Hidden fields are stripped from the
+  // stored payload and never counted as required, so a crafted request
+  // cannot bypass the form's logic.
+  const { formRules } = await import("@/db/schema");
+  const { applyRules } = await import("@/lib/rules");
+
+  const ruleRows = await db.select().from(formRules).where(eq(formRules.formId, form.id));
+  if (ruleRows.length) {
+    const { sanitized, missingRequired } = applyRules(
+      ruleRows.map((row) => ({
+        id: row.id,
+        sourceField: row.sourceField,
+        operator: row.operator,
+        value: row.value,
+        action: row.action,
+        targetField: row.targetField,
+      })),
+      payload,
+    );
+
+    if (missingRequired.length) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: "MISSING_REQUIRED_FIELD",
+        fields: missingRequired,
+        message: `Please complete: ${missingRequired.join(", ")}.`,
+      }), {
+        status: 400,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    for (const key of Object.keys(payload)) {
+      if (!(key in sanitized)) delete payload[key];
+    }
+  }
+
   // 6-Digit Email OTP Verification Enforcement
   let otpVerified = false;
   // Guard: if OTP is required but no email was found in the payload, block immediately
@@ -617,16 +737,59 @@ export async function POST(request: Request, context: RouteContext) {
   storagePayload["_intent"] = classifyIntent(storagePayload);
 
   const minifiedPayload = safeStringify(storagePayload);
-  
+
+  // ── Duplicate detection ─────────────────────────────────────────────
+  // The fingerprint is a salted hash of the canonical payload, so the
+  // database never stores a reversible duplicate key. A repeat is linked to
+  // the original submission instead of silently inflating the count.
+  let fingerprint: string | undefined;
+  let duplicateOf: string | undefined;
+  {
+    const { fingerprintPayload, hasFingerprintableContent } = await import("@/lib/duplicates");
+    if (hasFingerprintableContent(storagePayload)) {
+      const { getAuthSecret } = await import("@/lib/auth");
+      const salt = getAuthSecret() || form.id;
+      fingerprint = await fingerprintPayload(storagePayload, form.id, salt);
+
+      const existing = await db
+        .select({ id: submissions.id })
+        .from(submissions)
+        .where(
+          and(
+            eq(submissions.formId, form.id),
+            eq(submissions.fingerprint, fingerprint),
+            sql`${submissions.id} != ${submissionId}`,
+          )
+        )
+        .limit(1);
+
+      if (existing[0]) {
+        duplicateOf = existing[0].id;
+      }
+    }
+  }
+
+  // ── Privacy-preserving IP storage ───────────────────────────────────
+  // When `storeIpHash` is off the IP is NOT stored at all — the raw address
+  // must never leak into the database. When it is on, the hash is salted
+  // with the current UTC day so it cannot be correlated across days while
+  // remaining correlatable within a day (for rate-limit forensics).
+  const ipHash = form.storeIpHash && ip
+    ? await sha256(`${form.id}:${ip}:${new Date().toISOString().slice(0, 10)}`)
+    : undefined;
+
   const submission: NewSubmission = {
     id: submissionId,
     formId: form.id,
     payload: minifiedPayload,
     email: email || undefined,
-    ipHash: form.storeIpHash && ip ? await sha256(`${form.id}:${ip}`) : (ip ?? undefined),
+    ipHash: ipHash ?? undefined,
     userAgent: request.headers.get("user-agent") ?? undefined,
     referer: request.headers.get("referer") ?? undefined,
     status,
+    workflowStatus: status === "spam" ? "spam" : "new",
+    duplicateOf: duplicateOf ?? undefined,
+    fingerprint: fingerprint ?? undefined,
     spamScore: score,
     spamReasons: JSON.stringify(reasons),
     createdAt: new Date().toISOString(),
@@ -635,6 +798,33 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     await db.insert(submissions).values(submission);
     await db.update(forms).set({ submissionsCount: sql`${forms.submissionsCount} + 1`, updatedAt: new Date().toISOString() }).where(eq(forms.id, form.id));
+
+    // ── Convert a partial submission ─────────────────────────────────
+    // When the respondent resumes from a saved progress link, the partial
+    // record is linked to the final submission so drop-off analytics can
+    // distinguish "abandoned" from "completed".
+    const partialToken =
+      request.headers.get("x-formforge-partial-token") ||
+      (typeof payload._ff_partial_token === "string" ? payload._ff_partial_token : "");
+
+    if (partialToken) {
+      try {
+        const { partialSubmissions } = await import("@/db/schema");
+        const tokenHash = await sha256(partialToken);
+        await db
+          .update(partialSubmissions)
+          .set({ convertedSubmissionId: submissionId, updatedAt: new Date().toISOString() })
+          .where(
+            and(
+              eq(partialSubmissions.tokenHash, tokenHash),
+              eq(partialSubmissions.formId, form.id),
+            )
+          );
+        delete payload._ff_partial_token;
+      } catch {
+        // Linking is best-effort — never fail a submission because of it.
+      }
+    }
 
     // Data retention auto-purging
     if (form.retentionDays && form.retentionDays > 0) {

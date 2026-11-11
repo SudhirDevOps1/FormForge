@@ -21,12 +21,49 @@ export async function GET(request: Request) {
     return jsonError("UNAUTHENTICATED", "Sign in to list forms.", 401);
   }
 
+  const url = new URL(request.url);
+  const search = (url.searchParams.get("search") || "").trim().toLowerCase();
+  const tag = (url.searchParams.get("tag") || "").trim().toLowerCase();
+
   const rows = await db.select().from(forms).where(eq(forms.userId, user.id)).orderBy(desc(forms.createdAt));
-  const sanitizedRows = rows.map(r => ({
+
+  // Search + tag filtering happen in memory so the query stays portable
+  // across SQLite, Postgres and libSQL without dialect-specific operators.
+  const filtered = rows.filter((row) => {
+    if (tag) {
+      const tags = (row.tags || "")
+        .split(",")
+        .map((entry) => entry.trim().toLowerCase())
+        .filter(Boolean);
+      if (!tags.includes(tag)) return false;
+    }
+
+    if (search) {
+      const haystack = [row.name, row.slug, row.endpointId, row.description, row.tags]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+
+    return true;
+  });
+
+  const sanitizedRows = filtered.map(r => ({
     ...r,
-    smtpPass: r.smtpPass ? "__SMTP_PASSWORD_SET__" : null
+    smtpPass: r.smtpPass ? "__SMTP_PASSWORD_SET__" : null,
+    passwordHash: r.passwordHash ? "__PASSWORD_SET__" : null,
   }));
-  return jsonOk({ forms: sanitizedRows });
+
+  const allTags = new Set<string>();
+  for (const row of rows) {
+    for (const entry of (row.tags || "").split(",")) {
+      const trimmed = entry.trim();
+      if (trimmed) allTags.add(trimmed);
+    }
+  }
+
+  return jsonOk({ forms: sanitizedRows, tags: [...allTags].sort() });
 }
 
 export async function POST(request: Request) {

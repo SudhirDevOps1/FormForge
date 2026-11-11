@@ -70,22 +70,42 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   try {
-    const body = (await request.json()) as { status?: string };
-    if (!body || !body.status) {
+    const body = (await request.json()) as { status?: string; workflowStatus?: string };
+
+    const validStatuses = ["accepted", "spam", "pending"];
+    const validWorkflowStatuses = ["new", "in_progress", "resolved", "spam"];
+
+    if (!body.status && !body.workflowStatus) {
       return jsonError("BAD_REQUEST", "Status is required.", 400);
     }
 
-    const validStatuses = ["accepted", "spam", "pending"];
-    if (!validStatuses.includes(body.status)) {
-      return jsonError("INVALID_STATUS", "Status must be 'accepted', 'spam', or 'pending'.", 400);
+    const update: Partial<typeof submissions.$inferInsert> = {};
+
+    if (body.status) {
+      if (!validStatuses.includes(body.status)) {
+        return jsonError("INVALID_STATUS", "Status must be 'accepted', 'spam', or 'pending'.", 400);
+      }
+      update.status = body.status;
     }
 
-    await db
-      .update(submissions)
-      .set({ status: body.status })
-      .where(eq(submissions.id, submissionId));
+    if (body.workflowStatus) {
+      if (!validWorkflowStatuses.includes(body.workflowStatus)) {
+        return jsonError(
+          "INVALID_WORKFLOW_STATUS",
+          "Workflow status must be 'new', 'in_progress', 'resolved', or 'spam'.",
+          400,
+        );
+      }
+      update.workflowStatus = body.workflowStatus;
+    }
 
-    return jsonOk({ success: true, status: body.status });
+    await db.update(submissions).set(update).where(eq(submissions.id, submissionId));
+
+    return jsonOk({
+      success: true,
+      status: update.status ?? match.submission.status,
+      workflowStatus: update.workflowStatus ?? match.submission.workflowStatus,
+    });
   } catch {
     return jsonError("INTERNAL_ERROR", "Failed to update submission status.", 500);
   }

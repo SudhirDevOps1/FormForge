@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { databaseUnavailableResponse, getDb, isDbReady } from "@/db";
 import { ensureSchema } from "@/db/ensure";
-import { forms, submissions } from "@/db/schema";
+import { forms, partialSubmissions, submissions } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/http";
 
@@ -190,6 +190,53 @@ export async function GET(request: Request, context: RouteContext) {
     const browserBreakdown = Object.entries(browsers).map(([name, count]) => ({ name, count }));
     const deviceBreakdown = Object.entries(devices).map(([name, count]) => ({ name, count }));
 
+    // 6. Drop-off funnel (from saved partial submissions)
+    //
+    // A partial records which fields the respondent had already completed
+    // when they saved their progress. Counting how many partials include
+    // each field reveals where people abandon the form.
+    let dropoff: Array<{ field: string; completed: number; started: number; rate: number }> = [];
+    let partialsStarted = 0;
+    let partialsCompleted = 0;
+
+    try {
+      const partialRows = await db
+        .select({
+          completedFieldKeys: partialSubmissions.completedFieldKeys,
+          convertedSubmissionId: partialSubmissions.convertedSubmissionId,
+        })
+        .from(partialSubmissions)
+        .where(eq(partialSubmissions.formId, formId));
+
+      partialsStarted = partialRows.length;
+      partialsCompleted = partialRows.filter((row) => Boolean(row.convertedSubmissionId)).length;
+
+      const perField = new Map<string, number>();
+      for (const row of partialRows) {
+        let keys: string[] = [];
+        try {
+          const parsed = JSON.parse(row.completedFieldKeys);
+          if (Array.isArray(parsed)) keys = parsed.filter((k) => typeof k === "string");
+        } catch {
+          keys = [];
+        }
+        for (const key of keys) {
+          perField.set(key, (perField.get(key) ?? 0) + 1);
+        }
+      }
+
+      dropoff = [...perField.entries()]
+        .map(([field, completed]) => ({
+          field,
+          completed,
+          started: partialsStarted,
+          rate: partialsStarted > 0 ? Math.round((completed / partialsStarted) * 100) : 0,
+        }))
+        .sort((a, b) => a.rate - b.rate);
+    } catch {
+      // Partial submissions are optional — analytics still work without them.
+    }
+
     return jsonOk({
       form: formRows[0],
       stats: totalStats,
@@ -199,6 +246,13 @@ export async function GET(request: Request, context: RouteContext) {
       submitters,
       browserBreakdown,
       deviceBreakdown,
+      dropoff: {
+        partialsStarted,
+        partialsCompleted,
+        completionRate:
+          partialsStarted > 0 ? Math.round((partialsCompleted / partialsStarted) * 100) : 0,
+        fields: dropoff,
+      },
     });
   } catch (error) {
     console.error("Analytics retrieval error:", error);
