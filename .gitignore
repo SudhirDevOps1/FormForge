@@ -64,3 +64,10 @@ Thumbs.db
 /.tmp-e2e.log
 /.tmp-ci.log
 /.tmp-featurestest/
+# TypeScript incremental build state (machine-specific)
+/tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# scratch output from local verification
+/.tmp-*
+

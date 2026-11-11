@@ -35,6 +35,9 @@ echo ""
 # 3. Pattern sweep
 echo "[3/3] Running defense-in-depth pattern sweep..."
 FOUND=0
+# Assembled from adjacent shell fragments so the sweep does not report this
+# script's own pattern definition as a leaked secret.
+SECRET_RE='BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KE''Y|AKIA[0-9A-Z]{16}|xox[bpas]-[0-9A-Za-z-]+|sk-li''ve-|rk_li''ve-'
 if grep -rEn \
   --exclude-dir=node_modules \
   --exclude-dir=.git \
@@ -42,7 +45,7 @@ if grep -rEn \
   --exclude-dir=.open-next \
   --exclude="*.map" \
   --exclude="package-lock.json" \
-  'BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY|AKIA[0-9A-Z]{16}|xox[bpas]-[0-9A-Za-z-]+|sk-live-|rk_live-' \
+  "$SECRET_RE" \
   . ; then
   echo "  ❌ Potential committed secret detected"
   FOUND=1

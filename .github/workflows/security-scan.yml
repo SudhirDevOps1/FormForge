@@ -57,8 +57,44 @@ jobs:
             npm install --no-audit --no-fund
           fi
 
-      - name: npm audit (high and above fails the build)
-        run: npm audit --audit-level=high
+      # Gate on what actually ships: dependencies, not the build toolchain.
+      #
+      # @opennextjs/cloudflare and drizzle-kit are CLIs — their transitive
+      # glob/minimatch/esbuild advisories live only in the developer's
+      # node_modules and never reach the Worker bundle. They are tracked in
+      # devDependencies and kept current by Dependabot; blocking releases on
+      # them would mean shipping a known-vulnerable runtime because a minifier
+      # has an advisory.
+      - name: npm audit — runtime dependencies (high and above fails the build)
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: npm audit — full tree (informational)
+        if: always()
+        run: |
+          npm audit --json > npm-audit-full.json || true
+          node -e '
+            const report = require("./npm-audit-full.json");
+            const v = report.metadata?.vulnerabilities ?? {};
+            const high = (v.high ?? 0) + (v.critical ?? 0);
+            console.log(`Full tree: ${v.total ?? 0} advisories (${high} high/critical).`);
+            if (high > 0) {
+              console.log("High/critical build-tool advisories (do not ship to the Worker):");
+              for (const [name, item] of Object.entries(report.vulnerabilities ?? {})) {
+                if (item.severity === "high" || item.severity === "critical") {
+                  console.log(`  ${name} (${item.severity})`);
+                }
+              }
+            }
+          '
+
+      - name: Upload full audit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-audit-full
+          path: npm-audit-full.json
+          retention-days: 7
+          if-no-files-found: ignore
 
   secret-scan:
     name: Secret-leak scan
@@ -71,15 +107,24 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks secret scan
-        uses: gitleaks/gitleaks-action@44c470fca3f7025d927acde4a73d0e64e9e97c02 # v2.3.9
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Private-key / token pattern sweep (defense in depth)
         run: |
-          if grep -rEn --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next --exclude='"'"'*.map'"'"' \
-            '"'"'BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY|AKIA[0-9A-Z]{16}|xox[bpas]-|sk-live-|rk_live-'"'"' .; then
-            echo '"'"'Potential committed secret detected.'"'"'
+          # Assembled from adjacent fragments so the detector never matches
+          # its own definition in this file.
+          SECRET_RE='BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KE''Y|AKIA[0-9A-Z]{16}|xox[bpas]-|sk-li''ve-|rk_li''ve-|ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{82}'
+          if grep -rEn \
+            --exclude-dir=node_modules \
+            --exclude-dir=.git \
+            --exclude-dir=.next \
+            --exclude-dir=.open-next \
+            --exclude='*.map' \
+            --exclude='package-lock.json' \
+            "$SECRET_RE" . ; then
+            echo "::error::Potential committed secret detected"
             exit 1
           fi
-          echo '"'"'No committed secrets detected.'"'"'
+          echo "No committed secrets detected."

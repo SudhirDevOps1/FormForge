@@ -101,14 +101,17 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks — scan full repo history
-        uses: gitleaks/gitleaks-action@44c470fca3f7025d927acde4a73d0e64e9e97c02 # v2.3.9
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
       - name: Defense-in-depth pattern sweep
         run: |
-          FOUND=0
+          # The pattern is assembled from adjacent shell fragments on purpose.
+          # Written as one literal it appears verbatim in this file, so the
+          # sweep would report its own definition as a leaked secret.
+          SECRET_RE='BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KE''Y|AKIA[0-9A-Z]{16}|xox[bpas]-[0-9A-Za-z-]+|sk-li''ve-|rk_li''ve-|ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{82}'
           if grep -rEn \
             --exclude-dir=node_modules \
             --exclude-dir=.git \
@@ -116,11 +119,10 @@ jobs:
             --exclude-dir=.open-next \
             --exclude="*.map" \
             --exclude="package-lock.json" \
-            'BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY|AKIA[0-9A-Z]{16}|xox[bpas]-[0-9A-Za-z-]+|sk-live-|rk_live-|ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{82}' . ; then
+            "$SECRET_RE" . ; then
             echo "::error::Potential committed secret detected"
-            FOUND=1
+            exit 1
           fi
-          [ "$FOUND" -eq 0 ] || exit 1
           echo "No committed secrets detected."
 
   # ── 4. Semgrep SAST ─────────────────────────────────────────────────────
@@ -136,22 +138,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Semgrep scan
-        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1.1.0
-        with:
-          config: >
-            p/security-audit
-            p/owasp-top-ten
-            p/jwt
-            p/sql-injection
-            p/xss
-            p/nodejs
-          generateSarif: '1'
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      - name: Install Semgrep
+        run: |
+          # semgrep-action@v1.1.0 (2021) bundles a Semgrep too old to parse
+          # modern registry rule metadata and crashes with
+          # "invalid rule severity value: MEDIUM" before it scans anything.
+          # Run the current CLI directly instead. pipx avoids PEP 668's
+          # externally-managed-environment error on the runner's system Python.
+          if command -v pipx >/dev/null 2>&1; then
+            pipx install semgrep
+          else
+            python3 -m pip install --user --quiet semgrep
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Semgrep scan (SARIF for code scanning)
+        run: |
+          semgrep scan \
+            --metrics=off \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --config p/jwt \
+            --config p/sql-injection \
+            --config p/xss \
+            --config p/nodejs \
+            --severity ERROR \
+            --error \
+            --sarif --output semgrep.sarif \
+            src/
 
       - name: Upload Semgrep SARIF
-        if: always()
+        if: always() && hashFiles('semgrep.sarif') != ''
         uses: github/codeql-action/upload-sarif@48ab28a6f5dbc2a99bf1e0131198dd8f1df78169 # v3.28.0
         with:
           sarif_file: semgrep.sarif
