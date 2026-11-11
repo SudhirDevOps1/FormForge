@@ -14,7 +14,7 @@
  * Exit: 0 when every pin resolves, 1 otherwise.
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,7 +26,24 @@ const GITHUB_API = "https://api.github.com";
 const USER_AGENT = "formforge-action-pin-validator";
 
 /**
- * An optional token lifts the API rate limit from 60 to 5,000 requests an
+ * Everything that reaches a URL below originates in a workflow file, which is
+ * repository content — not necessarily trusted input. Each component is
+ * validated against a strict allowlist and percent-encoded before it is
+ * interpolated, so a crafted `uses:` line cannot redirect the request to
+ * another host or smuggle a path traversal into the API call.
+ */
+const REPO_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}$/;
+const SHA_RE = /^[0-9a-f]{40}$/i;
+const TAG_RE = /^[A-Za-z0-9._\/-]{1,120}$/;
+
+/** Build a safe `owner/name` path segment pair. */
+function repoPath(repo) {
+  if (!REPO_RE.test(repo)) return null;
+  const [owner, name] = repo.split("/");
+  return `${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+}
+
+/** An optional token lifts the API rate limit from 60 to 5,000 requests an
  * hour. `GITHUB_TOKEN` is set automatically inside GitHub Actions.
  */
 const TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
@@ -61,7 +78,10 @@ function collectPins() {
 
 /** Ask GitHub whether a commit SHA exists in a repository. */
 async function shaExists(repo, sha) {
-  const response = await fetch(`${GITHUB_API}/repos/${repo}/commits/${sha}`, {
+  const path = repoPath(repo);
+  if (!path || !SHA_RE.test(sha)) return null;
+
+  const response = await fetch(`${GITHUB_API}/repos/${path}/commits/${encodeURIComponent(sha)}`, {
     headers: apiHeaders(),
   });
 
@@ -75,9 +95,13 @@ async function shaExists(repo, sha) {
 
 /** Ask GitHub whether a tag exists in a repository. */
 async function tagExists(repo, tag) {
-  const response = await fetch(`${GITHUB_API}/repos/${repo}/git/ref/tags/${tag}`, {
-    headers: apiHeaders(),
-  });
+  const path = repoPath(repo);
+  if (!path || !TAG_RE.test(tag)) return false;
+
+  const response = await fetch(
+    `${GITHUB_API}/repos/${path}/git/ref/tags/${encodeURIComponent(tag)}`,
+    { headers: apiHeaders() },
+  );
   return response.ok;
 }
 
