@@ -28,7 +28,7 @@
   "dependencies": {
     "@libsql/client": "^0.18.0",
     "@neondatabase/serverless": "^1.1.0",
-    "@opennextjs/cloudflare": "1.20.6",
+    "@opennextjs/cloudflare": "1.20.16",
     "drizzle-orm": "0.38.3",
     "next": "16.4.6",
     "nodemailer": "^7.0.13",
