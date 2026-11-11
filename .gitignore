@@ -51,6 +51,11 @@ Thumbs.db
 # suite, which asserts that `.github/workflows/{ci,security-scan,release}.yml`
 # exist and enforce the quality gates. The workflows are tracked again.
 
+# local development database
+/formforge.db
+/formforge.db-shm
+/formforge.db-wal
+
 # feature-test compilation scratch directory
 /.tmp-feature-tests/
 /.tmp-e2e.log
