@@ -7,6 +7,7 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 import { autoMigrate } from "./auto-migrate";
+import { createLocalSqliteDb, resolveLocalDatabaseUrl } from "./local-sqlite";
 
 export type AppDb = DrizzleD1Database<typeof schema>;
 
@@ -128,6 +129,7 @@ export function getRuntimeEnv(): CloudflareEnv {
 
 let cachedDb: AppDb | null = null;
 let cachedSource: string | null = null;
+let localDbWarned = false;
 
 export function getDb(): AppDb | null {
   const env = getRuntimeEnv();
@@ -188,21 +190,31 @@ export function getDb(): AppDb | null {
     }
   }
 
-  // 4. Fallback for local development or file/memory SQLite
-  if (env.DATABASE_URL?.startsWith("file:") || process.env.NODE_ENV !== "production") {
-    const fallbackUrl = env.DATABASE_URL?.startsWith("file:") ? env.DATABASE_URL : "file:formforge.db";
-    if (cachedDb && cachedSource === fallbackUrl) {
+  // 4. Fallback for local development or file/memory SQLite.
+  //
+  //    The web build of the libSQL client cannot open `file:` URLs, so the
+  //    local path resolves the Node build lazily. On Cloudflare (no
+  //    `process`) this branch is skipped entirely and the D1 / Turso / Neon
+  //    paths above are unaffected.
+  const localUrl = resolveLocalDatabaseUrl();
+  if (localUrl) {
+    if (cachedDb && cachedSource === localUrl) {
       return cachedDb;
     }
-    try {
-      const client = createClient({ url: fallbackUrl });
-      const db = drizzleLibSql(client, { schema });
-      cachedDb = db as unknown as AppDb;
-      cachedSource = fallbackUrl;
-      void autoMigrate(db as any);
+    const localDb = createLocalSqliteDb(localUrl);
+    if (localDb) {
+      cachedDb = localDb;
+      cachedSource = localUrl;
+      void autoMigrate(localDb as any);
       return cachedDb;
-    } catch (err) {
-      console.warn("Local SQLite client initialization note:", err);
+    }
+    if (!localDbWarned) {
+      localDbWarned = true;
+      console.warn(
+        "Local SQLite is unavailable in this runtime. Bind a Cloudflare D1 database, " +
+          "or set TURSO_DATABASE_URL / NEON_DATABASE_URL. " +
+          "(For local development run `npm run dev` on Node, or `npm run db:setup:local` + `npx wrangler dev`.)",
+      );
     }
   }
 

@@ -4,7 +4,7 @@ const PILLARS = [
   {
     label: "AES-256-GCM",
     title: "Encrypted at rest",
-    body: "Submission payloads and integration secrets are sealed with AES-256-GCM through the Web Crypto API. The key never leaves the Worker.",
+    body: "Opt into per-form payload encryption and every submission body is sealed with AES-256-GCM. Integration secrets are always encrypted. The key never leaves the Worker.",
     tone: "text-aurora-300",
   },
   {

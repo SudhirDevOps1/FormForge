@@ -1206,6 +1206,51 @@ await test("P7", "hidden prefill values are injected server-side only", async ()
   );
 });
 
+await test("P7", "a client-side failure can never leave the page blank", async () => {
+  const layout = readSrc("src/app/layout.tsx");
+  const css = readSrc("src/app/globals.css");
+  const guard = readSrc("src/components/HydrationGuard.tsx");
+
+  // The reveal system hides content behind a class that an inline script
+  // adds. If the React runtime never boots, that class must be removed
+  // again so the visitor is not left with an empty page.
+  assert(
+    layout.includes("__ffHydrated"),
+    "the head script must arm a hydration failsafe",
+  );
+  assert(
+    layout.includes("__ffHydrateTimer"),
+    "the head script must register the failsafe timer",
+  );
+  assert(
+    layout.includes("ff-js"),
+    "the head script must set the JS-capable class",
+  );
+  assert(
+    layout.includes("HydrationGuard"),
+    "the layout must mount the hydration guard",
+  );
+  assert(
+    guard.includes("__ffHydrated = true"),
+    "the hydration guard must report that the client runtime is alive",
+  );
+  assert(
+    guard.includes("clearTimeout"),
+    "the hydration guard must cancel the pending failsafe",
+  );
+  assert(
+    css.includes(".ff-fallback"),
+    "a CSS fallback state must exist for the failed-hydration path",
+  );
+
+  // The hidden state must be scoped to the JS-capable class so a no-JS
+  // visitor sees the full page.
+  assert(
+    css.includes(".ff-js [data-reveal]"),
+    "the hidden reveal state must be scoped to the JS-capable class",
+  );
+});
+
 /* ------------------------------ summary ---------------------------- */
 
 console.log("\n==============================");

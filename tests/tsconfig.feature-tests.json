@@ -1,0 +1,30 @@
+{
+  "$comment": "Compile configuration for the standalone feature test suite. The feature tests exercise the real TypeScript engines, so they are compiled to CommonJS first — CommonJS resolution handles the extension-less imports, and the `@/*` path alias is mapped here so the modules type-check exactly as they do in the app.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "rootDir": "../src",
+    "outDir": "../.tmp-feature-tests",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowJs": false,
+    "resolveJsonModule": true,
+    "noEmitOnError": false,
+    "types": ["node"]
+  },
+  "include": [
+    "../src/lib/rules.ts",
+    "../src/lib/prefill.ts",
+    "../src/lib/webhook-retry.ts",
+    "../src/lib/duplicates.ts",
+    "../src/lib/form-password.ts",
+    "../src/lib/password-policy.ts",
+    "../src/lib/encryption.ts"
+  ]
+}

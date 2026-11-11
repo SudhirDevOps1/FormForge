@@ -60,7 +60,7 @@ export function Hero() {
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
               A privacy-first, self-hostable form backend with real product depth —
               conditional logic, drop-off analytics, signed webhooks with automatic
-              retries, native Slack&nbsp;&amp;&nbsp;Discord, encrypted storage and
+              retries, native Slack&nbsp;&amp;&nbsp;Discord, encryption at rest and
               zero third-party trackers. Deploys to your Cloudflare account in one click.
             </p>
           </Reveal>

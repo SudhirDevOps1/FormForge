@@ -46,16 +46,6 @@ export async function GET(request: Request, context: RouteContext) {
       conditions.push(eq(submissions.status, statusFilter));
     }
 
-    if (searchFilter) {
-      const searchPattern = `%${searchFilter}%`;
-      conditions.push(
-        or(
-          like(submissions.email, searchPattern),
-          like(submissions.payload, searchPattern)
-        )!
-      );
-    }
-
     const whereClause = and(...conditions);
 
     // Query total count for pagination with active filters
@@ -64,9 +54,7 @@ export async function GET(request: Request, context: RouteContext) {
       .from(submissions)
       .where(whereClause);
 
-    const total = Number(countResult[0]?.count ?? 0);
-
-    const rows = await db
+    let rows = await db
       .select()
       .from(submissions)
       .where(whereClause)
@@ -74,38 +62,76 @@ export async function GET(request: Request, context: RouteContext) {
       .limit(limit)
       .offset(offset);
 
-    // Also get status count breakdown for dashboard tabs
-    const statusCountsResult = await db
-      .select({
-        status: submissions.status,
-        count: sql<number>`count(*)`,
-      })
-      .from(submissions)
-      .where(eq(submissions.formId, formId))
-      .groupBy(submissions.status);
+    // Decrypt payloads for the response. `decryptPayload` returns plaintext
+    // rows unchanged, so this is safe for databases that were created before
+    // encryption was enabled.
+    const { decryptPayload } = await import("@/lib/encryption");
+    const decryptedRows = await Promise.all(
+      rows.map(async (row) => ({ ...row, payload: await decryptPayload(row.payload) })),
+    );
 
-    const counts = {
-      all: 0,
-      accepted: 0,
-      spam: 0,
-      pending: 0,
-    };
-    for (const row of statusCountsResult) {
-      const cnt = Number(row.count ?? 0);
-      counts.all += cnt;
-      if (row.status === "accepted") counts.accepted = cnt;
-      else if (row.status === "spam") counts.spam = cnt;
-      else if (row.status === "pending") counts.pending = cnt;
+    if (searchFilter) {
+      // Searching always runs in memory after decryption, because an
+      // encrypted payload column holds ciphertext that SQL LIKE cannot match.
+      // A wider window is fetched so the filter has material to work with.
+      const searchRows = await db
+        .select()
+        .from(submissions)
+        .where(whereClause)
+        .orderBy(desc(submissions.createdAt))
+        .limit(500);
+
+      const decryptedSearch = await Promise.all(
+        searchRows.map(async (row) => ({ ...row, payload: await decryptPayload(row.payload) })),
+      );
+
+      const needle = searchFilter.toLowerCase();
+      const matched = decryptedSearch.filter((row) => {
+        const email = (row.email ?? "").toLowerCase();
+        const payload = (row.payload ?? "").toLowerCase();
+        return email.includes(needle) || payload.includes(needle);
+      });
+
+      return jsonOk({
+        submissions: matched.slice(offset, offset + limit),
+        pagination: { limit, offset, total: matched.length },
+        counts: await getStatusCounts(db, formId),
+        searched: true,
+      });
     }
+
+    rows = decryptedRows as typeof rows;
 
     return jsonOk({
       submissions: rows,
-      pagination: { limit, offset, total },
-      counts,
+      pagination: { limit, offset, total: Number(countResult[0]?.count ?? 0) },
+      counts: await getStatusCounts(db, formId),
     });
   } catch (error) {
     return jsonError("DB_ERROR", "Failed to retrieve submissions.", 500);
   }
+}
+
+/** Status counts for the dashboard tabs. */
+async function getStatusCounts(db: any, formId: string) {
+  const statusCountsResult = await db
+    .select({
+      status: submissions.status,
+      count: sql<number>`count(*)`,
+    })
+    .from(submissions)
+    .where(eq(submissions.formId, formId))
+    .groupBy(submissions.status);
+
+  const counts = { all: 0, accepted: 0, spam: 0, pending: 0 };
+  for (const row of statusCountsResult) {
+    const cnt = Number(row.count ?? 0);
+    counts.all += cnt;
+    if (row.status === "accepted") counts.accepted = cnt;
+    else if (row.status === "spam") counts.spam = cnt;
+    else if (row.status === "pending") counts.pending = cnt;
+  }
+  return counts;
 }
 
 export async function DELETE(request: Request, context: RouteContext) {

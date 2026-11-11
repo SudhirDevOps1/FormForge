@@ -87,7 +87,64 @@ jobs:
           echo "## 🧪 Security Test Suite" >> "$GITHUB_STEP_SUMMARY"
           echo "Covers: Cryptographic invariants (P1), Injection & XSS (P2), SSRF (P3), Auth & abuse (P4), PII & encryption (P5), Repo hygiene (P6), v1.1 new-feature security (P7)" >> "$GITHUB_STEP_SUMMARY"
           echo "## 🧩 Feature Test Suite" >> "$GITHUB_STEP_SUMMARY"
-          echo "Covers: Conditional logic (F1), Prefill & hidden fields (F2), Webhook retry policy (F3), Duplicate detection (F4), Form password gate (F5), Password strength policy (F6)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Covers: Conditional logic (F1), Prefill & hidden fields (F2), Webhook retry policy (F3), Duplicate detection (F4), Form password gate (F5), Password strength policy (F6), Payload encryption (F7)" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── 2b. End-to-end integration tests ────────────────────────────────
+  e2e:
+    name: End-to-end integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js 22 with npm cache
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (ci)
+        run: npm ci --no-audit --no-fund
+
+      - name: Start the server
+        env:
+          AUTH_SECRET: ci-e2e-placeholder-secret-value-000000000000
+          ALLOW_REGISTRATION: "true"
+          DATABASE_URL: "file:./.tmp-e2e/formforge.db"
+        run: |
+          mkdir -p .tmp-e2e
+          npm run dev -- --port 3100 > .tmp-e2e/server.log 2>&1 &
+          echo "FF_SERVER_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for the server to accept requests
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:3100/api/health" > /dev/null; then
+              echo "Server is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "The server did not start in time:"
+          cat .tmp-e2e/server.log
+          exit 1
+
+      - name: Run the end-to-end suite
+        run: node tests/run-e2e-tests.mjs http://127.0.0.1:3100
+
+      - name: Stop the server
+        if: always()
+        run: kill "$FF_SERVER_PID" || true
+
+      - name: Write E2E summary
+        if: always()
+        run: |
+          echo "## 🧪 End-to-end integration tests" >> "$GITHUB_STEP_SUMMARY"
+          echo "Exercises the real HTTP surface: registration, conditional logic, prefill, partial submissions, workflow, encryption at rest, export, the password gate, duplicate detection, sessions and the audit trail." >> "$GITHUB_STEP_SUMMARY"
 
   # ── 3. Build (Cloudflare/OpenNext) ────────────────────────────────────────
   build:

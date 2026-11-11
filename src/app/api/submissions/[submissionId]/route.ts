@@ -46,7 +46,12 @@ export async function GET(request: Request, context: RouteContext) {
     return jsonError("NOT_FOUND", "Submission not found or unauthorized.", 404);
   }
 
-  return jsonOk({ submission: match.submission });
+  // Payloads may be sealed with AES-256-GCM; the dashboard always receives
+  // the readable body, never the ciphertext.
+  const { decryptPayload } = await import("@/lib/encryption");
+  const payload = await decryptPayload(match.submission.payload);
+
+  return jsonOk({ submission: { ...match.submission, payload } });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {

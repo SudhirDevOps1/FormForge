@@ -3,6 +3,7 @@ import { databaseUnavailableResponse, getDb, isDbReady } from "@/db";
 import { ensureSchema } from "@/db/ensure";
 import { forms, submissions, type Form, type NewSubmission } from "@/db/schema";
 import { randomId, safeStringify, sha256 } from "@/lib/crypto";
+import { encryptPayload } from "@/lib/encryption";
 import { corsHeaders, jsonError, resolveAllowedOrigin } from "@/lib/http";
 import { deliverNotifications } from "@/lib/notifications";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
@@ -738,6 +739,14 @@ export async function POST(request: Request, context: RouteContext) {
 
   const minifiedPayload = safeStringify(storagePayload);
 
+  // ── Optional encryption at rest ───────────────────────────────────
+  // When the owner enables payload encryption, the stored body is sealed
+  // with AES-256-GCM so a database dump never contains the answers. The
+  // envelope is self-describing, so existing plaintext rows keep working.
+  const storedPayload = form.encryptPayloads
+    ? await encryptPayload(minifiedPayload)
+    : minifiedPayload;
+
   // ── Duplicate detection ─────────────────────────────────────────────
   // The fingerprint is a salted hash of the canonical payload, so the
   // database never stores a reversible duplicate key. A repeat is linked to
@@ -781,7 +790,7 @@ export async function POST(request: Request, context: RouteContext) {
   const submission: NewSubmission = {
     id: submissionId,
     formId: form.id,
-    payload: minifiedPayload,
+    payload: storedPayload,
     email: email || undefined,
     ipHash: ipHash ?? undefined,
     userAgent: request.headers.get("user-agent") ?? undefined,
@@ -911,6 +920,9 @@ export async function POST(request: Request, context: RouteContext) {
       { status: 202, headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (error) {
+    // Log the cause server-side. The client only ever sees the generic
+    // message, but a silent failure here is impossible to debug.
+    console.error("Submission failed:", error);
     return new Response(JSON.stringify({ ok: false, code: "INTERNAL_ERROR", message: "An error occurred while saving the submission." }), {
       status: 500,
       headers: { ...cors, "Content-Type": "application/json" },

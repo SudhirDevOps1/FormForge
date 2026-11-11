@@ -53,4 +53,5 @@ Thumbs.db
 
 # feature-test compilation scratch directory
 /.tmp-feature-tests/
+/.tmp-e2e.log
 /.tmp-featurestest/

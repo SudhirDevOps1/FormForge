@@ -440,6 +440,7 @@ export async function autoMigrate(db: any): Promise<void> {
       "ALTER TABLE forms ADD COLUMN slack_webhook_url TEXT;",
       "ALTER TABLE forms ADD COLUMN discord_webhook_url TEXT;",
       "ALTER TABLE forms ADD COLUMN capture_utm INTEGER DEFAULT 0 NOT NULL;",
+      "ALTER TABLE forms ADD COLUMN encrypt_payloads INTEGER DEFAULT 0 NOT NULL;",
       "ALTER TABLE forms ADD COLUMN partial_submissions_enabled INTEGER DEFAULT 0 NOT NULL;",
       "ALTER TABLE forms ADD COLUMN close_at TEXT;",
       "ALTER TABLE submissions ADD COLUMN workflow_status TEXT DEFAULT 'new' NOT NULL;",

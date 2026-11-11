@@ -609,6 +609,15 @@ p {
   transition: none;
 }
 
+/* Failsafe: the head script removes `.ff-js` when the React runtime never
+   boots. This class records that, so the reveal state can be reset cleanly
+   if the runtime wakes up later (e.g. the bundle finishes loading after a
+   slow network round-trip). */
+.ff-fallback [data-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 /* --- Marquee ------------------------------------------------------ */
 
 .marquee {

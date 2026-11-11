@@ -237,8 +237,9 @@ on rule/prefill keys, and the raw-IP regression test for §5.1.
 | --- | --- | --- |
 | Types | `npm run typecheck` | ✅ 0 errors |
 | Lint | `npm run lint` | ✅ 0 errors, 0 warnings (`--max-warnings=0`) |
-| Security | `npm run test:security` | ✅ **64 / 64** (was 49 / 53 before the CI workflows were restored) |
-| Behaviour | `npm run test:features` | ✅ **35 / 35** — the new engines exercised for real |
+| Security | `npm run test:security` | ✅ **65 / 65** |
+| Behaviour | `npm run test:features` | ✅ **40 / 40** — the new engines exercised for real |
+| Integration | `npm run test:e2e` | ✅ **24 / 24** — the real HTTP surface, end to end |
 | Build | `npm run build` | ✅ OpenNext → Cloudflare Workers bundle produced (`worker.js`) |
 
 ### Incidental fixes surfaced by the verification gate
@@ -248,7 +249,10 @@ on rule/prefill keys, and the raw-IP regression test for §5.1.
 | `npm install` failed with `ERESOLVE` | `@opennextjs/cloudflare@1.20.6` requires `next >= 15.5.24` and `wrangler ^4.125.0`; the repo pinned `next@15.5.18` / `wrangler@^4.108.0`. Bumped to `next@16.4.6`, `eslint-config-next@16.4.6`, `react@19.3.1`, `wrangler@^4.125.0`. |
 | The Cloudflare build failed: *"Next.js version 15.5.29 is not supported by the Next.js team"* | Next.js **15** was released 2024-10-21, so it left the 2-year support window on 2026-10-21. Upgrading to the supported **16.x** line was the only correct fix — the alternative (`--dangerouslyUseUnsupportedNextVersion`) would ship an unpatched major, which is unacceptable for a security-first project. |
 | `eslint.config.mjs` crashed: *"Converting circular structure to JSON"* | `eslint-config-next@16` ships native flat config; the `FlatCompat` shim used for the legacy eslintrc-style config breaks on the v16 plugin graph. The config now consumes the flat export directly. |
-| The security suite failed 4 assertions | `.github/workflows/{ci,security-scan,release}.yml` had been untracked in commit `15ade9c`. Restored from history and SHA-pinned the remaining floating action tags. |
+| The security suite failed 4 assertions | `.github/workflows/{ci,security-scan,release}.yml` had been untracked in commit `15ade9c` **and** listed in `.gitignore`, which silently disabled CI. Restored from history, SHA-pinned, and the ignore rule was removed. |
+| `npm run dev` always answered `503 DATABASE_NOT_CONFIGURED` | The database layer imported `createClient` from `@libsql/client/web`, which cannot open `file:` URLs. The Node build is now resolved lazily through `process.getBuiltinModule()`, which does not exist in a Worker — the production bundle is unaffected. |
+| The page could render blank | The scroll-reveal system hid every section behind a class added before first paint; a client-side failure meant nothing ever revealed it. A hydration failsafe now removes the class again when the runtime never reports in. |
+| Encrypted forms answered every submission with a 500 | `deliverNotifications` and the verification route parsed the stored payload as JSON. Both now read the decrypted body, and the submit route logs the cause instead of swallowing it. |
 
 ---
 

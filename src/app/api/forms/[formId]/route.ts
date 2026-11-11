@@ -194,6 +194,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     discordWebhookUrl: discordWebhookUrlVal,
     captureUtm:
       typeof body.captureUtm === "boolean" ? body.captureUtm : result.form.captureUtm,
+    encryptPayloads:
+      typeof body.encryptPayloads === "boolean"
+        ? body.encryptPayloads
+        : result.form.encryptPayloads,
     partialSubmissionsEnabled:
       typeof body.partialSubmissionsEnabled === "boolean"
         ? body.partialSubmissionsEnabled

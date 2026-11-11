@@ -508,6 +508,67 @@ export async function GET(request: Request) {
           },
         },
       },
+      "/api/forms/{formId}": {
+        get: {
+          summary: "Read a single form",
+          tags: ["Forms"],
+          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+          parameters: [{ name: "formId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "The form object" },
+            "404": { description: "Form not found" },
+          },
+        },
+        patch: {
+          summary: "Update form settings",
+          description:
+            "Every field is optional. Secrets are encrypted server-side and never returned in plaintext.",
+          tags: ["Forms"],
+          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+          parameters: [{ name: "formId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    slug: { type: "string" },
+                    successMessage: { type: "string" },
+                    allowedOrigins: { type: "string" },
+                    webhookUrl: { type: "string", nullable: true },
+                    slackWebhookUrl: { type: "string", nullable: true },
+                    discordWebhookUrl: { type: "string", nullable: true },
+                    rateLimitPerMinute: { type: "number", minimum: 1, maximum: 600 },
+                    submissionLimit: { type: "number" },
+                    tags: { type: "string" },
+                    closeAt: { type: "string", nullable: true },
+                    captureUtm: { type: "boolean" },
+                    partialSubmissionsEnabled: { type: "boolean" },
+                    passwordEnabled: { type: "boolean" },
+                    password: {
+                      type: "string",
+                      description:
+                        "Sets the access password. Stored as a PBKDF2-SHA256 hash; the plaintext is never persisted.",
+                    },
+                    encryptPayloads: {
+                      type: "boolean",
+                      description:
+                        "Seals new submission payloads with AES-256-GCM before storage. Existing plaintext rows keep working because the envelope is self-describing.",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "The updated form" },
+            "400": { description: "Invalid value (weak password, SSRF-blocked URL)" },
+            "404": { description: "Form not found" },
+          },
+        },
+      },
       "/api/public-stats": {
         get: {
           summary: "Public statistics",

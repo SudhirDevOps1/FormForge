@@ -57,6 +57,7 @@ type Form = {
   slackWebhookUrl?: string | null;
   discordWebhookUrl?: string | null;
   captureUtm?: boolean;
+  encryptPayloads?: boolean;
   partialSubmissionsEnabled?: boolean;
   closeAt?: string | null;
   createdAt: string;
@@ -3834,6 +3835,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [slackWebhookUrl, setSlackWebhookUrl] = useState(form.slackWebhookUrl ?? "");
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState(form.discordWebhookUrl ?? "");
   const [captureUtm, setCaptureUtm] = useState(form.captureUtm ?? false);
+  const [encryptPayloads, setEncryptPayloads] = useState(form.encryptPayloads ?? false);
   const [partialSubmissionsEnabled, setPartialSubmissionsEnabled] = useState(
     form.partialSubmissionsEnabled ?? false,
   );
@@ -4004,6 +4006,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           slackWebhookUrl: slackWebhookUrl.trim() || null,
           discordWebhookUrl: discordWebhookUrl.trim() || null,
           captureUtm,
+          encryptPayloads,
           partialSubmissionsEnabled,
           closeAt: closeAt || null,
         }),
@@ -4430,7 +4433,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3">
             <input
               type="checkbox"
@@ -4442,6 +4445,25 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
               <span className="block text-xs font-bold text-white">Capture UTM parameters</span>
               <span className="mt-0.5 block text-[11px] text-slate-400">
                 Store campaign data as hidden fields on every submission.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3">
+            <input
+              type="checkbox"
+              checked={encryptPayloads}
+              onChange={(e) => setEncryptPayloads(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-emerald-400"
+            />
+            <span>
+              <span className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-white">
+                Encrypt at rest
+                <span className="badge badge-success !text-[9px]">AES-256-GCM</span>
+              </span>
+              <span className="mt-0.5 block text-[11px] text-slate-400">
+                Seals every payload, so a database dump never contains the
+                answers. New submissions only.
               </span>
             </span>
           </label>

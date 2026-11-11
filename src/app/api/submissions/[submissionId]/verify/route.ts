@@ -91,7 +91,9 @@ export async function GET(request: Request, context: RouteContext) {
 
     // Redirect if redirect URL is set, or show success page
     if (form.redirectUrl) {
-      const payload = JSON.parse(sub.payload) as Record<string, unknown>;
+      // The payload may be sealed with AES-256-GCM at rest.
+      const { decryptPayloadJson } = await import("@/lib/encryption");
+      const payload = await decryptPayloadJson(sub.payload);
       const { isSafeRedirectUrl } = await import("@/lib/url-validation");
       if (isSafeRedirectUrl(form.redirectUrl)) {
         let finalRedirectUrl = form.redirectUrl;

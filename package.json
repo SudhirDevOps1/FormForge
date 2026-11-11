@@ -11,6 +11,7 @@
     "test": "node tests/run-all-security-tests.mjs && node tests/run-feature-tests.mjs",
     "test:security": "node tests/run-all-security-tests.mjs",
     "test:features": "node tests/run-feature-tests.mjs",
+    "test:e2e": "node tests/run-e2e-tests.mjs",
     "prepare": "husky",
     "deploy": "wrangler deploy",
     "deploy:cf": "wrangler deploy",

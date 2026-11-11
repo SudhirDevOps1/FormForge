@@ -105,7 +105,7 @@ const CARDS: BentoCard[] = [
   },
   {
     title: "Encrypted at rest",
-    body: "Submission payloads and integration secrets are sealed with AES-256-GCM. IP addresses are hashed with a per-day rotating salt — or not stored at all.",
+    body: "Turn on per-form encryption and every payload is sealed with AES-256-GCM, so a database dump never contains the answers. Integration secrets are always encrypted.",
     span: "lg:col-span-2",
     accent: "from-aurora-500/25",
     icon: icon(

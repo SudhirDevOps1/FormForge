@@ -42,11 +42,19 @@ export async function GET(request: Request, context: RouteContext) {
       .orderBy(desc(submissions.createdAt))
       .limit(5000); // Guard memory limit — prevents worker crashes on large databases
 
+    // Payloads may be sealed with AES-256-GCM. Exports always contain the
+    // readable body — the export is an explicit owner-initiated download.
+    const { decryptPayload } = await import("@/lib/encryption");
+    const decryptedRows = await Promise.all(
+      rows.map(async (row) => ({ ...row, payload: await decryptPayload(row.payload) })),
+    );
+    const exportRows = decryptedRows;
+
     const url = new URL(request.url);
     const format = url.searchParams.get("format")?.toLowerCase() || "csv";
 
     if (format === "json") {
-      const submissionsJson = rows.map((row) => {
+      const submissionsJson = exportRows.map((row) => {
         let parsedPayload = {};
         try {
           parsedPayload = JSON.parse(row.payload);
@@ -76,10 +84,10 @@ export async function GET(request: Request, context: RouteContext) {
       let txt = `=========================================\n`;
       txt += `SUBMISSIONS REPORT FOR: ${form.name} (${form.slug})\n`;
       txt += `Generated: ${new Date().toISOString()}\n`;
-      txt += `Total Submissions Exported: ${rows.length}\n`;
+      txt += `Total Submissions Exported: ${exportRows.length}\n`;
       txt += `=========================================\n\n`;
 
-      rows.forEach((row) => {
+      exportRows.forEach((row) => {
         let parsedPayload = {};
         try {
           parsedPayload = JSON.parse(row.payload);
@@ -217,7 +225,7 @@ export async function GET(request: Request, context: RouteContext) {
         <td class="header-meta">
           <div><strong>Submissions Export Report</strong></div>
           <div style="margin-top: 5px;">Generated: ${new Date().toLocaleString()}</div>
-          <div>Total Exchanged: ${rows.length} entries</div>
+          <div>Total Exchanged: ${exportRows.length} entries</div>
         </td>
       </tr>
     </table>
@@ -233,7 +241,7 @@ export async function GET(request: Request, context: RouteContext) {
       </thead>
       <tbody>`;
 
-      rows.forEach((row) => {
+      exportRows.forEach((row) => {
         let parsedPayload: Record<string, any> = {};
         try {
           parsedPayload = JSON.parse(row.payload);
@@ -290,7 +298,7 @@ export async function GET(request: Request, context: RouteContext) {
       // opens directly in a spreadsheet — no JSON parsing required. Fixed
       // metadata columns always come first, then the discovered field keys
       // in a stable order.
-      const payloadRows = rows.map((row) => {
+      const payloadRows = exportRows.map((row) => {
         try {
           const parsed = JSON.parse(row.payload);
           return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
@@ -324,7 +332,7 @@ export async function GET(request: Request, context: RouteContext) {
 
       const csv = [
         header.map(csvEscape).join(","),
-        ...rows.map((row, index) => {
+        ...exportRows.map((row, index) => {
           const payload = payloadRows[index] ?? {};
           return [
             row.id,

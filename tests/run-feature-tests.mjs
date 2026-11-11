@@ -83,35 +83,19 @@ execFileSync(
   process.execPath,
   [
     join(REPO_ROOT, "node_modules", "typescript", "bin", "tsc"),
-    "src/lib/rules.ts",
-    "src/lib/prefill.ts",
-    "src/lib/webhook-retry.ts",
-    "src/lib/duplicates.ts",
-    "src/lib/form-password.ts",
-    "src/lib/password-policy.ts",
-    "--outDir",
-    OUT_DIR,
-    "--module",
-    "commonjs",
-    "--target",
-    "es2022",
-    "--moduleResolution",
-    "node",
-    "--skipLibCheck",
-    "--esModuleInterop",
-    "--rootDir",
-    join(REPO_ROOT, "src", "lib"),
+    "-p",
+    join(TESTS_DIR, "tsconfig.feature-tests.json"),
   ],
   { cwd: REPO_ROOT, stdio: "pipe" },
 );
 
 const requireCompiled = createRequire(join(OUT_DIR, "index.js"));
-const rules = requireCompiled("./rules.js");
-const prefill = requireCompiled("./prefill.js");
-const retry = requireCompiled("./webhook-retry.js");
-const duplicates = requireCompiled("./duplicates.js");
-const formPassword = requireCompiled("./form-password.js");
-const passwordPolicy = requireCompiled("./password-policy.js");
+const rules = requireCompiled("./lib/rules.js");
+const prefill = requireCompiled("./lib/prefill.js");
+const retry = requireCompiled("./lib/webhook-retry.js");
+const duplicates = requireCompiled("./lib/duplicates.js");
+const formPassword = requireCompiled("./lib/form-password.js");
+const passwordPolicy = requireCompiled("./lib/password-policy.js");
 
 /* ================================================================== */
 /* F1 — Conditional logic engine                                      */
@@ -496,6 +480,56 @@ await test("F6", "a repeated-character password scores zero", async () => {
   const assessment = passwordPolicy.assessPasswordStrength("aaaaaaaaaaaa");
   assertEqual(assessment.score, 0);
   assertEqual(assessment.acceptable, false);
+});
+
+/* ================================================================== */
+/* F7 — Payload encryption at rest                                      */
+/* ================================================================== */
+
+pillar("F7 — Payload encryption at rest");
+
+await test("F7", "a payload round-trips through the encrypted envelope", async () => {
+  const { encryptPayload, decryptPayload, isEncryptedPayload } = requireCompiled(
+    "./lib/encryption.js",
+  );
+
+  const plain = JSON.stringify({ email: "ada@example.com", message: "hello" });
+  const sealed = await encryptPayload(plain);
+
+  assert(isEncryptedPayload(sealed), "the sealed payload must carry the envelope prefix");
+  assert(!sealed.includes("ada@example.com"), "the plaintext must not be readable in the ciphertext");
+  assertEqual(await decryptPayload(sealed), plain, "the payload must round-trip exactly");
+});
+
+await test("F7", "a plaintext payload is returned unchanged", async () => {
+  const { decryptPayload, isEncryptedPayload } = requireCompiled("./lib/encryption.js");
+  const plain = JSON.stringify({ a: 1 });
+  assertEqual(isEncryptedPayload(plain), false, "plaintext is not an encrypted payload");
+  assertEqual(await decryptPayload(plain), plain, "plaintext must pass through untouched");
+});
+
+await test("F7", "two encryptions of the same payload differ", async () => {
+  const { encryptPayload } = requireCompiled("./lib/encryption.js");
+  const plain = JSON.stringify({ a: 1 });
+  const first = await encryptPayload(plain);
+  const second = await encryptPayload(plain);
+  assert(first !== second, "a fresh IV must be used for every encryption");
+});
+
+await test("F7", "a tampered ciphertext does not decrypt to the plaintext", async () => {
+  const { encryptPayload, decryptPayload } = requireCompiled("./lib/encryption.js");
+  const plain = JSON.stringify({ secret: "value" });
+  const sealed = await encryptPayload(plain);
+  const tampered = sealed.slice(0, -4) + "AAAA";
+  const result = await decryptPayload(tampered);
+  assert(result !== plain, "a tampered payload must not decrypt to the original");
+});
+
+await test("F7", "an unreadable payload yields a safe placeholder", async () => {
+  const { decryptPayload } = requireCompiled("./lib/encryption.js");
+  const result = await decryptPayload("ffenc:v1:bm90LWEtdmFsaWQtaGVyZQ==");
+  assert(result.length > 0, "a placeholder must be returned instead of throwing");
+  assert(result.includes("_error"), "the placeholder must flag the read failure");
 });
 
 /* ------------------------------ summary ---------------------------- */

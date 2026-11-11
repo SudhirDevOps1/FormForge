@@ -104,6 +104,7 @@ export const forms = sqliteTable(
     slackWebhookUrl: text("slack_webhook_url"),
     discordWebhookUrl: text("discord_webhook_url"),
     captureUtm: integer("capture_utm", { mode: "boolean" }).notNull().default(false),
+    encryptPayloads: integer("encrypt_payloads", { mode: "boolean" }).notNull().default(false),
     partialSubmissionsEnabled: integer("partial_submissions_enabled", { mode: "boolean" }).notNull().default(false),
     closeAt: text("close_at"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { HydrationGuard } from "@/components/HydrationGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -68,10 +69,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           reveal system can hide elements before they animate in — without
           ever flashing hidden content for no-JS visitors, and without
           leaving content invisible if the client bundle fails to load.
+
+          The second half of this script is a failsafe: if the React runtime
+          never boots (blocked script, CSP violation, network failure), the
+          `ff-js` class is removed again after a grace period and every
+          element becomes visible. A slow or broken client must never be able
+          to leave a visitor staring at an empty page.
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `document.documentElement.classList.add("ff-js");`,
+            __html: `(function(){var d=document.documentElement;d.classList.add("ff-js");window.__ffHydrated=false;window.__ffHydrateTimer=window.setTimeout(function(){if(!window.__ffHydrated){d.classList.remove("ff-js");d.classList.add("ff-fallback");}},5000);})();`,
           }}
         />
         <script
@@ -79,7 +86,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">{children}</body>
+      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+        <HydrationGuard />
+        {children}
+      </body>
     </html>
   );
 }

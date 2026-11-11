@@ -112,7 +112,10 @@ async function recordNotification(db: AppDb, formId: string, submissionId: strin
 export async function deliverNotifications(db: AppDb, form: Form, submission: Submission, appUrl?: string): Promise<DeliveryResult[]> {
   const results: DeliveryResult[] = [];
   const env = getRuntimeEnv();
-  const payload = JSON.parse(submission.payload) as Record<string, unknown>;
+  // The payload may be sealed with AES-256-GCM at rest — notifications always
+  // work with the readable body.
+  const { decryptPayloadJson } = await import("./encryption");
+  const payload = await decryptPayloadJson(submission.payload);
   const dashboardUrl = appUrl ? `${appUrl}/dashboard` : (env.APP_URL ? `${env.APP_URL}/dashboard` : "/dashboard");
 
   let ownerUser: typeof users.$inferSelect | undefined;
@@ -1248,6 +1251,9 @@ export async function dispatchWebhook(
 
   try {
     const { isPrivateUrl, normalizeWebhookUrl } = await import("./url-validation");
+    // Payloads may be sealed with AES-256-GCM at rest — the receiver always
+    // gets the readable body.
+    const { decryptPayloadJson } = await import("./encryption");
     const normalizedUrl = normalizeWebhookUrl(targetUrl);
     if (isPrivateUrl(normalizedUrl)) {
       const err = "SSRF prevention: Webhook URL resolves to a private or internal IP address.";
@@ -1275,8 +1281,8 @@ export async function dispatchWebhook(
       return { success: false, statusCode: 400, latencyMs: 0, error: err };
     }
 
-    const payload = JSON.parse(submission.payload) as Record<string, unknown>;
-    let bodyPayload = JSON.stringify({ form: { id: form.id, name: form.name }, submission });
+    const payload = await decryptPayloadJson(submission.payload);
+    let bodyPayload = JSON.stringify({ form: { id: form.id, name: form.name }, submission: { ...submission, payload } });
     const lowercaseUrl = normalizedUrl.toLowerCase();
 
     if (lowercaseUrl.includes("discord.com/api/webhooks") || lowercaseUrl.includes("discordapp.com/api/webhooks")) {
