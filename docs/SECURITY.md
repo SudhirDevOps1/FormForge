@@ -75,9 +75,18 @@ The server refuses to create sessions when it is missing or shorter than
   all**.
 - Public API errors are generic (`An error occurred …`, CWE-209); SMTP
   diagnostics return detail only to the authenticated form owner.
-- Automated evidence: `npm run test:security` (64 assertions across the
-  crypto / XSS / SSRF / auth-abuse / PII / repo-hygiene / new-feature pillars), CodeQL SAST, `npm audit`
-  at `--audit-level=high`, and Gitleaks secret scanning in CI.
+- Supply chain: `npm audit --audit-level=high --omit=dev` gates production
+  dependencies (dev-only advisories are reviewed separately), every GitHub
+  Action is pinned to a full commit SHA, and
+  `npm run test:licenses` refuses GPL/AGPL/LGPL in the production tree
+  (`scripts/check-licenses.mjs` reads `package-lock.json`, so its verdict
+  cannot drift from `npm ci`; the optional prebuilt `sharp`/libvips binaries
+  are the only reviewed exceptions, and they are never bundled into the
+  Worker).
+- Automated evidence: `npm run test:security` (68 assertions across the
+  crypto / XSS / SSRF / auth-abuse / PII / repo-hygiene / new-feature pillars),
+  CodeQL SAST, `npm audit` at `--audit-level=high`, and Gitleaks secret
+  scanning in CI.
 
 ## Reporting email
 

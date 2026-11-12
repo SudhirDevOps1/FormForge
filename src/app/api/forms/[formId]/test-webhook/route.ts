@@ -3,8 +3,8 @@ import { databaseUnavailableResponse, getDb, isDbReady } from "@/db";
 import { ensureSchema } from "@/db/ensure";
 import { forms, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
-import { jsonError, jsonOk, readJson, readString } from "@/lib/http";
-import { isPrivateUrl } from "@/lib/url-validation";
+import { isHtmlDocumentBody, jsonError, jsonOk, readJson, readString } from "@/lib/http";
+import { isPrivateUrl, urlHostMatches } from "@/lib/url-validation";
 import { hmacSha256 } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
@@ -89,7 +89,7 @@ export async function POST(request: Request, context: RouteContext) {
       const lowercaseUrl = targetUrl.toLowerCase();
       let bodyText = "";
 
-      if (lowercaseUrl.includes("discord.com/api/webhooks") || lowercaseUrl.includes("discordapp.com/api/webhooks")) {
+      if (urlHostMatches(lowercaseUrl, ["discord.com", "discordapp.com"])) {
         bodyText = JSON.stringify({
           username: "FormForge",
           embeds: [
@@ -107,15 +107,15 @@ export async function POST(request: Request, context: RouteContext) {
             },
           ],
         });
-      } else if (lowercaseUrl.includes("hooks.slack.com")) {
+      } else if (urlHostMatches(lowercaseUrl, ["hooks.slack.com", "slack.com"])) {
         bodyText = JSON.stringify({
           text: `⚡ *FormForge Live Test: ${form.name}*\nConnected Successfully ✅ Real-time notifications are active and verified!`,
         });
-      } else if (lowercaseUrl.includes("stoat.chat") || lowercaseUrl.includes("revolt.chat")) {
+      } else if (urlHostMatches(lowercaseUrl, ["stoat.chat", "revolt.chat"])) {
         bodyText = JSON.stringify({
           content: `⚡ **FormForge Live Test: ${form.name}**\n\nConnected Successfully ✅ Real-time notifications are active and verified!\n• **Sender**: ${user.name || user.email}\n• **Engine**: Zero-Card Free Tier Active\n• **Timestamp**: ${new Date().toISOString()}`,
         });
-      } else if (lowercaseUrl.includes("office.com") || lowercaseUrl.includes("webhook.office") || lowercaseUrl.includes("msteams")) {
+      } else if (urlHostMatches(lowercaseUrl, ["office.com", "office365.com", "msteams.com"])) {
         bodyText = JSON.stringify({
           "@type": "MessageCard",
           "@context": "http://schema.org/extensions",
@@ -124,7 +124,7 @@ export async function POST(request: Request, context: RouteContext) {
           title: `⚡ FormForge Test: ${form.name}`,
           text: "Connected Successfully ✅ Real-time notifications are active and verified!",
         });
-      } else if (lowercaseUrl.includes("mattermost")) {
+      } else if (/^\/hooks\//.test(parsed.pathname)) {
         bodyText = JSON.stringify({
           text: `### ⚡ FormForge Test: ${form.name}\nConnected Successfully ✅ Real-time notifications are active and verified!`,
         });
@@ -183,7 +183,7 @@ export async function POST(request: Request, context: RouteContext) {
         return jsonError("INVALID_URL", "Invalid GAS Web App URL.", 400);
       }
 
-      if (!targetUrl.includes("script.google.com")) {
+      if (!urlHostMatches(targetUrl, ["script.google.com"])) {
         return jsonError("INVALID_HOST", "GAS URL must be hosted on script.google.com.", 400);
       }
 
@@ -205,9 +205,6 @@ export async function POST(request: Request, context: RouteContext) {
         } catch {
           // ignore
         }
-      }
-      if (!gasSecret) {
-        gasSecret = "Blindshare_Super_Secret_Gas_Token_2026!_xyz";
       }
 
       // If secret exists, ensure it is also in query param for scripts checking e.parameter.secret
@@ -261,10 +258,10 @@ export async function POST(request: Request, context: RouteContext) {
           return jsonError("GAS_REJECTED", `Google Apps Script returned an error: "${gasData.error || gasData.message || 'Rejected'}"`, 400);
         }
       } else {
-        if (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com")) {
+        if (urlHostMatches(res.url, ["accounts.google.com"]) || isHtmlDocumentBody(rawText)) {
           return jsonError("GAS_AUTH_REQUIRED", "Google Apps Script requires Google Login! Please re-deploy your Web App with 'Who has access' set to 'Anyone'.", 400);
         }
-        if (rawText.includes("Exception:") || rawText.includes("Script function not found")) {
+        if (rawText.includes("Exception:") || rawText.includes("Script function not found") || isHtmlDocumentBody(rawText)) {
           const match = rawText.match(/Exception:[^<]+/);
           return jsonError("GAS_SCRIPT_ERROR", `Google Apps Script error: ${match ? match[0] : rawText.slice(0, 150)}`, 400);
         }

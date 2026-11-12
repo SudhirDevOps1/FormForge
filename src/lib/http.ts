@@ -101,6 +101,15 @@ export function corsHeaders(allowedOrigin: string | null): HeadersInit {
   };
 }
 
+/**
+ * The response body looks like an HTML document even though JSON was expected.
+ * Relay endpoints (Google Apps Script, SMTP bridges) answer with a sign-in page
+ * or an error page instead of JSON, and that is worth reporting distinctly.
+ */
+export function isHtmlDocumentBody(body: string): boolean {
+  return /^\s*<(?:!doctype|html)/i.test(body);
+}
+
 export function csvEscape(value: unknown): string {
   const text = typeof value === "string" ? value : JSON.stringify(value ?? "");
   return `"${text.replaceAll('"', '""')}"`;

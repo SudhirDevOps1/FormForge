@@ -102,6 +102,28 @@ export function isPrivateUrl(urlStr: string): boolean {
   }
 }
 
+/**
+ * True when the URL's **hostname** is exactly one of `hosts`, or a subdomain of
+ * one of them.
+ *
+ * Substring checks such as `url.includes("slack.com")` are not a host check:
+ * `https://evil.example/?next=slack.com` contains the string but points
+ * somewhere else entirely. Parsing the URL and comparing the hostname with an
+ * exact or dot-boundary suffix comparison cannot be fooled that way.
+ */
+export function urlHostMatches(urlStr: string, hosts: readonly string[]): boolean {
+  let host: string;
+  try {
+    host = new URL(urlStr).hostname.toLowerCase().replace(/\.$/, "");
+  } catch {
+    return false;
+  }
+  if (!host) {
+    return false;
+  }
+  return hosts.some((candidate) => host === candidate || host.endsWith(`.${candidate}`));
+}
+
 export function isSafeRedirectUrl(urlStr: string): boolean {
   try {
     const url = new URL(urlStr);
@@ -112,14 +134,15 @@ export function isSafeRedirectUrl(urlStr: string): boolean {
 }
 
 export function normalizeWebhookUrl(urlStr: string): string {
-  let trimmed = urlStr.trim();
-  // Auto-normalize Stoat webhook URLs to the official https://stoat.chat/api/webhooks/
-  if (trimmed.includes("stoat.chat")) {
-    trimmed = trimmed
+  const trimmed = urlStr.trim();
+  // Auto-normalize Stoat webhook URLs to the official https://stoat.chat/api/webhooks/.
+  // Decide by parsed hostname, not by searching the string: a URL whose *path*
+  // happens to contain "stoat.chat" is not a Stoat endpoint.
+  if (urlHostMatches(trimmed, ["stoat.chat"])) {
+    return trimmed
       .replace(/^https?:\/\/api\.stoat\.chat\/webhooks\//i, "https://stoat.chat/api/webhooks/")
       .replace(/^https?:\/\/(?:www\.)?stoat\.chat\/webhooks\//i, "https://stoat.chat/api/webhooks/");
   }
   // Auto-fix Revolt webhook URLs:
-  trimmed = trimmed.replace(/^https?:\/\/(?:www\.|app\.)?revolt\.chat\/webhooks\//i, "https://api.revolt.chat/webhooks/");
-  return trimmed;
+  return trimmed.replace(/^https?:\/\/(?:www\.|app\.)?revolt\.chat\/webhooks\//i, "https://api.revolt.chat/webhooks/");
 }

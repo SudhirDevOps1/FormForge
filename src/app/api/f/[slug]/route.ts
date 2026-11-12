@@ -14,7 +14,7 @@ type RouteContext = { params: Promise<{ slug: string }> };
  * needs to render. Secrets (SMTP credentials, the form password hash, the
  * webhook secret) are never included.
  */
-export async function GET(request: Request, context: RouteContext) {
+export async function GET(_request: Request, context: RouteContext) {
   const db = getDb();
   if (!db || !isDbReady(db)) {
     return NextResponse.json({ ok: false, message: "Database not ready" }, { status: 503 });

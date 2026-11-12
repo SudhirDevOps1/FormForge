@@ -2,9 +2,27 @@ import { eq } from "drizzle-orm";
 import { getRuntimeEnv, type AppDb } from "@/db";
 import { notifications, users, webhookLogs, type Form, type Submission } from "@/db/schema";
 import { randomId } from "./crypto";
+import { urlHostMatches } from "./url-validation";
 import nodemailer from "nodemailer";
 
-const KNOWN_TEMPLATE_GAS_SECRET = "Blindshare_Super_Secret_Gas_Token_2026!_xyz";
+/**
+ * A Google Apps Script deployment that is not published to "Anyone" redirects to
+ * the Google sign-in page, and the relay gets HTML instead of JSON. Detect that
+ * by looking at the *final response host*, not by searching the body for the
+ * hostname — a body can legitimately contain any string.
+ */
+function isGoogleSignInHost(response: Response): boolean {
+  try {
+    return urlHostMatches(response.url, ["accounts.google.com"]);
+  } catch {
+    return false;
+  }
+}
+
+/** Any HTML document where JSON was expected means the relay misbehaved. */
+function looksLikeHtmlDocument(body: string): boolean {
+  return /^\s*<(?:!doctype|html)/i.test(body);
+}
 
 function extractGasSecret(gasUrl?: string | null, envSecret?: string): string | undefined {
   if (envSecret && envSecret.trim()) return envSecret.trim();
@@ -26,7 +44,10 @@ function extractGasSecret(gasUrl?: string | null, envSecret?: string): string | 
     }
   }
 
-  return KNOWN_TEMPLATE_GAS_SECRET;
+  // No secret configured anywhere: leave it undefined. A "default" secret that
+  // is shipped in the source bundle is public knowledge, so using it would only
+  // create the illusion that the relay request is authenticated.
+  return undefined;
 }
 
 async function sendSmtpEmail(
@@ -303,7 +324,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
       try {
         const formData = new FormData();
         formData.append("from", env.MAILGUN_FROM);
-        formData.append("to", targetEmail ?? "");
+        formData.append("to", targetEmail);
         formData.append("subject", subject);
         formData.append("text", text);
         formData.append("html", html);
@@ -571,7 +592,7 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
 
       if (gasData && (gasData.ok === false || gasData.success === false)) {
         results.push({ channel: "gas", status: "failed", error: `GAS rejected: ${gasData.error || gasData.message || 'Error'}` });
-      } else if (!gasData && (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com"))) {
+      } else if (!gasData && isGoogleSignInHost(response)) {
         results.push({ channel: "gas", status: "failed", error: "GAS requires Google Login ('Anyone' access required in deployment)" });
       } else if (!gasData && rawText.includes("Exception:")) {
         const match = rawText.match(/Exception:[^<]+/);
@@ -767,7 +788,7 @@ export async function sendVerificationEmail(db: AppDb, form: Form, submission: S
         }),
       });
       const rawText = await response.text();
-      const isException = rawText.includes("Exception:") || rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com");
+      const isException = rawText.includes("Exception:") || isGoogleSignInHost(response) || looksLikeHtmlDocument(rawText);
       if (!isException && (response.ok || response.status === 302 || response.type === "opaqueredirect")) {
         return true;
       }
@@ -992,7 +1013,7 @@ export async function sendOtpEmail(form: Form, toEmail: string, code: string): P
       }
       if (gasData && (gasData.ok === false || gasData.success === false)) {
         console.warn("GAS verification code rejected:", gasData.error || gasData.message);
-      } else if (!gasData && (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com") || rawText.includes("Exception:"))) {
+      } else if (!gasData && (isGoogleSignInHost(response) || looksLikeHtmlDocument(rawText) || rawText.includes("Exception:"))) {
         console.warn("GAS verification code auth or script exception:", rawText.slice(0, 150));
       } else if (response.ok || response.status === 302 || response.type === "opaqueredirect") {
         return true;
@@ -1284,8 +1305,16 @@ export async function dispatchWebhook(
     const payload = await decryptPayloadJson(submission.payload);
     let bodyPayload = JSON.stringify({ form: { id: form.id, name: form.name }, submission: { ...submission, payload } });
     const lowercaseUrl = normalizedUrl.toLowerCase();
+    // Mattermost incoming webhooks always live under /hooks/ (or /api/v4/hooks/).
+    const mattermostPath = (() => {
+      try {
+        return /^\/(?:api\/v4\/)?hooks\//.test(new URL(lowercaseUrl).pathname);
+      } catch {
+        return false;
+      }
+    })();
 
-    if (lowercaseUrl.includes("discord.com/api/webhooks") || lowercaseUrl.includes("discordapp.com/api/webhooks")) {
+    if (urlHostMatches(lowercaseUrl, ["discord.com", "discordapp.com"])) {
       const fields = Object.entries(payload).map(([k, v]) => ({
         name: k,
         value: String(v).slice(0, 1024) || "(empty)",
@@ -1306,7 +1335,7 @@ export async function dispatchWebhook(
           },
         ],
       });
-    } else if (lowercaseUrl.includes("hooks.slack.com")) {
+    } else if (urlHostMatches(lowercaseUrl, ["hooks.slack.com", "slack.com"])) {
       const fieldsBlocks = Object.entries(payload).map(([k, v]) => ({
         type: "mrkdwn",
         text: `*${k}:*\n${String(v).slice(0, 500) || "_(empty)_"}`,
@@ -1337,12 +1366,12 @@ export async function dispatchWebhook(
           },
         ],
       });
-    } else if (lowercaseUrl.includes("stoat.chat") || lowercaseUrl.includes("revolt.chat")) {
+    } else if (urlHostMatches(lowercaseUrl, ["stoat.chat", "revolt.chat"])) {
       const lines = Object.entries(payload).map(([k, v]) => `* **${k}**: ${String(v).slice(0, 500)}`);
       bodyPayload = JSON.stringify({
         content: `📩 **New Submission for ${form.name}**\n\n${lines.join("\n")}\n\n*Submitted at: ${submission.createdAt}*`
       });
-    } else if (lowercaseUrl.includes("office.com") || lowercaseUrl.includes("webhook.office") || lowercaseUrl.includes("msteams")) {
+    } else if (urlHostMatches(lowercaseUrl, ["office.com", "office365.com", "msteams.com"])) {
       const facts = Object.entries(payload).map(([k, v]) => ({
         name: k,
         value: String(v).slice(0, 500) || "(empty)"
@@ -1361,7 +1390,7 @@ export async function dispatchWebhook(
           }
         ]
       });
-    } else if (lowercaseUrl.includes("mattermost")) {
+    } else if (mattermostPath) {
       const lines = Object.entries(payload).map(([k, v]) => `* **${k}**: ${String(v).slice(0, 500)}`);
       bodyPayload = JSON.stringify({
         text: `### 📩 New Submission: ${form.name}\n\n${lines.join("\n")}\n\n*Submitted at: ${submission.createdAt}*`
@@ -1389,7 +1418,13 @@ export async function dispatchWebhook(
     }
     if (secretToken) {
       webhookHeaders["X-FormForge-Secret"] = secretToken;
-      const isPlatformWithUrlAuth = lowercaseUrl.includes("stoat.chat") || lowercaseUrl.includes("discord") || lowercaseUrl.includes("slack");
+      const isPlatformWithUrlAuth = urlHostMatches(lowercaseUrl, [
+        "stoat.chat",
+        "revolt.chat",
+        "discord.com",
+        "discordapp.com",
+        "slack.com",
+      ]);
       if (!isPlatformWithUrlAuth) {
         webhookHeaders["Authorization"] = `Bearer ${secretToken}`;
       }
@@ -1569,7 +1604,7 @@ ${magicLink ? `Or click this 1-click Magic Link to reset your password immediate
       }
       if (gasData && (gasData.ok === false || gasData.success === false)) {
         console.warn("GAS password reset rejected:", gasData.error || gasData.message);
-      } else if (!gasData && (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com") || rawText.includes("Exception:"))) {
+      } else if (!gasData && (isGoogleSignInHost(response) || looksLikeHtmlDocument(rawText) || rawText.includes("Exception:"))) {
         console.warn("GAS password reset auth or script exception:", rawText.slice(0, 150));
       } else if (response.ok || response.status === 302 || response.type === "opaqueredirect") {
         return true;
@@ -1784,7 +1819,7 @@ export async function sendMagicLoginEmail(toEmail: string, magicLink: string): P
       }
       if (gasData && (gasData.ok === false || gasData.success === false)) {
         console.warn("GAS magic login rejected:", gasData.error || gasData.message);
-      } else if (!gasData && (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com") || rawText.includes("Exception:"))) {
+      } else if (!gasData && (isGoogleSignInHost(response) || looksLikeHtmlDocument(rawText) || rawText.includes("Exception:"))) {
         console.warn("GAS magic login auth or script exception:", rawText.slice(0, 150));
       } else if (response.ok || response.status === 302 || response.type === "opaqueredirect") {
         return true;
@@ -1992,9 +2027,9 @@ export async function sendLoginAlert(user: typeof users.$inferSelect, ip: string
         }
       }
 
-      const isStoat = targetUrl.includes("stoat.chat");
-      const isDiscord = targetUrl.includes("discord.com");
-      const isSlack = targetUrl.includes("slack.com");
+      const isStoat = urlHostMatches(targetUrl, ["stoat.chat", "revolt.chat"]);
+      const isDiscord = urlHostMatches(targetUrl, ["discord.com", "discordapp.com"]);
+      const isSlack = urlHostMatches(targetUrl, ["slack.com"]);
 
       let bodyPayload: Record<string, unknown>;
       if (isStoat) {

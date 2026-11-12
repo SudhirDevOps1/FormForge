@@ -114,14 +114,13 @@ export function sanitizeHtml(input: unknown): string {
     return "";
   }
   // Drop dangerous elements together with their inner content first.
-  let output = input.replace(DANGEROUS_ELEMENTS, "");
-  // Drop any leftover dangerous opening tags without a closer.
-  output = output.replace(
-    /<\s*(script|style|iframe|object|embed|link|meta|base|svg|math|form|input|button|textarea|select|option|img|video|audio|source|track|canvas|template|slot|frame|frameset|applet)[^>]*\/?>/gi,
-    "",
-  );
+  const output = input.replace(DANGEROUS_ELEMENTS, "");
   // Walk the remaining tags: keep allowlisted ones, escape everything else.
-  output = output.replace(
+  // This single pass is what makes the result safe — every tag that is not on
+  // the allowlist is escaped as text, so no second cleanup pass is needed (and
+  // adding one would only invite the "sanitize twice, still injectable" class
+  // of bug).
+  return output.replace(
     /<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g,
     (match: string, rawTag: string, rawAttrs: string) => {
       const tag = String(rawTag).toLowerCase();

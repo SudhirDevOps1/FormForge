@@ -188,17 +188,19 @@
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
     </svg>
-    <span>${btnText}</span>
+    <span></span>
   `;
+  // Configuration values are written as text, never spliced into markup.
+  btn.querySelector("span").textContent = btnText;
 
   var overlay = document.createElement("div");
   overlay.className = "ff-w-overlay";
   overlay.innerHTML = `
-    <div class="ff-w-modal" role="dialog" aria-modal="true" aria-label="${title}">
+    <div class="ff-w-modal" role="dialog" aria-modal="true">
       <div class="ff-w-header">
         <h3 class="ff-w-title">
           <span>💬</span>
-          <span>${title}</span>
+          <span data-ff-title></span>
         </h3>
         <button class="ff-w-close" aria-label="Close">&times;</button>
       </div>
@@ -217,6 +219,8 @@
       </div>
     </div>
   `;
+  overlay.querySelector(".ff-w-modal").setAttribute("aria-label", title);
+  overlay.querySelector("[data-ff-title]").textContent = title;
 
   root.appendChild(btn);
   root.appendChild(overlay);

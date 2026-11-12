@@ -1,4 +1,4 @@
-import { getDb, getRuntimeEnv } from "@/db";
+import { getDb } from "@/db";
 import { ensureSchema } from "@/db/ensure";
 import { sql } from "drizzle-orm";
 
@@ -6,7 +6,6 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const db = getDb();
-  const env = getRuntimeEnv();
 
   if (!db) {
     return Response.json({

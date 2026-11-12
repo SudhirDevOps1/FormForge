@@ -1,0 +1,20 @@
+# CodeQL configuration for FormForge.
+#
+# The test suites under `tests/` deliberately contain *reference*
+# implementations of the dangerous patterns the production code must avoid
+# (a sanitizer, a signature verifier, an escape helper). Analysing those
+# fixtures reports them as vulnerabilities even though nothing ships them.
+#
+# Everything that ships is analysed: `src/`, `public/`, the build scripts and
+# the static pages. Only the test harness is excluded.
+name: FormForge CodeQL
+
+paths-ignore:
+  - tests/**
+
+query-filters:
+  # Unused locals are already enforced by `tsc --noUnusedLocals` and ESLint in
+  # CI, where a failure blocks the merge. Keeping them out of CodeQL avoids
+  # duplicate alerts on the same lines.
+  - exclude:
+      id: js/unused-local-variable

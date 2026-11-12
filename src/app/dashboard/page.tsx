@@ -112,46 +112,94 @@ function getEndpointBase() {
   return "";
 }
 
-function CodeHighlight({ code, lang }: { code: string; lang: string }) {
-  let html = code;
+/**
+ * Generate a webhook/GAS secret with the platform CSPRNG. `Math.random()` is
+ * predictable enough that a token generated with it must never sign requests.
+ */
+function generateSecret(prefix: string, byteLength = 16): string {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return `${prefix}${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+const CODE_KEYWORDS: Record<string, string[]> = {
+  js: ["const", "let", "var", "function", "return", "import", "from", "export", "default", "await", "async", "new", "if", "else"],
+  python: ["import", "from", "print", "def", "return", "if", "else", "elif"],
+  curl: ["curl", "-X", "-H", "-d", "POST", "GET"],
+  sql: [
+    "select", "from", "where", "group", "by", "order", "limit", "desc", "asc",
+    "count", "avg", "sum", "round", "over", "as", "not", "null", "and", "or",
+    "read_csv_auto", "date_trunc", "regexp_extract",
+  ],
+};
+
+type CodeTone = "keyword" | "tag" | "attr" | "string" | "comment";
+type CodeToken = { text: string; tone?: CodeTone };
+
+const CODE_TONE_CLASS: Record<CodeTone, string> = {
+  keyword: "text-purple-400 font-semibold",
+  tag: "text-sky-400",
+  attr: "text-purple-300",
+  string: "text-emerald-400",
+  comment: "text-slate-500 italic",
+};
+
+/**
+ * Split a snippet into plain tokens plus presentation tones. The result is
+ * rendered as React elements — never as an HTML string — so a snippet can
+ * contain any characters at all without ever being interpreted as markup.
+ */
+function tokenizeCode(code: string, lang: string): CodeToken[] {
+  const tokens: CodeToken[] = [];
+
   if (lang === "html") {
-    html = code
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    
-    // Highlight tags and their attributes in a single pass to prevent nested replacement conflicts
-    html = html.replace(/&lt;(\/?[a-zA-Z0-9-]+)(.*?)&gt;/g, (match, tagName, attrs) => {
-      const highlightedAttrs = attrs.replace(/(\s[a-zA-Z0-9_-]+=)(["'].*?["'])/g, ' <span class="text-purple-300">$1</span><span class="text-emerald-400">$2</span>');
-      return `&lt;<span class="text-sky-400">${tagName}</span>${highlightedAttrs}&gt;`;
-    });
-  } else if (lang === "js" || lang === "jsx") {
-    html = code
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/\b(const|let|var|function|return|import|from|export|default|await|async|new|if|else)\b/g, '<span class="text-purple-400">$1</span>')
-      .replace(/\b(fetch|useState|JSON|stringify|FormData|console|log)\b/g, '<span class="text-sky-400">$1</span>')
-      .replace(/(".*?"|'.*?'|`.*?`)/g, '<span class="text-emerald-400">$1</span>');
-  } else if (lang === "python") {
-    html = code
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/\b(import|from|print|def|return|if|else|elif)\b/g, '<span class="text-purple-400">$1</span>')
-      .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>');
-  } else if (lang === "curl" || lang === "bash") {
-    html = code
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/\b(curl|-X|-H|-d|POST|GET)\b/g, '<span class="text-purple-400 font-semibold">$1</span>')
-      .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>');
-  } else if (lang === "sql") {
-    html = code
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/\b(SELECT|FROM|WHERE|GROUP BY|ORDER BY|LIMIT|DESC|ASC|COUNT|AVG|SUM|ROUND|OVER|AS|NOT NULL|AND|OR)\b/gi, '<span class="text-purple-400 font-semibold">$1</span>')
-      .replace(/\b(read_csv_auto|date_trunc|regexp_extract)\b/g, '<span class="text-sky-400">$1</span>')
-      .replace(/(".*?"|'.*?')/g, '<span class="text-emerald-400">$1</span>');
+    const htmlPattern = /(<\/?[a-zA-Z0-9-]+)|([a-zA-Z0-9-]+=)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|([\s\S])/g;
+    let htmlMatch: RegExpExecArray | null;
+    while ((htmlMatch = htmlPattern.exec(code)) !== null) {
+      if (htmlMatch[1]) tokens.push({ text: htmlMatch[1], tone: "tag" });
+      else if (htmlMatch[2]) tokens.push({ text: htmlMatch[2], tone: "attr" });
+      else if (htmlMatch[3]) tokens.push({ text: htmlMatch[3], tone: "string" });
+      else tokens.push({ text: htmlMatch[0] });
+    }
+    return tokens;
   }
+
+  const keywords = new Set((CODE_KEYWORDS[lang] ?? []).map((word) => word.toLowerCase()));
+  const pattern = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\/\/[^\n]*|#[^\n]*)|([A-Za-z_$][\w$]*)|([\s\S])/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(code)) !== null) {
+    if (match[1]) {
+      tokens.push({ text: match[1], tone: "string" });
+    } else if (match[2]) {
+      tokens.push({ text: match[2], tone: "comment" });
+    } else if (match[3]) {
+      tokens.push({
+        text: match[3],
+        tone: keywords.has(match[3].toLowerCase()) ? "keyword" : undefined,
+      });
+    } else {
+      tokens.push({ text: match[0] });
+    }
+  }
+  return tokens;
+}
+
+function CodeHighlight({ code, lang }: { code: string; lang: string }) {
+  const tokens = tokenizeCode(code, lang);
 
   return (
     <pre className="overflow-x-auto rounded-xl bg-black/40 p-4 text-xs font-mono text-slate-300 border border-white/5 leading-relaxed">
-      <code dangerouslySetInnerHTML={{ __html: html }} />
+      <code>
+        {tokens.map((token, index) =>
+          token.tone ? (
+            <span key={index} className={CODE_TONE_CLASS[token.tone]}>
+              {token.text}
+            </span>
+          ) : (
+            token.text
+          ),
+        )}
+      </code>
     </pre>
   );
 }
@@ -4029,7 +4077,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
               <span>🌐 Hosted Public Form Page</span>
             </span>
             <a
-              href={`/f/${slug || form.slug}`}
+              href={`/f/${encodeURIComponent(String(slug || form.slug))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 underline"
@@ -4914,10 +4962,6 @@ function doPost(e) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><label className="mb-1 block text-sm text-slate-400">{label}</label>{children}</div>;
-}
-
 /* ─────────────────── API Keys Tab ─────────────────── */
 
 function KeysTab() {
@@ -5643,7 +5687,6 @@ print("Response:", response.json())`
 /* ─────────────────── Security Architecture Guide ─────────────────── */
 
 function SecurityArchitectureView({
-  endpoint,
   form,
 }: {
   endpoint: string;
@@ -6391,7 +6434,7 @@ function doPost(e) {
                     type="button"
                     title="Generate a random secret token"
                     onClick={() => {
-                      const rand = "ff_gas_" + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+                      const rand = generateSecret("ff_gas_");
                       setGlobalSettings(s => ({ ...s, globalGasSecret: rand, clearGlobalGasSecret: false }));
                     }}
                     className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-2 py-1 text-[11px] font-medium transition"
@@ -6468,7 +6511,7 @@ function doPost(e) {
                     type="button"
                     title="Generate a random secret signing key"
                     onClick={() => {
-                      const rand = "whsec_" + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+                      const rand = generateSecret("whsec_");
                       setGlobalSettings(s => ({ ...s, globalWebhookSecret: rand, clearGlobalWebhookSecret: false }));
                     }}
                     className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-2 py-1 text-[11px] font-medium transition"

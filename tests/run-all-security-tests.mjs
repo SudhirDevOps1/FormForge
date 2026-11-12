@@ -227,7 +227,7 @@ function escapeHtmlRef(text) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'"'"'/g, "&#39;");
+    .replace(/'/g, "&#39;");
 }
 
 function sanitizeHtmlRef(input) {
@@ -254,7 +254,7 @@ function sanitizeHtmlRef(input) {
       return `</${tag}>`;
     }
     if (tag === "a") {
-      const hrefMatch = /href\s*=\s*("([^"]*)"|'"'"'([^'"'"']*)'"'"'|([^\s"'"'"'`>]+))/i.exec(rawAttrs ?? "");
+      const hrefMatch = /href\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'`>]+))/i.exec(rawAttrs ?? "");
       const href = (hrefMatch?.[2] ?? hrefMatch?.[3] ?? hrefMatch?.[4] ?? "").trim();
       if (/^https?:\/\/[^<>\s]+$/i.test(href)) {
         return `<a href="${escapeHtmlRef(href)}">`;
@@ -1274,6 +1274,93 @@ await test("P7", "a client-side failure can never leave the page blank", async (
     css.includes(".ff-js [data-reveal]"),
     "the hidden reveal state must be scoped to the JS-capable class",
   );
+});
+
+await test("P7", "the licence gate rejects a copyleft production dependency", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+
+  // A gate that cannot fail is not a gate: `license-checker` used to exit 0
+  // while writing no report at all. This fixture proves the replacement
+  // actually rejects copyleft, and that it ignores dev-only packages.
+  const dir = mkdtempSync(join(tmpdir(), "ff-licence-"));
+  const lockPath = join(dir, "lock.json");
+  const reportPath = join(dir, "report.json");
+
+  writeFileSync(
+    lockPath,
+    JSON.stringify({
+      name: "fixture",
+      lockfileVersion: 3,
+      packages: {
+        "": { name: "fixture", version: "1.0.0" },
+        "node_modules/friendly": { version: "1.0.0", license: "MIT" },
+        "node_modules/dev-only-gpl": { version: "1.0.0", license: "GPL-3.0", dev: true },
+        "node_modules/copyleft": { version: "1.0.0", license: "AGPL-3.0-only" },
+      },
+    }),
+    "utf8",
+  );
+
+  let status = 0;
+  try {
+    execFileSync(
+      process.execPath,
+      [join(REPO_ROOT, "scripts", "check-licenses.mjs"), "--lock", lockPath, "--report", reportPath],
+      { stdio: "pipe" },
+    );
+  } catch (error) {
+    status = typeof error.status === "number" ? error.status : 1;
+  } finally {
+    assert(status === 1, "a copyleft production dependency must fail the gate");
+    const report = JSON.parse(readFileSync(reportPath, "utf8"));
+    assert(report.counts.offenders === 1, "only the AGPL package may be reported");
+    assert(report.offenders[0].package === "copyleft", "the offender must be named in the report");
+    assert(
+      !report.offenders.some((entry) => entry.package === "dev-only-gpl"),
+      "dev-only packages are outside the production scope",
+    );
+    assert(report.counts.permissive === 1, "permissive production packages must be counted");
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+await test("P7", "the licence gate passes the real tree and is wired into CI", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+
+  const dir = mkdtempSync(join(tmpdir(), "ff-licence-"));
+  const reportPath = join(dir, "report.json");
+
+  try {
+    execFileSync(
+      process.execPath,
+      [join(REPO_ROOT, "scripts", "check-licenses.mjs"), "--report", reportPath],
+      { stdio: "pipe" },
+    );
+
+    const report = JSON.parse(readFileSync(reportPath, "utf8"));
+    assert(report.counts.offenders === 0, "production dependencies must stay free of copyleft");
+    assert(report.counts.permissive > 0, "the check must actually inspect packages");
+    assert(
+      report.exceptions.every((entry) => entry.package.startsWith("@img/sharp")),
+      "only the reviewed sharp binaries may be excepted",
+    );
+    assert(
+      report.exceptions.every((entry) => typeof entry.why === "string" && entry.why.length > 20),
+      "every exception must explain why it is acceptable",
+    );
+
+    const workflow = readFileSync(join(REPO_ROOT, ".github", "workflows", "security.yml"), "utf8");
+    assert(
+      workflow.includes("npm run test:licenses"),
+      "the License Compliance job must run the in-repo gate",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 /* ------------------------------ summary ---------------------------- */

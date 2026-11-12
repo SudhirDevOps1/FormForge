@@ -13,6 +13,7 @@
     "test:features": "node tests/run-feature-tests.mjs",
     "test:e2e": "node tests/run-e2e-tests.mjs",
     "test:pins": "node tests/validate-action-pins.mjs",
+    "test:licenses": "node scripts/check-licenses.mjs",
     "test:worker": "node tests/worker-smoke.mjs",
     "prepare": "husky",
     "deploy": "wrangler deploy",
@@ -119,11 +120,21 @@
   },
   "allowScripts": {
     "esbuild@0.25.4": true,
+    "esbuild@0.25.12": true,
     "esbuild@0.19.12": true,
     "esbuild@0.18.20": true,
     "esbuild@0.28.1": true,
+    "esbuild@0.28.2": true,
     "workerd@1.20260903.1": true,
+    "workerd@1.20261110.1": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true
+  },
+  "overrides": {
+    "minimatch": "^11.0.8",
+    "glob": "^14.0.5",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.4"
+    }
   }
 }

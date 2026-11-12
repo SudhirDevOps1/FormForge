@@ -41,6 +41,7 @@ jobs:
         with:
           languages: javascript-typescript
           queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@48ab28a6f5dbc2a99bf1e0131198dd8f1df78169 # v3.28.0
@@ -194,15 +195,15 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Install license-checker
-        run: npm install --no-save license-checker
-
+      # In-repo, dependency-free check. `license-checker` reaches the tree via
+      # `read-package-json`, which calls `glob()` as a plain function (glob@7
+      # API). With this project's patched-glob overrides it crashes, and when
+      # installed in isolation it exits 0 without writing a report at all — a
+      # gate that cannot fail. `scripts/check-licenses.mjs` reads the entries in
+      # `package-lock.json` (what `npm ci` actually installs), ignores dev-only
+      # packages and fails on GPL/AGPL/LGPL in production dependencies.
       - name: Fail on copyleft licenses in prod deps
-        run: |
-          npx license-checker --production --excludePrivatePackages \
-            --failOn "GPL;AGPL;LGPL;GPL-2.0;GPL-3.0;AGPL-3.0;LGPL-2.0;LGPL-2.1;LGPL-3.0" \
-            --out license-report.json --json
-          echo "No copyleft licenses found in production dependencies"
+        run: npm run test:licenses
 
       - name: Upload license report
         if: always()

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export interface CommandAction {
   id: string;
@@ -41,7 +40,6 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
-  const router = useRouter();
 
   /* ── Global shortcut ─────────────────────────────────────────── */
   useEffect(() => {

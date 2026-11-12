@@ -2775,7 +2775,12 @@ npx wrangler secret put AUTH_SECRET
     function applySyntaxHighlighting() {
       document.querySelectorAll('pre code').forEach(function(codeBlock) {
         const text = codeBlock.textContent;
+        // Escape first: snippet text is data, never markup. Everything below
+        // only wraps already-escaped text in allowlisted <span> elements.
         let highlighted = text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
           .replace(/(\bfunction\b|\bconst\b|\blet\b|\bvar\b|\breturn\b|\bif\b|\belse\b|\bfor\b|\bwhile\b|\bdo\b|\btry\b|\bcatch\b|\bnew\b|\bthis\b|\bclass\b|\bimport\b|\bexport\b|\bfrom\b|\basync\b|\bawait\b)/g, '<span class="token keyword">$1</span>')
           .replace(/(\btrue\b|\bfalse\b|\bnull\b|\bundefined\b)/g, '<span class="token boolean">$1</span>')
           .replace(/(\b\d+\b|\b\d+\.\d+\b)/g, '<span class="token number">$1</span>')

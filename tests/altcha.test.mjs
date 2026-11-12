@@ -27,7 +27,7 @@ function testCreateAltchaChallenge(hmacKey, maxNumber = 2000, expiresSeconds = 9
   };
 }
 
-function testVerifyAltchaSolution(rawPayload, hmacKey) {
+function testVerifyAltchaSolution(rawPayload, hmacKey, replayStore) {
   let payload;
   try {
     if (typeof rawPayload === "string") {
@@ -63,6 +63,14 @@ function testVerifyAltchaSolution(rawPayload, hmacKey) {
   const computedChallenge = createHash("sha256").update(`${salt}${number}`).digest("hex");
   if (computedChallenge.toLowerCase() !== challenge.toLowerCase()) {
     return { ok: false, error: "ALTCHA Proof-of-Work failed" };
+  }
+
+  // 4. Anti-replay: the same signature may only be spent once.
+  if (replayStore) {
+    if (replayStore.has(signature)) {
+      return { ok: false, error: "ALTCHA challenge already used" };
+    }
+    replayStore.set(signature, Date.now());
   }
 
   return { ok: true };
@@ -149,29 +157,8 @@ test("ALTCHA - rejects tampered signature", () => {
 });
 
 test("ALTCHA - rejects replayed solutions when tracking store is provided", async () => {
-  // Test replay store simulation
-  const store = new Map();
-  const mockDb = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: () => {
-            const row = store.get("test_sig");
-            return row ? [row] : [];
-          },
-        }),
-      }),
-    }),
-    insert: () => ({
-      values: (val) => ({
-        onConflictDoUpdate: () => {
-          store.set("test_sig", val);
-          return Promise.resolve();
-        },
-      }),
-    }),
-  };
-
+  // Stand-in for the D1-backed replay store: one accepted signature per key.
+  const replayStore = new Map();
   const secret = "test_altcha_secret_key";
   const challenge = testCreateAltchaChallenge(secret, 200);
   const payload = {
@@ -182,8 +169,16 @@ test("ALTCHA - rejects replayed solutions when tracking store is provided", asyn
     signature: challenge.signature,
   };
 
-  // First verification
-  assert.ok(payload.signature);
+  // First verification spends the signature.
+  const first = testVerifyAltchaSolution(payload, secret, replayStore);
+  assert.equal(first.ok, true, "first use of a fresh solution must be accepted");
+  assert.equal(replayStore.size, 1);
+
+  // Replaying the exact same solution must be rejected.
+  const second = testVerifyAltchaSolution(payload, secret, replayStore);
+  assert.equal(second.ok, false);
+  assert.match(second.error, /already used/i);
+  assert.equal(replayStore.size, 1, "a rejected replay must not grow the store");
 });
 
 test("ALTCHA - submit route safely handles missing ALTCHA as spam without 400 rejection", () => {

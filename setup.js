@@ -34,7 +34,6 @@ function success(msg) { log(`${C.green}✔${C.reset}  ${msg}`); }
 function warn(msg) { log(`${C.yellow}⚠${C.reset}  ${C.yellow}${msg}${C.reset}`); }
 function error(msg) { log(`${C.red}✖${C.reset}  ${C.red}${msg}${C.reset}`); }
 function step(num, msg) { log(`\n${C.bgCyan}${C.bold} STEP ${num} ${C.reset} ${C.bold}${msg}${C.reset}`); }
-function done(msg) { log(`\n${C.bgGreen}${C.bold} DONE ${C.reset} ${C.green}${msg}${C.reset}`); }
 
 function banner() {
   log("");
@@ -354,10 +353,18 @@ async function main() {
   info(`Auth secret backup saved to: ${C.dim}.auth-secret-backup.txt${C.reset}`);
   warn("Is file ko git mein commit MAT karna!");
 
-  // Make sure .gitignore has it
+  // Make sure .gitignore has it. Read straight through instead of testing for
+  // existence first — a check-then-use pair is a race, and the read's own error
+  // already tells us whether the file is there.
   const gitignorePath = path.join(__dirname, ".gitignore");
-  if (fs.existsSync(gitignorePath)) {
-    const gitignore = fs.readFileSync(gitignorePath, "utf-8");
+  let gitignore = null;
+  try {
+    gitignore = fs.readFileSync(gitignorePath, "utf-8");
+  } catch {
+    gitignore = null;
+  }
+
+  if (gitignore !== null) {
     if (!gitignore.includes(".auth-secret-backup")) {
       fs.appendFileSync(gitignorePath, "\n# Auth secret backup (DO NOT COMMIT)\n.auth-secret-backup.txt\n");
       success(".gitignore updated ✔");
