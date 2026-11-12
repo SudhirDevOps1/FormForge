@@ -119,7 +119,7 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const updated = await db
+    await db
       .update(apiKeys)
       .set({ revokedAt: new Date().toISOString() })
       .where(eq(apiKeys.id, keyId));

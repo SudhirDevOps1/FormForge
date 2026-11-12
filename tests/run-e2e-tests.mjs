@@ -484,6 +484,29 @@ await test("the audit trail records the administrative actions", async () => {
   );
 });
 
+/* ------------------------------ recovery --------------------------- */
+
+console.log("\n## Owner recovery");
+
+await test("owner recovery is disabled unless RECOVERY_TOKEN is configured", async () => {
+  const res = await api("/api/auth/owner-recovery", {
+    method: "POST",
+    body: { token: "x".repeat(40), newPassword: "Thunder!River9Stone" },
+  });
+  // The E2E environment deliberately does not set RECOVERY_TOKEN, so the route
+  // must refuse to act even when the caller presents a plausible token.
+  assertEqual(res.status, 503, "recovery must stay disabled without a configured key");
+  assertEqual(res.json?.code, "RECOVERY_DISABLED", "the refusal must be explicit");
+});
+
+await test("owner recovery never leaks whether an account exists", async () => {
+  const res = await api("/api/auth/owner-recovery", {
+    method: "POST",
+    body: { token: "", newPassword: "Thunder!River9Stone", email: "nobody@example.com" },
+  });
+  assert(res.status === 503, `expected the disabled route, got ${res.status}`);
+});
+
 /* ------------------------------ summary ----------------------------- */
 
 console.log("\n==============================");

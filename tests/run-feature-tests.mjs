@@ -18,7 +18,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

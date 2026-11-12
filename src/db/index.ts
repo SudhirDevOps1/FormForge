@@ -1,7 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import { drizzle as drizzleD1, type DrizzleD1Database } from "drizzle-orm/d1";
-import { drizzle as drizzleLibSql, type LibSQLDatabase } from "drizzle-orm/libsql";
+import { drizzle as drizzleLibSql } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client/web";
 import { neon } from "@neondatabase/serverless";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
@@ -17,6 +17,8 @@ export type CloudflareEnv = {
   RESEND_API_KEY?: string;
   RESEND_FROM?: string;
   ALLOW_REGISTRATION?: string;
+  /** Operator-only owner recovery key. Absent means recovery is disabled. */
+  RECOVERY_TOKEN?: string;
   // Brevo
   BREVO_API_KEY?: string;
   BREVO_FROM?: string;
@@ -85,6 +87,7 @@ export function getRuntimeEnv(): CloudflareEnv {
     RESEND_API_KEY: cfEnv?.RESEND_API_KEY ?? process.env.RESEND_API_KEY,
     RESEND_FROM: cfEnv?.RESEND_FROM ?? process.env.RESEND_FROM,
     ALLOW_REGISTRATION: cfEnv?.ALLOW_REGISTRATION ?? process.env.ALLOW_REGISTRATION,
+    RECOVERY_TOKEN: cfEnv?.RECOVERY_TOKEN ?? process.env.RECOVERY_TOKEN,
     // Email Providers
     BREVO_API_KEY: cfEnv?.BREVO_API_KEY ?? process.env.BREVO_API_KEY,
     BREVO_FROM: cfEnv?.BREVO_FROM ?? process.env.BREVO_FROM,

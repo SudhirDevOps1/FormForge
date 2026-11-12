@@ -369,7 +369,7 @@ export default function HostedFormPage({
               partialSubmissionsEnabled={Boolean(form.partialSubmissionsEnabled)}
               formToken={formToken}
               otpVerified={otpVerified}
-              onOtpRequired={(email) => setOtpSent(true)}
+              onOtpRequired={() => setOtpSent(true)}
               onVerified={(email) => {
                 setOtpVerified(true);
                 setOtpSuccess(`Email verified for ${email}.`);

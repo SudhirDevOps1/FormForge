@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 
 export interface TurnstileAltchaProps {
   challengeUrl?: string;

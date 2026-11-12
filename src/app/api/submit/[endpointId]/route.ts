@@ -4,9 +4,8 @@ import { ensureSchema } from "@/db/ensure";
 import { forms, submissions, type Form, type NewSubmission } from "@/db/schema";
 import { randomId, safeStringify, sha256 } from "@/lib/crypto";
 import { encryptPayload } from "@/lib/encryption";
-import { corsHeaders, jsonError, resolveAllowedOrigin } from "@/lib/http";
+import { corsHeaders, resolveAllowedOrigin } from "@/lib/http";
 import { deliverNotifications } from "@/lib/notifications";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const dynamic = "force-dynamic";
 
@@ -451,7 +450,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   // Rate Limiting — per-form, configurable, with a safe default of 60/min.
-  const { checkRateLimit, rateLimitResponse, getClientIp } = await import("@/lib/rate-limit");
+  const { checkRateLimit, getClientIp } = await import("@/lib/rate-limit");
   const ip = getClientIp(request);
   const [maxAttempts, windowSeconds] =
     form.rateLimitPerMinute && form.rateLimitPerMinute > 0
@@ -719,7 +718,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
-  const { score, reasons, serialized } = await calculateSpamScore(form, payload, request, altchaResult);
+  const { score, reasons } = await calculateSpamScore(form, payload, request, altchaResult);
   const isPendingVerification = (form.emailVerificationEnabled && !otpVerified) && email;
   const status = score >= 80 ? "spam" : isPendingVerification ? "pending" : "accepted";
   

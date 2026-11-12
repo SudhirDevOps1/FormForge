@@ -3,8 +3,8 @@ import { databaseUnavailableResponse, getDb, isDbReady } from "@/db";
 import { ensureSchema } from "@/db/ensure";
 import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
-import { jsonError, jsonOk, readJson, readString } from "@/lib/http";
-import { isPrivateUrl } from "@/lib/url-validation";
+import { isHtmlDocumentBody, jsonError, jsonOk, readJson, readString } from "@/lib/http";
+import { isPrivateUrl, urlHostMatches } from "@/lib/url-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -70,9 +70,6 @@ export async function POST(request: Request) {
       } catch {
         // ignore
       }
-    }
-    if (!gasSecret) {
-      gasSecret = "Blindshare_Super_Secret_Gas_Token_2026!_xyz";
     }
 
     // Append secret as query param if not present
@@ -141,10 +138,10 @@ export async function POST(request: Request) {
           return jsonError("GAS_REJECTED", `Google Apps Script returned an error: "${errMsg}"`, 400);
         }
       } else {
-        if (rawText.includes("ServiceLogin") || rawText.includes("accounts.google.com")) {
+        if (urlHostMatches(response.url, ["accounts.google.com"]) || isHtmlDocumentBody(rawText)) {
           return jsonError("GAS_AUTH_REQUIRED", "Google Apps Script requires Google Login! Please re-deploy your Web App in Google Apps Script with: 'Who has access' set to 'Anyone'.", 400);
         }
-        if (rawText.includes("Exception:") || rawText.includes("Script function not found")) {
+        if (rawText.includes("Exception:") || rawText.includes("Script function not found") || isHtmlDocumentBody(rawText)) {
           const match = rawText.match(/Exception:[^<]+/);
           return jsonError("GAS_SCRIPT_ERROR", `Google Apps Script error: ${match ? match[0] : rawText.slice(0, 150)}`, 400);
         }
@@ -188,9 +185,9 @@ export async function POST(request: Request) {
         }
       }
 
-      const isStoat = webhookUrl.includes("stoat.chat");
-      const isDiscord = webhookUrl.includes("discord.com");
-      const isSlack = webhookUrl.includes("slack.com");
+      const isStoat = urlHostMatches(webhookUrl, ["stoat.chat", "revolt.chat"]);
+      const isDiscord = urlHostMatches(webhookUrl, ["discord.com", "discordapp.com"]);
+      const isSlack = urlHostMatches(webhookUrl, ["slack.com"]);
 
       let bodyToSend: Record<string, unknown>;
       if (isStoat) {

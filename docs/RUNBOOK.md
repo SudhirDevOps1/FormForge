@@ -53,6 +53,34 @@ before retention purges if compliance requires offline copies.
 
 ## Emergency procedures
 
+### Recovering the owner account (data is kept)
+
+An installation whose only owner can no longer sign in has no alternative
+entry point: registration closes as soon as a user row exists. Do **not** reset
+D1 — the forms and submissions are still there. Recover the account instead:
+
+```bash
+# 1. Enable recovery for a short window. Use a random value, never reuse it.
+npx wrangler secret put RECOVERY_TOKEN     # e.g. openssl rand -hex 32
+npm run deploy                             # secret changes apply on next deploy
+
+# 2. Reset the password. Omit "email" to target the owner account.
+curl -fsS -X POST https://YOUR-WORKER.workers.dev/api/auth/owner-recovery \
+  -H 'Content-Type: application/json' \
+  -d '{"token":"<RECOVERY_TOKEN>","newPassword":"<12+ characters>"}'
+
+# 3. Sign in, then remove the key so the route is disabled again.
+npx wrangler secret delete RECOVERY_TOKEN
+npm run deploy
+```
+
+What the endpoint does on success: sets the new password (normal password
+policy applies), clears TOTP, and deletes every session for that account. It
+never creates an account, is rate limited to 5 attempts per hour per IP, and
+writes both successful and denied attempts to `audit_logs` with a hashed IP.
+With no `RECOVERY_TOKEN` configured — or a value shorter than 32 characters —
+the route answers `503 RECOVERY_DISABLED`.
+
 | Incident | Action |
 | -------- | ------ |
 | `AUTH_SECRET` leaked | Generate new secret, `wrangler secret put AUTH_SECRET`, redeploy, delete all rows in `sessions`, revoke API keys (`revoked_at`), force owner password reset |

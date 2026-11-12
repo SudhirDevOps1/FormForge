@@ -15,7 +15,6 @@ export async function autoMigrate(db: any): Promise<void> {
 
   try {
     const isPg = typeof db.execute === "function" && typeof db.run !== "function";
-    const autoIncrementType = isPg ? "SERIAL" : "INTEGER PRIMARY KEY AUTOINCREMENT";
 
     // 1. Users table
     await executeQuery(db, sql`

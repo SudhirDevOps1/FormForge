@@ -258,6 +258,7 @@ Drop this single line before `</body>` in Webflow, WordPress, Shopify, Squarespa
 | `AUTH_SECRET` | **Yes** | 32+ character random secret used for HMAC password hashing, API tokens, and sessions (`openssl rand -hex 32`). |
 | `DB` | Yes (on CF) | Cloudflare D1 database binding name (configured in `wrangler.jsonc`). |
 | `ALLOW_REGISTRATION` | No | Set to `false` after initial registration to enforce owner-only single-tenant mode. |
+| `RECOVERY_TOKEN` | No | Temporary 32+ character key that enables `POST /api/auth/owner-recovery` for an existing owner account. Set it only while recovering, then delete it (`npx wrangler secret delete RECOVERY_TOKEN`). |
 
 ### Multi-Database Selection (Pick One)
 | Variable | Engine | Description |

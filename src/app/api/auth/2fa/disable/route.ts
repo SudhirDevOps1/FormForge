@@ -44,24 +44,38 @@ export async function POST(request: Request) {
     return jsonError("NOT_FOUND", "User not found.", 404);
   }
 
-  // Verification requires either current password or valid 2FA code
+  // Disabling 2FA is a security downgrade, so it always requires the current
+  // password and — when 2FA is actually enabled — a valid current code. Accepting
+  // "either one" would let a stolen session or a captured code alone turn the
+  // second factor off.
   const code = (body.code ?? "").trim();
   const password = body.password ?? "";
 
-  let verified = false;
-  if (code && fullUser.totpSecret) {
-    verified = await verifyTotpCode(fullUser.totpSecret, code, 1);
-  }
-  if (!verified && password) {
-    verified = await verifyPassword(password, fullUser.passwordHash);
-  }
-
-  if (!verified) {
+  if (!password) {
     return jsonError(
       "CONFIRMATION_FAILED",
-      "Please enter your correct password or current 6-digit authenticator code to disable 2FA.",
-      400
+      "Enter your current password to disable two-factor authentication.",
+      400,
     );
+  }
+
+  const passwordOk = await verifyPassword(password, fullUser.passwordHash);
+  if (!passwordOk) {
+    return jsonError("CONFIRMATION_FAILED", "That password is not correct.", 400);
+  }
+
+  if (fullUser.totpEnabled && fullUser.totpSecret) {
+    if (!code) {
+      return jsonError(
+        "CONFIRMATION_FAILED",
+        "Enter the current 6-digit authenticator code to disable two-factor authentication.",
+        400,
+      );
+    }
+    const codeOk = await verifyTotpCode(fullUser.totpSecret, code, 1);
+    if (!codeOk) {
+      return jsonError("CONFIRMATION_FAILED", "That authenticator code is not valid.", 400);
+    }
   }
 
   // Deactivate 2FA

@@ -57,9 +57,7 @@ type Values = Record<string, string>;
  */
 export function HostedFormEngine(props: HostedFormEngineProps) {
   const {
-    formId,
     endpointId,
-    name,
     description,
     successMessage,
     redirectUrl,
@@ -70,7 +68,6 @@ export function HostedFormEngine(props: HostedFormEngineProps) {
     fields,
     rules,
     prefills,
-    captureUtm,
     partialSubmissionsEnabled,
     formToken,
     onOtpRequired,

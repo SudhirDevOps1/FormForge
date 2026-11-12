@@ -10,6 +10,9 @@
 # testing
 /coverage
 
+# licence gate artifact (npm run test:licenses)
+/license-report.json
+
 # next.js
 /.next/
 /out/
