@@ -807,6 +807,16 @@ export async function POST(request: Request, context: RouteContext) {
     await db.insert(submissions).values(submission);
     await db.update(forms).set({ submissionsCount: sql`${forms.submissionsCount} + 1`, updatedAt: new Date().toISOString() }).where(eq(forms.id, form.id));
 
+    // The analytics tab is cached for five minutes; a new submission is the
+    // only thing that changes it, so drop the entry instead of waiting for
+    // the TTL. Fire-and-forget: a cache miss is a slow dashboard, not a
+    // failed submission.
+    void import("@/lib/kv-cache")
+      .then(({ cacheKey, invalidateCached }) =>
+        invalidateCached([cacheKey("analytics", form.id), cacheKey("public-stats")]),
+      )
+      .catch(() => {});
+
     // ── Convert a partial submission ─────────────────────────────────
     // When the respondent resumes from a saved progress link, the partial
     // record is linked to the final submission so drop-off analytics can

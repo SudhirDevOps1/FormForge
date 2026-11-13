@@ -4,7 +4,7 @@ This file tracks the versions, release dates, features added, removed, and bug f
 
 ---
 
-## 🚀 Current Version: `v1.0.0` (September 8, 2026)
+## 🚀 Current Version: `v1.1.1` <!-- x-release-please-version --> (September 8, 2026)
 
 ### 🟢 Universal Release Highlights
 * **Native In-App Confirmation Modal:** Completely eliminated browser-native `window.confirm()` popup alerts in favor of responsive dark glassmorphic dialogs with keyboard accessibility (`Escape`/`Enter`).

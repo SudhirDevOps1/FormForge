@@ -5,8 +5,57 @@ import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { encryptText } from "@/lib/encryption";
 import { jsonError, jsonOk, readJson } from "@/lib/http";
+import { cacheKey, cached, invalidateCached } from "@/lib/kv-cache";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The settings payload is read whenever the dashboard's integration panel
+ * opens, and it never changes unless the owner saves it. It is cached for five
+ * minutes per user and dropped on every PATCH, so reopening the panel costs no
+ * D1 read while a save is visible immediately.
+ *
+ * Only the columns the panel renders are selected — the previous
+ * `select().from(users)` pulled `password_hash` and `totp_secret` into the
+ * Worker's memory for no reason.
+ */
+const SETTINGS_COLUMNS = {
+  globalSmtpEnabled: users.globalSmtpEnabled,
+  globalSmtpHost: users.globalSmtpHost,
+  globalSmtpPort: users.globalSmtpPort,
+  globalSmtpUser: users.globalSmtpUser,
+  globalSmtpPass: users.globalSmtpPass,
+  globalSmtpFrom: users.globalSmtpFrom,
+  globalGasUrl: users.globalGasUrl,
+  globalGasSecret: users.globalGasSecret,
+  globalWebhookUrl: users.globalWebhookUrl,
+  globalWebhookSecret: users.globalWebhookSecret,
+  globalNotifyEmail: users.globalNotifyEmail,
+  notifyOnLogin: users.notifyOnLogin,
+  notifyOnSubmission: users.notifyOnSubmission,
+} as const;
+
+type SettingsRow = {
+  [K in keyof typeof SETTINGS_COLUMNS]: (typeof users.$inferSelect)[K];
+};
+
+function toSettings(user: SettingsRow) {
+  return {
+    globalSmtpEnabled: Boolean(user.globalSmtpEnabled),
+    globalSmtpHost: user.globalSmtpHost || "",
+    globalSmtpPort: user.globalSmtpPort || 587,
+    globalSmtpUser: user.globalSmtpUser || "",
+    hasGlobalSmtpPass: Boolean(user.globalSmtpPass),
+    globalSmtpFrom: user.globalSmtpFrom || "",
+    globalGasUrl: user.globalGasUrl || "",
+    hasGlobalGasSecret: Boolean(user.globalGasSecret),
+    globalWebhookUrl: user.globalWebhookUrl || "",
+    hasGlobalWebhookSecret: Boolean(user.globalWebhookSecret),
+    globalNotifyEmail: user.globalNotifyEmail || "",
+    notifyOnLogin: user.notifyOnLogin !== false,
+    notifyOnSubmission: user.notifyOnSubmission !== false,
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -21,29 +70,25 @@ export async function GET(request: Request) {
       return jsonError("UNAUTHENTICATED", "Sign in to continue.", 401);
     }
 
-    const rows = await db.select().from(users).where(eq(users.id, sessionUser.id)).limit(1);
-    const user = rows[0];
-    if (!user) {
+    const result = await cached<{ settings: ReturnType<typeof toSettings> | null }>(
+      cacheKey("settings", sessionUser.id),
+      300,
+      async () => {
+        const rows = await db
+          .select(SETTINGS_COLUMNS)
+          .from(users)
+          .where(eq(users.id, sessionUser.id))
+          .limit(1);
+        const user = rows[0];
+        return { settings: user ? toSettings(user) : null };
+      },
+    );
+
+    if (!result.settings) {
       return jsonError("USER_NOT_FOUND", "Account profile not found.", 404);
     }
 
-    const settings = {
-      globalSmtpEnabled: Boolean(user.globalSmtpEnabled),
-      globalSmtpHost: user.globalSmtpHost || "",
-      globalSmtpPort: user.globalSmtpPort || 587,
-      globalSmtpUser: user.globalSmtpUser || "",
-      hasGlobalSmtpPass: Boolean(user.globalSmtpPass),
-      globalSmtpFrom: user.globalSmtpFrom || "",
-      globalGasUrl: user.globalGasUrl || "",
-      hasGlobalGasSecret: Boolean(user.globalGasSecret),
-      globalWebhookUrl: user.globalWebhookUrl || "",
-      hasGlobalWebhookSecret: Boolean(user.globalWebhookSecret),
-      globalNotifyEmail: user.globalNotifyEmail || "",
-      notifyOnLogin: user.notifyOnLogin !== false,
-      notifyOnSubmission: user.notifyOnSubmission !== false,
-    };
-
-    return jsonOk({ settings });
+    return jsonOk({ settings: result.settings });
   } catch (err: any) {
     console.error("GET /api/user/settings error:", err);
     return jsonError("FETCH_SETTINGS_FAILED", err.message || "Failed to retrieve settings.", 500);
@@ -180,24 +225,21 @@ export async function PATCH(request: Request) {
       await db.update(users).set(updateData).where(eq(users.id, sessionUser.id));
     }
 
-    const updatedRows = await db.select().from(users).where(eq(users.id, sessionUser.id)).limit(1);
+    const updatedRows = await db
+      .select(SETTINGS_COLUMNS)
+      .from(users)
+      .where(eq(users.id, sessionUser.id))
+      .limit(1);
     const updatedUser = updatedRows[0];
 
-    const settings = {
-      globalSmtpEnabled: Boolean(updatedUser.globalSmtpEnabled),
-      globalSmtpHost: updatedUser.globalSmtpHost || "",
-      globalSmtpPort: updatedUser.globalSmtpPort || 587,
-      globalSmtpUser: updatedUser.globalSmtpUser || "",
-      hasGlobalSmtpPass: Boolean(updatedUser.globalSmtpPass),
-      globalSmtpFrom: updatedUser.globalSmtpFrom || "",
-      globalGasUrl: updatedUser.globalGasUrl || "",
-      hasGlobalGasSecret: Boolean(updatedUser.globalGasSecret),
-      globalWebhookUrl: updatedUser.globalWebhookUrl || "",
-      hasGlobalWebhookSecret: Boolean(updatedUser.globalWebhookSecret),
-      globalNotifyEmail: updatedUser.globalNotifyEmail || "",
-      notifyOnLogin: updatedUser.notifyOnLogin !== false,
-      notifyOnSubmission: updatedUser.notifyOnSubmission !== false,
-    };
+    if (!updatedUser) {
+      return jsonError("USER_NOT_FOUND", "Account profile not found.", 404);
+    }
+
+    const settings = toSettings(updatedUser);
+
+    // The cached copy is now stale — drop it so the next read sees this save.
+    await invalidateCached(cacheKey("settings", sessionUser.id));
 
     return jsonOk({
       success: true,

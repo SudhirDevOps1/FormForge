@@ -4,8 +4,10 @@ All notable changes to FormForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-Release automation reads this file: [`release.yml`](../.github/workflows/release.yml)
-extracts the section matching each `v*` tag to build the GitHub Release notes.
+`release-please` writes a dated section for every release
+([`.github/workflows/release-please.yml`](../.github/workflows/release-please.yml)),
+and the `Release` workflow extracts the section matching each `v*` tag to build
+the GitHub Release notes.
 
 ## [1.1.1] - 2026-11-11
 

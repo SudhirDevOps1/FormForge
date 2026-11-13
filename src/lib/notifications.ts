@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
 import { getRuntimeEnv, type AppDb } from "@/db";
-import { notifications, users, webhookLogs, type Form, type Submission } from "@/db/schema";
+import { notifications, users, type Form, type Submission } from "@/db/schema";
 import { randomId } from "./crypto";
 import { urlHostMatches } from "./url-validation";
+import { queueWebhookLog } from "./write-batcher";
 import nodemailer from "nodemailer";
 
 /**
@@ -1279,7 +1280,8 @@ export async function dispatchWebhook(
     if (isPrivateUrl(normalizedUrl)) {
       const err = "SSRF prevention: Webhook URL resolves to a private or internal IP address.";
       try {
-        await db.insert(webhookLogs).values({
+        // Delivery telemetry is batched (see lib/write-batcher.ts).
+        queueWebhookLog(db, {
           id: deliveryId,
           formId: form.id,
           submissionId: submission.id,
@@ -1445,7 +1447,8 @@ export async function dispatchWebhook(
     const retryPlan = response.ok ? null : planRetry(1, response.status, false);
 
     try {
-      await db.insert(webhookLogs).values({
+      // Delivery telemetry is batched (see lib/write-batcher.ts).
+      queueWebhookLog(db, {
         id: deliveryId,
         formId: form.id,
         submissionId: submission.id,
@@ -1479,7 +1482,8 @@ export async function dispatchWebhook(
     const retryPlan = planRetry(1, null, true);
 
     try {
-      await db.insert(webhookLogs).values({
+      // Delivery telemetry is batched (see lib/write-batcher.ts).
+      queueWebhookLog(db, {
         id: deliveryId,
         formId: form.id,
         submissionId: submission.id,

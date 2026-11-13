@@ -4,6 +4,7 @@ import { ensureSchema } from "@/db/ensure";
 import { forms, partialSubmissions, submissions } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/http";
+import { cacheKey, cached } from "@/lib/kv-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,16 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   try {
+    /*
+     * Analytics is five aggregate scans over the form's submissions. It is
+     * read every time the dashboard opens the Analytics tab and written to
+     * only when a submission arrives, so it is cached for five minutes per
+     * form and invalidated on submission insert / form change.
+     *
+     * Ownership was already checked above, so the cache key only has to be
+     * unique per form — a cache hit can never cross tenants.
+     */
+    const payload = await cached(cacheKey("analytics", formId), 300, async () => {
     // 1. Total statistics across accepted vs spam
     const stats = await db
       .select({
@@ -237,7 +248,7 @@ export async function GET(request: Request, context: RouteContext) {
       // Partial submissions are optional — analytics still work without them.
     }
 
-    return jsonOk({
+    return {
       form: formRows[0],
       stats: totalStats,
       timeline,
@@ -253,7 +264,10 @@ export async function GET(request: Request, context: RouteContext) {
           partialsStarted > 0 ? Math.round((partialsCompleted / partialsStarted) * 100) : 0,
         fields: dropoff,
       },
+    };
     });
+
+    return jsonOk(payload);
   } catch (error) {
     console.error("Analytics retrieval error:", error);
     return jsonError("DB_ERROR", "Failed to retrieve analytics data.", 500);

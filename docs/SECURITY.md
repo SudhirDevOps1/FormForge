@@ -18,14 +18,19 @@ release with a coordinated disclosure note.
 
 ## Supported versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.1.x   | :white_check_mark: |
-| 1.0.x   | :white_check_mark: |
-| < 1.0.0 | :x:                |
+| Version | Supported |
+| :--- | :--- |
+| latest `MINOR.x` release | :white_check_mark: |
+| previous `MINOR.x` release | :white_check_mark: (security fixes only) |
+| older releases | :x: |
 
 Only the latest minor release receives full security support. Deployments
-should track the newest `v*` tag (see `docs/RELEASES.md`).
+should track the newest `v*` tag (see `docs/RELEASES.md`). Exact version numbers
+are deliberately not repeated here: `package.json` is the single source of
+truth, so this table cannot go stale.
+
+See the repository-level [`SECURITY.md`](../SECURITY.md) for the disclosure
+process and response targets.
 
 ## Cryptographic specifications
 

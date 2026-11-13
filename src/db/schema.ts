@@ -160,6 +160,9 @@ export const submissions = sqliteTable(
   (table) => ({
     formIdx: index("submissions_form_id_idx").on(table.formId),
     createdIdx: index("submissions_created_at_idx").on(table.createdAt),
+    // One form's submissions, newest first — the dashboard list and the
+    // analytics timeline both read exactly this shape.
+    formCreatedIdx: index("submissions_form_created_idx").on(table.formId, table.createdAt),
   }),
 );
 
@@ -270,6 +273,8 @@ export const webhookLogs = sqliteTable(
     formIdx: index("webhook_logs_form_id_idx").on(table.formId),
     submissionIdx: index("webhook_logs_submission_id_idx").on(table.submissionId),
     createdIdx: index("webhook_logs_created_at_idx").on(table.createdAt),
+    // Supports the retry cron's `status = 'failed' AND next_retry_at <= now`.
+    retryIdx: index("webhook_logs_retry_idx").on(table.status, table.nextRetryAt),
   }),
 );
 

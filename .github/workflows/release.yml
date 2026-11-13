@@ -1,46 +1,34 @@
 # FormForge release pipeline.
 #
-# Two ways to publish, both approval-gated:
+# Versioning is owned by `release-please` (`.github/workflows/release-please.yml`):
+# it opens a Release PR from Conventional Commits, and merging that PR is the
+# approval. On merge it creates the `vX.Y.Z` tag plus the GitHub Release, then
+# dispatches this workflow with the exact tag.
 #
-#   1. Recommended — Actions → "Release" → Run workflow, pick a bump.
-#      A release PR is opened with the version bump + a changelog section
-#      generated from the commits since the last tag. Merging that PR is the
-#      approval: `release-tag.yml` then tags the merge commit and dispatches
-#      this workflow with the exact version (`version` input), which runs the
-#      full gate and publishes the GitHub Release.
+# This workflow is the *publication* gate for that tag:
 #
-#   2. Manual — push a `v*.*.*` tag yourself (see docs/RELEASES.md).
+#   validate-tag → the tag must match `package.json`
+#   ci-gate      → typecheck, lint, security suite and a real Worker build
+#   create-release → SBOM + cosign signature attached to the Release
 #
-# Publication is additionally gated by the `release` environment, so the
-# repository owner can require a manual review before assets are attached.
+# `create-release` runs in the `release` environment, so the owner can require
+# a final manual review before signed assets are published. A `v*.*.*` tag
+# pushed by hand still triggers the same gate.
 name: Release
 
 on:
   workflow_dispatch:
     inputs:
-      bump:
-        description: 'Version bump to prepare (ignored when "version" is set)'
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-        default: patch
       version:
-        description: 'Exact version to publish, e.g. v1.2.0 (set by release-tag.yml)'
+        description: 'Exact version to publish, e.g. v1.2.0 (set by release-please.yml)'
         type: string
-        required: false
-      dry_run:
-        description: 'Only compute the next version — do not open a release PR'
-        type: boolean
-        default: false
+        required: true
   push:
     tags:
       - 'v*.*.*'
 
 permissions:
   contents: write
-  pull-requests: write
   id-token: write
 
 concurrency:
@@ -51,101 +39,9 @@ env:
   RELEASE_TAG: ${{ inputs.version || github.ref_name }}
 
 jobs:
-  # ── 1. Plan (dispatch without an explicit version) ────────────────────
-  plan:
-    name: Plan Release
-    if: github.event_name == 'workflow_dispatch' && inputs.version == ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    outputs:
-      version: ${{ steps.next.outputs.version }}
-      tag: ${{ steps.next.outputs.tag }}
-    steps:
-      - name: Checkout (full history for tags)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-
-      - name: Compute the next version
-        id: next
-        env:
-          BUMP: ${{ inputs.bump }}
-        run: node .github/scripts/next-version.mjs "$BUMP" >> "$GITHUB_OUTPUT"
-
-      - name: Write summary
-        run: |
-          {
-            echo "## 📦 Release plan"
-            echo ""
-            echo "| Field | Value |"
-            echo "| --- | --- |"
-            echo "| Previous version | \`${{ steps.next.outputs.previous }}\` |"
-            echo "| Next version | \`${{ steps.next.outputs.version }}\` |"
-            echo "| Tag | \`${{ steps.next.outputs.tag }}\` |"
-            echo "| Dry run | \`${{ inputs.dry_run }}\` |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  # ── 2. Open the release PR (the approval gate) ────────────────────────
-  open-release-pr:
-    name: Open Release PR
-    needs: [plan]
-    if: github.event_name == 'workflow_dispatch' && inputs.version == '' && inputs.dry_run != true
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Checkout main
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Bump version + write changelog section
-        run: node .github/scripts/prepare-release.mjs "${{ needs.plan.outputs.version }}"
-
-      - name: Commit, push and open the release PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.plan.outputs.version }}
-          TAG: ${{ needs.plan.outputs.tag }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          BRANCH="release/${TAG}"
-          git switch -c "$BRANCH"
-          git add package.json package-lock.json docs/CHANGELOG.md
-          git commit -m "chore(release): ${TAG}"
-          git push origin "$BRANCH"
-
-          node .github/scripts/extract-changelog.mjs "$TAG" > release-notes.md
-          {
-            echo "## ${TAG}"
-            echo ""
-            echo "Approving this release means: **merge this PR**."
-            echo ""
-            echo "On merge, \`release-tag.yml\` tags the merged commit, then this"
-            echo "workflow runs its full gate and publishes the GitHub Release."
-            echo ""
-            echo "---"
-            echo ""
-            cat release-notes.md
-          } > pr-body.md
-
-          gh pr create --base main --head "$BRANCH" \
-            --title "chore(release): ${TAG}" \
-            --body-file pr-body.md
-          gh pr merge "$BRANCH" --auto --squash --delete-branch || \
-            echo "::notice::Auto-merge is not enabled on this repository; merge the PR to approve the release."
-
-  # ── 3. Validate the tag matches package.json ──────────────────────────
+  # ── 1. Validate the tag matches package.json ──────────────────────────
   validate-tag:
     name: Validate Tag
-    if: github.event_name == 'push' || inputs.version != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -166,7 +62,7 @@ jobs:
           fi
           echo "Tag $RELEASE_TAG matches package.json version $PKG_VERSION"
 
-  # ── 4. Full CI gate before anything ships ─────────────────────────────
+  # ── 2. Full CI gate before anything ships ─────────────────────────────
   ci-gate:
     name: Full CI Gate
     runs-on: ubuntu-latest
@@ -203,7 +99,7 @@ jobs:
         env:
           AUTH_SECRET: ci-release-gate-placeholder-not-a-real-secret-00000000
 
-  # ── 5. Publish (environment `release` = manual approval) ──────────────
+  # ── 3. Publish (environment `release` = manual approval) ──────────────
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest

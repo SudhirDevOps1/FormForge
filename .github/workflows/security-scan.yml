@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Started explicitly by `release-please.yml` for its Release PR (a PR opened
+  # with `GITHUB_TOKEN` does not emit `pull_request` events).
+  workflow_dispatch:
   schedule:
     # Weekly Monday 06:00 UTC baseline even without code changes.
     - cron: 0 6 * * 1

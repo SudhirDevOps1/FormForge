@@ -49,12 +49,12 @@ export function LiveStatsCard() {
   return (
     <div className="glass-panel rounded-[2rem] p-4 sm:p-6 animate-float">
       <div className="rounded-[1.5rem] border border-white/10 bg-slate-950/80 p-5">
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Live Production Telemetry</p>
             <h2 className="text-2xl font-bold text-white">System Status</h2>
           </div>
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/15 border border-emerald-400/30 px-3 py-1 text-xs font-semibold text-emerald-300">
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-400/15 border border-emerald-400/30 px-3 py-1 text-xs font-semibold text-emerald-300">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             {loading ? "Connecting..." : stats?.fallback ? "D1 Standby" : "D1 Live"}
           </span>
@@ -86,9 +86,9 @@ export function LiveStatsCard() {
         <div className="mt-5 space-y-3">
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-white truncate text-sm">Cloudflare D1 SQLite</p>
-                <span className="text-[10px] text-slate-500">Zero-latency Edge DB</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="min-w-0 truncate text-sm font-semibold text-white">Cloudflare D1 SQLite</p>
+                <span className="shrink-0 text-[10px] text-slate-500">Zero-latency Edge DB</span>
               </div>
               <p className="text-xs text-slate-400 truncate mt-0.5">
                 {totalForms > 0
@@ -103,9 +103,9 @@ export function LiveStatsCard() {
 
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-white truncate text-sm">Spam Shield</p>
-                <span className="text-[10px] text-slate-500">Free Self-Hosted</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="min-w-0 truncate text-sm font-semibold text-white">Spam Shield</p>
+                <span className="shrink-0 text-[10px] text-slate-500">Free Self-Hosted</span>
               </div>
               <p className="text-xs text-slate-400 truncate mt-0.5">
                 Native ALTCHA Proof-of-Work (SHA-256) + Honeypot verification
@@ -118,9 +118,9 @@ export function LiveStatsCard() {
 
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-white truncate text-sm">Security & Privacy</p>
-                <span className="text-[10px] text-slate-500">Zero Third-Party</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="min-w-0 truncate text-sm font-semibold text-white">Security &amp; Privacy</p>
+                <span className="shrink-0 text-[10px] text-slate-500">Zero Third-Party</span>
               </div>
               <p className="text-xs text-slate-400 truncate mt-0.5">
                 AES-256-GCM encryption, SHA-256 pseudonyms, no tracking cookies
@@ -132,11 +132,11 @@ export function LiveStatsCard() {
           </div>
         </div>
 
-        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-          <span>Real-time counts directly from D1 storage</span>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-xs text-slate-400">
+          <span className="min-w-0">Real-time counts directly from D1 storage</span>
           <a
             href="/dashboard"
-            className="text-cyan-300 hover:text-cyan-200 font-semibold transition inline-flex items-center gap-1"
+            className="inline-flex shrink-0 items-center gap-1 font-semibold text-cyan-300 transition hover:text-cyan-200"
           >
             Manage Forms →
           </a>

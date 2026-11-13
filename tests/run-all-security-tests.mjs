@@ -917,6 +917,12 @@ await test("P6", "all mandated security/CI/docs files exist (nothing deleted)", 
     ".github/workflows/ci.yml",
     ".github/workflows/security-scan.yml",
     ".github/workflows/release.yml",
+    ".github/workflows/release-please.yml",
+    ".github/workflows/auto-delete-branch.yml",
+    "release-please-config.json",
+    ".release-please-manifest.json",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
     "docs/SECURITY.md",
     "docs/THREAT-MODEL.md",
     "docs/RUNBOOK.md",
@@ -973,25 +979,83 @@ await test("P6", "release flow triggers on tags and reads docs/CHANGELOG.md", as
   assert(changelog.includes("Keep a Changelog"), "docs changelog follows Keep a Changelog");
 });
 
-await test("P6", "release automation is approval-gated and only tags chore(release) merges", async () => {
-  const release = readSrc(".github/workflows/release.yml");
-  assert(release.includes("workflow_dispatch"), "release must be startable on demand (approval)");
-  assert(release.includes("environment: release"), "publishing must be gated by the `release` environment");
-  assert(release.includes("scripts/prepare-release.mjs"), "release PR must use the changelog generator");
-  assert(release.includes("scripts/next-version.mjs"), "release must compute the next semver itself");
-  assert(release.includes("--auto"), "release PR should self-merge when checks are green");
-
-  const tagger = readSrc(".github/workflows/release-tag.yml");
+await test("P6", "release-please owns the version, tag and Release (approval = merge)", async () => {
+  const workflow = readSrc(".github/workflows/release-please.yml");
   assert(
-    tagger.includes("startsWith(github.event.head_commit.message, 'chore(release)')"),
-    "only release merges may mint a tag",
+    /googleapis\/release-please-action@[0-9a-f]{40}/.test(workflow),
+    "release-please must be pinned to a commit SHA",
   );
-  assert(tagger.includes("git tag -a"), "the tag must be annotated");
-  assert(tagger.includes("gh workflow run release.yml"), "the tagger must dispatch the release pipeline");
+  assert(workflow.includes("release_created"), "a created release must be detected");
+  assert(workflow.includes("gh workflow run release.yml"), "the new tag must dispatch the release pipeline");
+  assert(workflow.includes("gh workflow run ci.yml"), "required checks must be started for the release PR");
+  assert(!workflow.includes("--auto"), "the Release PR must never merge itself");
 
-  for (const script of [".github/scripts/prepare-release.mjs", ".github/scripts/next-version.mjs"]) {
-    assert(existsSync(join(REPO_ROOT, script)), `${script} must exist`);
+  const config = JSON.parse(readSrc("release-please-config.json"));
+  assert(config.packages?.["."], "the root package must be configured");
+  assert(
+    config.packages["."]["include-component-in-tag"] === false,
+    "tags must be plain vX.Y.Z (no component prefix)",
+  );
+  assert(
+    config.packages["."]["changelog-path"] === "docs/CHANGELOG.md",
+    "release notes must be written to docs/CHANGELOG.md",
+  );
+
+  const manifest = JSON.parse(readSrc(".release-please-manifest.json"));
+  const pkg = JSON.parse(readSrc("package.json"));
+  assert(manifest["."] === pkg.version, "the manifest must match package.json");
+
+  const release = readSrc(".github/workflows/release.yml");
+  assert(release.includes("environment: release"), "publishing must be gated by the `release` environment");
+  assert(release.includes("workflow_dispatch"), "release must be startable on demand");
+  assert(
+    !existsSync(join(REPO_ROOT, ".github/workflows/release-tag.yml")),
+    "release-tag.yml is replaced by release-please",
+  );
+  for (const script of [".github/scripts/next-version.mjs", ".github/scripts/prepare-release.mjs"]) {
+    assert(!existsSync(join(REPO_ROOT, script)), `${script} is replaced by release-please`);
   }
+});
+
+await test("P6", "the application version has a single source of truth", async () => {
+  const pkg = JSON.parse(readSrc("package.json"));
+  assert(/^\d+\.\d+\.\d+$/.test(pkg.version), "package.json version must be semver");
+
+  const version = readSrc("src/lib/version.ts");
+  assert(version.includes("package.json"), "version.ts must read package.json");
+  assert(version.includes("APP_VERSION"), "version.ts must export APP_VERSION");
+
+  for (const file of ["src/app/api/health/route.ts", "src/app/api/openapi.json/route.ts"]) {
+    const source = readSrc(file);
+    assert(source.includes("APP_VERSION"), `${file} must use APP_VERSION`);
+    assert(!source.includes('version: "1.0.0"'), `${file} must not hard-code a version`);
+  }
+
+  assert(
+    readSrc("next.config.ts").includes("NEXT_PUBLIC_APP_VERSION"),
+    "the client build must receive NEXT_PUBLIC_APP_VERSION",
+  );
+
+  const dashboard = readSrc("src/app/dashboard/page.tsx");
+  assert(dashboard.includes("NEXT_PUBLIC_APP_VERSION"), "the dashboard must render the injected version");
+  assert(!dashboard.includes("Engine v1.0.0"), "the dashboard must not hard-code a version");
+
+  const readme = readSrc("README.md");
+  assert(readme.includes("x-release-please-version"), "README.md must carry the release-please marker");
+  assert(
+    readme.includes("github/package-json/v/SudhirDevOps1/FormForge"),
+    "the README version badge must read package.json instead of a literal",
+  );
+  assert(readSrc("version.md").includes("x-release-please-version"), "version.md must carry the marker");
+});
+
+await test("P6", "merged branches are deleted automatically, unmerged ones are kept", async () => {
+  const workflow = readSrc(".github/workflows/auto-delete-branch.yml");
+  assert(workflow.includes("types: [closed]"), "the workflow must react to closed PRs");
+  assert(workflow.includes("merged == true"), "only merged PRs may trigger a deletion");
+  assert(workflow.includes("default_branch"), "the default branch must be excluded");
+  assert(workflow.includes("git/refs/heads/"), "the head ref must be deleted through the API");
+  assert(workflow.includes("contents: write"), "deleting a ref needs contents: write");
 });
 
 /* ================================================================== */

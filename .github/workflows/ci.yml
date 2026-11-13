@@ -6,6 +6,10 @@ on:
   push:
     branches: [main, master, develop]
   pull_request:
+  # release-please opens its Release PR with `GITHUB_TOKEN`, which does not
+  # produce `pull_request` events. Dispatching this workflow on that branch
+  # still reports every required check against its head commit.
+  workflow_dispatch:
 
 # Superseded PR runs are cancelled; main-branch runs always complete.
 concurrency:

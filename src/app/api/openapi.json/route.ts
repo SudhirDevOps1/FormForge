@@ -1,3 +1,5 @@
+import { APP_VERSION } from "@/lib/version";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
@@ -6,7 +8,8 @@ export async function GET(request: Request) {
     openapi: "3.0.3",
     info: {
       title: "FormForge API",
-      version: "1.0.0",
+      // Derived from package.json — never a second hard-coded version.
+      version: APP_VERSION,
       description: "Privacy-first serverless form backend by Sudhir Singh. Deployed on Cloudflare Workers + D1.",
       contact: {
         name: "Sudhir Singh",

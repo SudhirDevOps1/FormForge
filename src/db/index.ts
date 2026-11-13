@@ -1,5 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { D1Database } from "@cloudflare/workers-types";
+import type { D1Database, KVNamespace } from "@cloudflare/workers-types";
 import { drizzle as drizzleD1, type DrizzleD1Database } from "drizzle-orm/d1";
 import { drizzle as drizzleLibSql } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client/web";
@@ -13,6 +13,12 @@ export type AppDb = DrizzleD1Database<typeof schema>;
 
 export type CloudflareEnv = {
   DB?: D1Database;
+  /**
+   * Optional KV namespace used as the shared cache in front of D1
+   * (`src/lib/kv-cache.ts`). When the binding is absent the cache falls back
+   * to per-isolate memory and every query still works.
+   */
+  CACHE?: KVNamespace;
   AUTH_SECRET?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM?: string;
