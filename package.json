@@ -23,9 +23,12 @@
     "build:vercel": "next build",
     "build:netlify": "next build",
     "db:setup:local": "wrangler d1 migrations apply formforge-db --local",
+    "db:setup:kv": "node scripts/setup-kv.mjs",
     "db:migrate:local": "drizzle-kit migrate --config=drizzle.config.ts",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
+    "auth:recover": "node scripts/admin-recover.mjs",
     "setup": "node setup.js"
   },
   "dependencies": {

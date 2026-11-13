@@ -178,13 +178,55 @@ async function main() {
   success("Logged in to Cloudflare ✔");
 
   // ═══════════════════════════════════════
-  //  Ask user for 3 things
+  //  Ask user for details (with auto-detection)
   // ═══════════════════════════════════════
 
-  log(`\n${C.magenta}${C.bold}── Bas 3 cheezein batao, baaki sab automatic! ──${C.reset}\n`);
+  log(`\n${C.magenta}${C.bold}── Bas zaroori cheezein batao, baaki sab automatic! ──${C.reset}\n`);
+
+  // Auto-detect existing Cloudflare D1 databases to prevent data loss
+  info("Cloudflare par existing D1 databases check kar raha hoon...");
+  const d1ListRes = runCapture("npx wrangler d1 list");
+  let existingDbs = [];
+  if (d1ListRes.ok) {
+    try {
+      const parsed = JSON.parse(d1ListRes.output);
+      if (Array.isArray(parsed)) {
+        existingDbs = parsed;
+      }
+    } catch {
+      const lines = d1ListRes.output.split("\n");
+      for (const line of lines) {
+        const idMatch = extractDbId(line);
+        if (idMatch) {
+          const parts = line.split(/\s+/).filter(Boolean);
+          const name = parts.find((p) => p !== idMatch && p.length > 2 && !p.includes("│")) || "d1-db";
+          existingDbs.push({ name, uuid: idMatch });
+        }
+      }
+    }
+  }
+
+  let selectedExistingDb = null;
+  if (existingDbs.length > 0) {
+    log(`\n${C.green}${C.bold}✔ Found ${existingDbs.length} existing Cloudflare D1 database(s):${C.reset}`);
+    existingDbs.forEach((d, idx) => {
+      log(`  [${idx + 1}] ${C.cyan}${d.name}${C.reset} ${C.dim}(ID: ${d.uuid})${C.reset}`);
+    });
+    const reuse = await confirm("Kya aap kisi existing database se connect karke purana data bachana chahte hain?");
+    if (reuse) {
+      const choice = await ask(`Kaunsa database use karna hai? (1-${existingDbs.length})`, "1");
+      const idx = parseInt(choice, 10) - 1;
+      if (idx >= 0 && idx < existingDbs.length) {
+        selectedExistingDb = existingDbs[idx];
+        success(`Selected existing database: ${selectedExistingDb.name}`);
+      }
+    }
+  }
 
   const appName = await ask("App/Worker name kya rakhna hai?", "formforge");
-  const dbName = await ask("Database name kya rakhna hai?", `${appName}-db`);
+  const dbName = selectedExistingDb
+    ? selectedExistingDb.name
+    : await ask("Database name kya rakhna hai?", `${appName}-db`);
 
   log("");
   info("AUTH_SECRET ek security key hai jo sessions sign karne ke liye use hoti hai.");
@@ -218,50 +260,58 @@ async function main() {
   }
 
   // ═══════════════════════════════════════
-  //  STEP 1: Create D1 Database
+  //  STEP 1: Configure D1 Database
   // ═══════════════════════════════════════
 
-  step(1, "D1 Database create kar raha hoon...");
-  const createDb = runCapture(`npx wrangler d1 create ${dbName}`);
+  step(1, "D1 Database configure kar raha hoon...");
 
-  if (!createDb.ok) {
-    // If database already exists, that's fine
-    if (createDb.output.includes("already exists")) {
-      warn(`Database '${dbName}' pehle se exist karta hai.`);
-      // Try to get the ID from wrangler d1 list
-      info("Existing database ka ID dhoondh raha hoon...");
-      const listDb = runCapture("npx wrangler d1 list");
-      if (listDb.ok) {
-        // Find the database in the list
-        const lines = listDb.output.split("\n");
-        for (const line of lines) {
-          if (line.includes(dbName)) {
-            const dbId = extractDbId(line);
-            if (dbId) {
-              success(`Existing database ID found: ${dbId}`);
-              updateWranglerConfig(appName, dbName, dbId);
-              success("wrangler.jsonc updated ✔");
-              break;
+  if (selectedExistingDb) {
+    info(`Existing database '${selectedExistingDb.name}' bind kar raha hoon (Zero data loss)...`);
+    updateWranglerConfig(appName, selectedExistingDb.name, selectedExistingDb.uuid);
+    success(`Reusing existing database: ${selectedExistingDb.name} (${selectedExistingDb.uuid}) ✔`);
+    success("wrangler.jsonc updated with database_id ✔");
+  } else {
+    const createDb = runCapture(`npx wrangler d1 create ${dbName}`);
+
+    if (!createDb.ok) {
+      // If database already exists, that's fine
+      if (createDb.output.includes("already exists")) {
+        warn(`Database '${dbName}' pehle se exist karta hai.`);
+        // Try to get the ID from wrangler d1 list
+        info("Existing database ka ID dhoondh raha hoon...");
+        const listDb = runCapture("npx wrangler d1 list");
+        if (listDb.ok) {
+          // Find the database in the list
+          const lines = listDb.output.split("\n");
+          for (const line of lines) {
+            if (line.includes(dbName)) {
+              const dbId = extractDbId(line);
+              if (dbId) {
+                success(`Existing database ID found: ${dbId}`);
+                updateWranglerConfig(appName, dbName, dbId);
+                success("wrangler.jsonc updated ✔");
+                break;
+              }
             }
           }
         }
+      } else {
+        error("Database create karne mein error aaya:");
+        log(createDb.output);
+        rl.close();
+        process.exit(1);
       }
     } else {
-      error("Database create karne mein error aaya:");
-      log(createDb.output);
-      rl.close();
-      process.exit(1);
-    }
-  } else {
-    const dbId = extractDbId(createDb.output);
-    if (dbId) {
-      success(`Database created! ID: ${C.cyan}${dbId}${C.reset}`);
-      updateWranglerConfig(appName, dbName, dbId);
-      success("wrangler.jsonc updated with database_id ✔");
-    } else {
-      error("Database ID parse nahi ho paya. Output:");
-      log(createDb.output);
-      warn("Please manually copy the database_id into wrangler.jsonc");
+      const dbId = extractDbId(createDb.output);
+      if (dbId) {
+        success(`Database created! ID: ${C.cyan}${dbId}${C.reset}`);
+        updateWranglerConfig(appName, dbName, dbId);
+        success("wrangler.jsonc updated with database_id ✔");
+      } else {
+        error("Database ID parse nahi ho paya. Output:");
+        log(createDb.output);
+        warn("Please manually copy the database_id into wrangler.jsonc");
+      }
     }
   }
 
@@ -292,6 +342,18 @@ async function main() {
       log(`  Then paste: ${C.dim}${authSecret}${C.reset}`);
       log("");
     }
+  }
+
+  // ═══════════════════════════════════════
+  //  STEP 2b: Automated Cloudflare KV Setup
+  // ═══════════════════════════════════════
+
+  step("2b", "Cloudflare KV Cache Namespace auto-setup kar raha hoon...");
+  const kvRes = run("node scripts/setup-kv.mjs", false);
+  if (kvRes.ok) {
+    success("Cloudflare KV cache auto-configured & bound in wrangler.jsonc ✔");
+  } else {
+    warn("KV auto-setup note: Cache will run with L1 per-isolate memory fallback.");
   }
 
   // ═══════════════════════════════════════
@@ -343,6 +405,7 @@ async function main() {
   log(`  ${C.bold}Database:${C.reset}       ${dbName}`);
   log(`  ${C.bold}Worker URL:${C.reset}     ${C.cyan}https://${appName}.workers.dev${C.reset}`);
   log(`  ${C.bold}Dashboard:${C.reset}      ${C.cyan}https://${appName}.workers.dev/dashboard${C.reset}`);
+  log(`  ${C.bold}Admin Tool:${C.reset}     ${C.cyan}npm run auth:recover${C.reset} ${C.dim}(Password reset / user check)${C.reset}`);
   log("");
   log(`  ${C.dim}Ab browser mein dashboard kholo aur account create karo!${C.reset}`);
   log("");
