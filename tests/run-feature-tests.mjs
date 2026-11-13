@@ -711,6 +711,23 @@ await test("F9", "migration SQL statements use idempotent IF NOT EXISTS guards",
   assertEqual(createIndexMatches.length, createIndexIfNotExists.length, "every CREATE INDEX must have IF NOT EXISTS");
 });
 
+await test("F9", "setup-env formatEnvFile and generateCryptoKey format environment variables safely", async () => {
+  const { formatEnvFile, generateCryptoKey, parseEnvFile } = await import("../scripts/setup-env.mjs");
+  const secret = generateCryptoKey(32);
+  assertEqual(secret.length, 64, "must generate 64 hex characters for 32 bytes");
+  const formatted = formatEnvFile({
+    AUTH_SECRET: secret,
+    APP_NAME: "FormForge Test",
+    ALLOW_REGISTRATION: "false",
+  });
+  assert(formatted.includes(`AUTH_SECRET=${secret}`), "must contain generated secret");
+  assert(formatted.includes("APP_NAME=FormForge Test"), "must contain app name");
+  const parsed = parseEnvFile(formatted);
+  assertEqual(parsed.AUTH_SECRET, secret, "parsed secret must match original");
+  assertEqual(parsed.APP_NAME, "FormForge Test", "parsed app name must match");
+  assertEqual(parsed.ALLOW_REGISTRATION, "false", "parsed registration must match");
+});
+
 /* ------------------------------ summary ---------------------------- */
 
 rmSync(OUT_DIR, { recursive: true, force: true });

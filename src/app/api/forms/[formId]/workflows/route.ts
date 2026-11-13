@@ -27,9 +27,9 @@ export async function GET(request: Request, context: RouteContext) {
       .where(eq(formWorkflows.formId, formId))
       .orderBy(asc(formWorkflows.position), asc(formWorkflows.createdAt));
 
-    return jsonOk({ workflows: rows });
-  } catch {
-    return jsonError("DB_ERROR", "Failed to load workflows.", 500);
+    return jsonOk({ workflows: rows, count: rows.length });
+  } catch (err: any) {
+    return jsonError("DB_ERROR", err?.message || "Failed to load workflows.", 500);
   }
 }
 
@@ -49,7 +49,7 @@ export async function POST(request: Request, context: RouteContext) {
   const id = randomId("wf");
 
   try {
-    await result.db.insert(formWorkflows).values({
+    const newRecord = {
       id,
       formId,
       name,
@@ -60,11 +60,13 @@ export async function POST(request: Request, context: RouteContext) {
       position,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    };
 
-    return jsonOk({ id, message: "Workflow created successfully" }, { status: 201 });
-  } catch (err) {
-    return jsonError("DB_ERROR", "Failed to create workflow.", 500);
+    await result.db.insert(formWorkflows).values(newRecord);
+
+    return jsonOk({ id, workflow: newRecord, message: "Workflow created successfully" }, { status: 201 });
+  } catch (err: any) {
+    return jsonError("DB_ERROR", err?.message || "Failed to create workflow.", 500);
   }
 }
 
@@ -97,8 +99,18 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
 
-    return jsonOk({ message: "Workflows saved successfully", count: workflowsList.length });
-  } catch {
-    return jsonError("DB_ERROR", "Failed to update workflows.", 500);
+    const updatedRows = await result.db
+      .select()
+      .from(formWorkflows)
+      .where(eq(formWorkflows.formId, formId))
+      .orderBy(asc(formWorkflows.position), asc(formWorkflows.createdAt));
+
+    return jsonOk({
+      message: "Workflows saved successfully",
+      count: updatedRows.length,
+      workflows: updatedRows,
+    });
+  } catch (err: any) {
+    return jsonError("DB_ERROR", err?.message || "Failed to update workflows.", 500);
   }
 }
