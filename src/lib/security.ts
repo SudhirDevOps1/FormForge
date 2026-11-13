@@ -146,7 +146,6 @@ export function sanitizeHtml(input: unknown): string {
       return `<${tag}>`;
     },
   );
-  return output;
 }
 
 const FORBIDDEN_FIELD_KEYS = new Set(["__proto__", "constructor", "prototype"]);

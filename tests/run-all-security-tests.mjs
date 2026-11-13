@@ -973,6 +973,27 @@ await test("P6", "release flow triggers on tags and reads docs/CHANGELOG.md", as
   assert(changelog.includes("Keep a Changelog"), "docs changelog follows Keep a Changelog");
 });
 
+await test("P6", "release automation is approval-gated and only tags chore(release) merges", async () => {
+  const release = readSrc(".github/workflows/release.yml");
+  assert(release.includes("workflow_dispatch"), "release must be startable on demand (approval)");
+  assert(release.includes("environment: release"), "publishing must be gated by the `release` environment");
+  assert(release.includes("scripts/prepare-release.mjs"), "release PR must use the changelog generator");
+  assert(release.includes("scripts/next-version.mjs"), "release must compute the next semver itself");
+  assert(release.includes("--auto"), "release PR should self-merge when checks are green");
+
+  const tagger = readSrc(".github/workflows/release-tag.yml");
+  assert(
+    tagger.includes("startsWith(github.event.head_commit.message, 'chore(release)')"),
+    "only release merges may mint a tag",
+  );
+  assert(tagger.includes("git tag -a"), "the tag must be annotated");
+  assert(tagger.includes("gh workflow run release.yml"), "the tagger must dispatch the release pipeline");
+
+  for (const script of [".github/scripts/prepare-release.mjs", ".github/scripts/next-version.mjs"]) {
+    assert(existsSync(join(REPO_ROOT, script)), `${script} must exist`);
+  }
+});
+
 /* ================================================================== */
 /* P7 — v1.1 "Aurora" additions: new attack surface                   */
 /* ================================================================== */

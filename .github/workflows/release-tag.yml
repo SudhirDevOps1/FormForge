@@ -1,0 +1,88 @@
+# Tags a merged release PR and hands the exact version to the Release pipeline.
+#
+# A release PR is created by `.github/workflows/release.yml` (Actions → Release
+# → Run workflow). Merging that PR is the approval; this workflow then:
+#
+#   1. verifies the merged `package.json` version has no tag yet,
+#   2. creates the annotated `vX.Y.Z` tag on the merge commit,
+#   3. dispatches `release.yml` with that exact version so the full gate,
+#      SBOM, signature and GitHub Release run against the tagged code.
+#
+# Only `chore(release): vX.Y.Z` merges are considered, so ordinary dependency
+# or feature PRs that touch `package.json` can never mint a release.
+name: Release tag
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag Merged Release
+    if: startsWith(github.event.head_commit.message, 'chore(release)')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main (full history for tags)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Read the released version and check for an existing tag
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::package.json version '$VERSION' is not semver"
+            exit 1
+          fi
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push the annotated tag
+        if: steps.version.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "FormForge v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Dispatch the release pipeline
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh workflow run release.yml --ref main -f version="v${VERSION}"
+
+      - name: Write summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          EXISTS: ${{ steps.version.outputs.exists }}
+        run: |
+          {
+            echo "## 🏷️ Release tag"
+            echo ""
+            if [ "$EXISTS" = "true" ]; then
+              echo "\`v${VERSION}\` already exists — nothing to tag."
+            else
+              echo "Tagged \`v${VERSION}\` and dispatched the \`Release\` pipeline."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
