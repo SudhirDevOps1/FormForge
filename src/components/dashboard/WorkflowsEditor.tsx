@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Form } from "@/db/schema";
 import { ZapIcon, TrashIcon, SparklesIcon, CheckCircleIcon, PlusIcon } from "@/components/icons";
+import { ForgeLoader } from "@/components/ForgeLoader";
 
 export interface WorkflowCondition {
   field: string;
@@ -79,15 +80,13 @@ export function WorkflowsEditor({
       if (!res.ok) throw new Error("Failed to load workflows");
       const data = await res.json();
       setWorkflows(data.workflows || []);
-      if (data.workflows?.length && !editingId) {
-        setEditingId(data.workflows[0].id);
-      }
+      setEditingId((prev) => (prev ? prev : (data.workflows?.[0]?.id || null)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load workflows");
     } finally {
       setLoading(false);
     }
-  }, [formId, editingId]);
+  }, [formId]);
 
   useEffect(() => {
     loadWorkflows();
@@ -116,7 +115,7 @@ export function WorkflowsEditor({
       position: workflows.length,
     };
 
-    setWorkflows([...workflows, newWf]);
+    setWorkflows((prev) => [...prev, newWf]);
     setEditingId(newId);
   };
 
@@ -245,12 +244,8 @@ export function WorkflowsEditor({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12 text-slate-400">
-        <svg className="h-5 w-5 animate-spin mr-2 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="12" cy="12" r="10" strokeWidth="3" className="opacity-25" />
-          <path d="M4 12a8 8 0 018-8" strokeWidth="3" className="opacity-75" />
-        </svg>
-        Loading automated workflows...
+      <div className="flex items-center justify-center py-24">
+        <ForgeLoader message="Forging automated workflows..." size="md" />
       </div>
     );
   }

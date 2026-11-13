@@ -13,6 +13,7 @@ import { EmbedWizardModal } from "@/components/dashboard/EmbedWizardModal";
 import { SecurityPanel } from "@/components/dashboard/SecurityPanel";
 import { SubmissionInbox } from "@/components/dashboard/SubmissionInbox";
 import { CommandPalette, type CommandAction } from "@/components/dashboard/CommandPalette";
+import { ForgeLoader } from "@/components/ForgeLoader";
 import {
   ZapIcon,
   ShieldCheckIcon,
@@ -622,7 +623,11 @@ function DashHeader({ user, onLogout, onOpenPalette }: { user: User; onLogout: (
 /* ─────────────────── Spinner ─────────────────── */
 
 function Spinner() {
-  return <div className="grid min-h-screen place-items-center"><div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-cyan-300" /></div>;
+  return (
+    <div className="grid min-h-screen place-items-center bg-slate-950">
+      <ForgeLoader message="Loading FormForge..." size="lg" />
+    </div>
+  );
 }
 
 /* ─────────────────── Auth ─────────────────── */
@@ -1345,9 +1350,8 @@ function FormsTab() {
       {selected ? (
         <FormDetail form={selected} onChanged={loadForms} />
       ) : loading ? (
-        <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 text-slate-400 space-y-3 min-h-[360px]">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400/20 border-t-cyan-400" />
-          <p className="text-xs font-semibold text-slate-300">Loading form details…</p>
+        <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 min-h-[360px]">
+          <ForgeLoader message="Loading form details..." size="md" />
         </div>
       ) : (
         <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 text-center min-h-[360px] space-y-2">
