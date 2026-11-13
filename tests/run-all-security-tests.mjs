@@ -1058,6 +1058,46 @@ await test("P6", "merged branches are deleted automatically, unmerged ones are k
   assert(workflow.includes("contents: write"), "deleting a ref needs contents: write");
 });
 
+await test("P6", "every startup index is created after the column it needs exists", async () => {
+  /*
+   * `auto-migrate.ts` creates tables, then adds missing columns with ALTER,
+   * then creates indexes. Indexing a column in the CREATE TABLE phase throws
+   * `no such column` on a fresh database, and because the whole run shares one
+   * try/catch, that single error skipped every later step — registration and
+   * login then failed with DB_ERROR. Both the index and its column are now
+   * asserted to be in the right order.
+   */
+  const migration = readSrc("src/db/auto-migrate.ts");
+
+  for (const [indexName, column] of [
+    ["webhook_logs_retry_idx", "ADD COLUMN next_retry_at"],
+  ]) {
+    // Match the statement, not the name: a comment can mention the index.
+    const indexAt = migration.indexOf(`CREATE INDEX IF NOT EXISTS ${indexName}`);
+    const columnAt = migration.indexOf(column);
+    assert(indexAt !== -1, `${indexName} must exist`);
+    assert(columnAt !== -1, `${column} must exist`);
+    assert(
+      indexAt > columnAt,
+      `${indexName} must be created after ${column.trim()} is added`,
+    );
+  }
+
+  // The submissions index uses created_at, which the CREATE TABLE defines.
+  const submissionsTable = migration.slice(
+    migration.indexOf("CREATE TABLE IF NOT EXISTS submissions"),
+    migration.indexOf("CREATE TABLE IF NOT EXISTS sessions"),
+  );
+  assert(
+    submissionsTable.includes("created_at"),
+    "the submissions index may only exist because created_at is in the table",
+  );
+  assert(
+    submissionsTable.includes("submissions_form_created_idx"),
+    "the composite submissions index must be created with the table",
+  );
+});
+
 /* ================================================================== */
 /* P7 — v1.1 "Aurora" additions: new attack surface                   */
 /* ================================================================== */

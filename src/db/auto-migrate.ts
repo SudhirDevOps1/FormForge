@@ -322,9 +322,9 @@ export async function autoMigrate(db: any): Promise<void> {
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_form_id_idx ON webhook_logs (form_id);`);
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_submission_id_idx ON webhook_logs (submission_id);`);
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_created_at_idx ON webhook_logs (created_at);`);
-    // The retry cron asks for `status = 'failed' AND next_retry_at <= now` on
-    // every run. Without this index that is a growing full scan of the log.
-    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS webhook_logs_retry_idx ON webhook_logs (status, next_retry_at);`);
+    // `webhook_logs_retry_idx` is created further down, after `next_retry_at`
+    // is added by the `columnsToAdd` ALTERs — indexing a column that does not
+    // exist yet aborts the whole migration run.
 
     // 12. Form rules (conditional logic)
     await executeQuery(db, sql`
@@ -466,6 +466,19 @@ export async function autoMigrate(db: any): Promise<void> {
       } catch {
         // Column already exists, safe to ignore
       }
+    }
+
+    // Created only now: on a database that predates this migration the column
+    // arrives with the ALTER above, and on a fresh one it arrives with the
+    // table. The retry cron asks for `status = 'failed' AND next_retry_at <=
+    // now` on every run, so without an index that is a growing full scan.
+    try {
+      await executeQuery(
+        db,
+        sql`CREATE INDEX IF NOT EXISTS webhook_logs_retry_idx ON webhook_logs (status, next_retry_at);`,
+      );
+    } catch {
+      // An older database without the column still works, just slower.
     }
 
     migrationExecuted = true;
