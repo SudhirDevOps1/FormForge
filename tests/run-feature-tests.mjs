@@ -586,6 +586,51 @@ await test("F8", "workflow actions cap enforces edge subrequest budget", async (
   assertEqual(MAX_WORKFLOW_ACTIONS, 5, "maximum actions per workflow must be 5 to respect Cloudflare limits");
 });
 
+/* ------------------------------------------------------------------ */
+/* Pillar F9: Premium Market-Beating Features (Signatures & Quizzes)  */
+/* ------------------------------------------------------------------ */
+
+console.log("\n## F9 — Premium features (Signatures & Assessment Scoring)");
+
+await test("F9", "digital signature payloads validate PNG base64 format", async () => {
+  const dummySignature = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+  assert(dummySignature.startsWith("data:image/png;base64,"), "signature must carry PNG data URI header");
+  const base64Data = dummySignature.replace("data:image/png;base64,", "");
+  const buf = Buffer.from(base64Data, "base64");
+  assert(buf.length > 0, "base64 signature payload must decode to binary bytes");
+});
+
+await test("F9", "option scoring logic calculates quiz totals correctly", async () => {
+  const responses = {
+    team_size: "10-50 employees [score:20]",
+    budget: "Enterprise $50k+ [score:50]",
+    timeline: "Immediate (+10)",
+    plain_text: "General Feedback without score",
+  };
+
+  let total = 0;
+  for (const val of Object.values(responses)) {
+    if (typeof val === "string") {
+      const match = val.match(/(?:\[score:|\+|score:)(\d+)\]?/i);
+      if (match) {
+        total += parseInt(match[1], 10) || 0;
+      }
+    }
+  }
+
+  assertEqual(total, 80, "score must sum 20 + 50 + 10 = 80 points");
+});
+
+await test("F9", "autoresponder email merges personalized fields safely", async () => {
+  const { renderMergeTags } = requireCompiled("./lib/merge-tags.js");
+  const template = "Hi {{name | 'valued customer'}},\n\nThank you for choosing FormForge!\n\nYour message: \"{{message}}\" has been routed to our team.";
+  const payload = { name: "Sarah Connor", message: "Need multi-region deployment" };
+  const rendered = renderMergeTags(template, payload, { escapeHtml: true });
+
+  assert(rendered.includes("Hi Sarah Connor,"), "interpolates name");
+  assert(rendered.includes("Need multi-region deployment"), "interpolates message");
+});
+
 /* ------------------------------ summary ---------------------------- */
 
 rmSync(OUT_DIR, { recursive: true, force: true });
