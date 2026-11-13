@@ -24,7 +24,7 @@
 
 <br />
 
-> 🚀 **Release `v1.2.0` Universal** <!-- x-release-please-version --> — fully tested on Cloudflare Workers (`*.workers.dev`), Cloudflare Pages (`*.pages.dev`), Vercel, Netlify, and local development. FormForge is a feature-complete alternative to Formspree, Typeform, and Basin that runs entirely on free-tier infrastructure.
+> 🚀 **Release `v1.3.0` Universal** <!-- x-release-please-version --> — fully tested on Cloudflare Workers (`*.workers.dev`), Cloudflare Pages (`*.pages.dev`), Vercel, Netlify, and local development. FormForge is a feature-complete alternative to Formspree, Typeform, and Basin that runs entirely on free-tier infrastructure.
 
 ---
 
