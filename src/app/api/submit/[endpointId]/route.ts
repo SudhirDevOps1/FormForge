@@ -858,16 +858,26 @@ export async function POST(request: Request, context: RouteContext) {
     const appUrl = new URL(request.url).origin;
 
     if (status === "accepted") {
+      const handleAcceptedAsync = async () => {
+        await deliverNotifications(db, form, submission as typeof submissions.$inferSelect, appUrl);
+        try {
+          const { runFormWorkflows } = await import("@/lib/workflow-engine");
+          await runFormWorkflows(db, form, submission as typeof submissions.$inferSelect, payload, appUrl);
+        } catch (wfErr) {
+          console.warn("Workflow execution note:", wfErr);
+        }
+      };
+
       try {
         const { getCloudflareContext } = await import("@opennextjs/cloudflare");
         const ctx = getCloudflareContext().ctx;
         if (ctx && typeof ctx.waitUntil === "function") {
-          ctx.waitUntil(deliverNotifications(db, form, submission as typeof submissions.$inferSelect, appUrl));
+          ctx.waitUntil(handleAcceptedAsync());
         } else {
-          await deliverNotifications(db, form, submission as typeof submissions.$inferSelect, appUrl);
+          await handleAcceptedAsync();
         }
       } catch {
-        await deliverNotifications(db, form, submission as typeof submissions.$inferSelect, appUrl);
+        await handleAcceptedAsync();
       }
     } else if (status === "pending" && form.emailVerificationEnabled) {
       const { sendVerificationEmail } = await import("@/lib/notifications");

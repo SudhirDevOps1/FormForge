@@ -407,3 +407,34 @@ export type NewPartialSubmission = typeof partialSubmissions.$inferInsert;
 export type SubmissionNote = typeof submissionNotes.$inferSelect;
 export type NewSubmissionNote = typeof submissionNotes.$inferInsert;
 
+/**
+ * Visual automated workflows.
+ *
+ * A workflow triggers on an event (`submission.created`), evaluates optional
+ * condition filters, and executes an array of actions (auto-responder, custom
+ * webhook, Slack/Discord notification, Google Sheets sync, tagging).
+ */
+export const formWorkflows = sqliteTable(
+  "form_workflows",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id")
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    triggerEvent: text("trigger_event").notNull().default("submission.created"),
+    triggerConditions: text("trigger_conditions").notNull().default("{}"),
+    actionsDefinition: text("actions_definition").notNull().default("[]"),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    position: integer("position").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    formTriggerIdx: index("form_workflows_form_trigger_idx").on(table.formId, table.triggerEvent, table.isActive),
+  }),
+);
+
+export type FormWorkflow = typeof formWorkflows.$inferSelect;
+export type NewFormWorkflow = typeof formWorkflows.$inferInsert;
+

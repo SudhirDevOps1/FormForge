@@ -25,6 +25,8 @@
     "../src/lib/duplicates.ts",
     "../src/lib/form-password.ts",
     "../src/lib/password-policy.ts",
-    "../src/lib/encryption.ts"
+    "../src/lib/encryption.ts",
+    "../src/lib/merge-tags.ts",
+    "../src/lib/workflow-engine.ts"
   ]
 }

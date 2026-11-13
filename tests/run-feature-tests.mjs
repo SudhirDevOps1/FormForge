@@ -532,6 +532,60 @@ await test("F7", "an unreadable payload yields a safe placeholder", async () => 
   assert(result.includes("_error"), "the placeholder must flag the read failure");
 });
 
+/* ================================================================== */
+/* F8 — Workflow automations & merge tags engine                      */
+/* ================================================================== */
+
+pillar("F8 — Workflow automations & merge tags engine");
+
+await test("F8", "merge tags interpolate values and fallbacks cleanly", async () => {
+  const { renderMergeTags, extractMergeTags } = requireCompiled("./lib/merge-tags.js");
+  const template = "Hello {{name | 'Customer'}}, your topic is {{topic}}.";
+  const rendered = renderMergeTags(template, { topic: "Sales" });
+  assertEqual(rendered, "Hello Customer, your topic is Sales.");
+  assertEqual(extractMergeTags(template), ["name", "topic"]);
+});
+
+await test("F8", "merge tags HTML escaping neutralizes XSS in emails", async () => {
+  const { renderMergeTags } = requireCompiled("./lib/merge-tags.js");
+  const rendered = renderMergeTags("<b>{{input}}</b>", { input: "<script>alert(1)</script>" }, { escapeHtml: true });
+  assert(!rendered.includes("<script>"), "script tags must be escaped");
+  assert(rendered.includes("&lt;script&gt;"), "escaped markup must be present");
+});
+
+await test("F8", "merge tags access nested metadata safely without prototype pollution", async () => {
+  const { renderMergeTags } = requireCompiled("./lib/merge-tags.js");
+  const rendered = renderMergeTags("ID: {{_meta.id}} Polluted: {{__proto__.test | 'safe'}}", {
+    _meta: { id: "sub-123" },
+  });
+  assertEqual(rendered, "ID: sub-123 Polluted: safe");
+});
+
+await test("F8", "workflow condition operators evaluate accurately", async () => {
+  const { evaluateCondition } = requireCompiled("./lib/workflow-engine.js");
+  const data = { budget: "5000", intent: "sales", status: "open" };
+  assert(evaluateCondition({ field: "budget", operator: "gt", value: "1000" }, data), "5000 > 1000");
+  assert(!evaluateCondition({ field: "budget", operator: "lt", value: "1000" }, data), "5000 not < 1000");
+  assert(evaluateCondition({ field: "intent", operator: "equals", value: "sales" }, data), "intent equals sales");
+  assert(evaluateCondition({ field: "intent", operator: "in", value: "support, sales, billing" }, data), "in set");
+});
+
+await test("F8", "workflow conditions enforce conjunction (AND)", async () => {
+  const { evaluateAllConditions } = requireCompiled("./lib/workflow-engine.js");
+  const conds = JSON.stringify([
+    { field: "tier", operator: "equals", value: "pro" },
+    { field: "users", operator: "gt", value: "10" },
+  ]);
+  assert(evaluateAllConditions(conds, { tier: "pro", users: "25" }), "matches both conditions");
+  assert(!evaluateAllConditions(conds, { tier: "free", users: "25" }), "fails first condition");
+  assert(!evaluateAllConditions(conds, { tier: "pro", users: "5" }), "fails second condition");
+});
+
+await test("F8", "workflow actions cap enforces edge subrequest budget", async () => {
+  const { MAX_WORKFLOW_ACTIONS } = requireCompiled("./lib/workflow-engine.js");
+  assertEqual(MAX_WORKFLOW_ACTIONS, 5, "maximum actions per workflow must be 5 to respect Cloudflare limits");
+});
+
 /* ------------------------------ summary ---------------------------- */
 
 rmSync(OUT_DIR, { recursive: true, force: true });
