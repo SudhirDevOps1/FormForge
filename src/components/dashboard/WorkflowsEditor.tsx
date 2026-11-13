@@ -76,11 +76,17 @@ export function WorkflowsEditor({
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/forms/${formId}/workflows`);
-      if (!res.ok) throw new Error("Failed to load workflows");
+      const res = await fetch(`/api/forms/${encodeURIComponent(formId)}/workflows`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || "Failed to load workflows");
+      }
       const data = await res.json();
-      setWorkflows(data.workflows || []);
-      setEditingId((prev) => (prev ? prev : (data.workflows?.[0]?.id || null)));
+      const list = (data.data?.workflows || data.workflows || []) as WorkflowItem[];
+      setWorkflows(list);
+      setEditingId((prev) => (list.some((w) => w.id === prev) ? prev : (list[0]?.id || null)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load workflows");
     } finally {
@@ -123,15 +129,26 @@ export function WorkflowsEditor({
     try {
       setSaving(true);
       setError(null);
-      const res = await fetch(`/api/forms/${formId}/workflows`, {
+      const res = await fetch(`/api/forms/${encodeURIComponent(formId)}/workflows`, {
         method: "PUT",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workflows }),
       });
-      if (!res.ok) throw new Error("Failed to save workflows");
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || "Failed to save workflows");
+      }
+      const data = await res.json();
+      const savedList = (data.data?.workflows || data.workflows) as WorkflowItem[] | undefined;
+      if (Array.isArray(savedList)) {
+        setWorkflows(savedList);
+        setEditingId((prev) => (savedList.some((w) => w.id === prev) ? prev : (savedList[0]?.id || null)));
+      } else {
+        await loadWorkflows();
+      }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-      await loadWorkflows();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save workflows");
     } finally {

@@ -74,3 +74,9 @@ Thumbs.db
 # scratch output from local verification
 /.tmp-*
 
+
+# Added by setup wizard
+.env.local
+
+# Added by setup wizard
+.auth-secret-backup.txt

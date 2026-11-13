@@ -82,37 +82,62 @@ export function updateWranglerKvBinding(configContent, kvId, previewId) {
   );
 }
 
-export async function setupKvNamespace() {
+export async function setupKvNamespace(options = {}) {
   log("⚡ FormForge: Checking Cloudflare KV Namespace for cache layer...");
 
-  let prodId = null;
-  let previewId = null;
+  let prodId = options.prodId || null;
+  let previewId = options.previewId || null;
 
-  // 1. Check existing KV namespaces
-  const listRes = runCapture("npx wrangler kv namespace list");
-  if (listRes.ok) {
-    try {
-      const namespaces = JSON.parse(listRes.output);
-      if (Array.isArray(namespaces)) {
-        for (const ns of namespaces) {
-          const title = (ns.title || "").toLowerCase();
-          if (title.endsWith("-cache") || title === "cache") {
-            prodId = ns.id;
-            log(`✔ Found existing KV namespace: ${ns.title} (${prodId})`);
-            break;
-          }
-        }
-        for (const ns of namespaces) {
-          const title = (ns.title || "").toLowerCase();
-          if (title.endsWith("-cache_preview") || title === "cache_preview") {
-            previewId = ns.id;
-            log(`✔ Found existing KV preview namespace: ${ns.title} (${previewId})`);
-            break;
-          }
-        }
+  // Check CLI arguments --kv-id and --preview-id if not provided in options
+  if (!prodId) {
+    const kvIdx = process.argv.indexOf("--kv-id");
+    if (kvIdx !== -1 && process.argv[kvIdx + 1]) {
+      const candidate = process.argv[kvIdx + 1].trim();
+      if (/^[a-f0-9]{32}$/i.test(candidate)) {
+        prodId = candidate;
+        log(`✔ Using KV namespace ID from CLI: ${prodId}`);
       }
-    } catch {
-      // not JSON or CLI output
+    }
+  }
+
+  if (!previewId) {
+    const prevIdx = process.argv.indexOf("--preview-id");
+    if (prevIdx !== -1 && process.argv[prevIdx + 1]) {
+      const candidate = process.argv[prevIdx + 1].trim();
+      if (/^[a-f0-9]{32}$/i.test(candidate)) {
+        previewId = candidate;
+        log(`✔ Using KV preview namespace ID from CLI: ${previewId}`);
+      }
+    }
+  }
+
+  // 1. Check existing KV namespaces if prodId not provided
+  if (!prodId) {
+    const listRes = runCapture("npx wrangler kv namespace list");
+    if (listRes.ok) {
+      try {
+        const namespaces = JSON.parse(listRes.output);
+        if (Array.isArray(namespaces)) {
+          for (const ns of namespaces) {
+            const title = (ns.title || "").toLowerCase();
+            if (title.endsWith("-cache") || title === "cache") {
+              prodId = ns.id;
+              log(`✔ Found existing KV namespace: ${ns.title} (${prodId})`);
+              break;
+            }
+          }
+          for (const ns of namespaces) {
+            const title = (ns.title || "").toLowerCase();
+            if (title.endsWith("-cache_preview") || title === "cache_preview") {
+              previewId = ns.id;
+              log(`✔ Found existing KV preview namespace: ${ns.title} (${previewId})`);
+              break;
+            }
+          }
+        }
+      } catch {
+        // not JSON or CLI output
+      }
     }
   }
 
