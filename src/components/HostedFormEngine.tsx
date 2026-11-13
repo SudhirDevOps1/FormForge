@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { evaluateRules, type FormRule } from "@/lib/rules";
 import { TurnstileAltcha } from "@/components/TurnstileAltcha";
+import { SignaturePad } from "@/components/SignaturePad";
 
 export interface HostedField {
   key: string;
@@ -319,6 +320,23 @@ export function HostedFormEngine(props: HostedFormEngineProps) {
   }
 
   /* ---------------------------------------------------------------- */
+  /* Quiz & Assessment Scoring Engine                                 */
+  /* ---------------------------------------------------------------- */
+
+  const totalQuizScore = useMemo(() => {
+    let sum = 0;
+    for (const val of Object.values(values)) {
+      if (typeof val === "string") {
+        const match = val.match(/(?:\[score:|\+|score:)(\d+)\]?/i);
+        if (match) {
+          sum += parseInt(match[1], 10) || 0;
+        }
+      }
+    }
+    return sum;
+  }, [values]);
+
+  /* ---------------------------------------------------------------- */
   /* Render                                                           */
   /* ---------------------------------------------------------------- */
 
@@ -330,6 +348,12 @@ export function HostedFormEngine(props: HostedFormEngineProps) {
         </div>
         <h3 className="text-xl font-bold text-white">Submission Received!</h3>
         <p className="text-sm leading-relaxed text-slate-300">{successMessage}</p>
+        {totalQuizScore > 0 && (
+          <div className="mx-auto max-w-xs rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-center">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400">Assessment / Quiz Score</span>
+            <div className="text-2xl font-bold text-white mt-0.5">{totalQuizScore} Points</div>
+          </div>
+        )}
         {redirectUrl && <p className="text-xs text-cyan-400 animate-pulse">Redirecting you now…</p>}
       </div>
     );
@@ -519,6 +543,19 @@ function DynamicField({
     );
   }
 
+  if (type === "signature") {
+    return (
+      <div>
+        <SignaturePad
+          label={field.label}
+          required={required}
+          value={value}
+          onChange={onChange}
+        />
+      </div>
+    );
+  }
+
   if (type === "file") {
     const accept = allowedFileExtensions
       ? allowedFileExtensions
@@ -597,7 +634,7 @@ function DynamicField({
                 onChange={() => onChange(option)}
                 className="h-4 w-4 accent-cyan-400"
               />
-              {option}
+              <span>{option.replace(/\[(?:score:)?\d+\]/gi, "").trim()}</span>
             </label>
           ))}
         </div>

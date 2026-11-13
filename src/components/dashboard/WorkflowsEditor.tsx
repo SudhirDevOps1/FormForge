@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Form } from "@/db/schema";
+import { ZapIcon, TrashIcon, SparklesIcon, CheckCircleIcon, PlusIcon } from "@/components/icons";
 
 export interface WorkflowCondition {
   field: string;
@@ -260,7 +261,9 @@ export function WorkflowsEditor({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-violet-500/30 bg-violet-950/20 p-5 shadow-xl shadow-violet-950/20">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/20 text-violet-400 text-xs font-bold">⚡</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/20 text-violet-400">
+              <ZapIcon className="w-3.5 h-3.5" />
+            </span>
             <h3 className="text-base font-bold text-white">Visual Automated Workflows</h3>
             <span className="rounded-full bg-violet-500/20 border border-violet-400/30 px-2 py-0.5 text-[10px] font-bold text-violet-300 uppercase tracking-wide">
               Premium Engine
@@ -299,8 +302,8 @@ export function WorkflowsEditor({
 
       {workflows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-slate-400 mb-3 text-xl">
-            ⚡
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-slate-400 mb-3">
+            <ZapIcon className="w-6 h-6 text-slate-500" />
           </div>
           <h4 className="text-sm font-bold text-white">No active workflows</h4>
           <p className="mx-auto mt-1 max-w-sm text-xs text-slate-400">
@@ -713,7 +716,9 @@ export function WorkflowsEditor({
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500 text-[10px] font-bold text-white">🧪</span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500">
+                      <SparklesIcon className="w-3 h-3 text-white" />
+                    </span>
                     <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider">Test &amp; Live Simulation</h4>
                   </div>
                   <button

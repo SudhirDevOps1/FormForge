@@ -13,6 +13,34 @@ import { EmbedWizardModal } from "@/components/dashboard/EmbedWizardModal";
 import { SecurityPanel } from "@/components/dashboard/SecurityPanel";
 import { SubmissionInbox } from "@/components/dashboard/SubmissionInbox";
 import { CommandPalette, type CommandAction } from "@/components/dashboard/CommandPalette";
+import {
+  ZapIcon,
+  ShieldCheckIcon,
+  ShieldAlertIcon,
+  TrashIcon,
+  RefreshCwIcon,
+  SearchIcon,
+  MailIcon,
+  GlobeIcon,
+  SparklesIcon,
+  DownloadIcon,
+  ClipboardIcon,
+  CodeIcon,
+  SlidersIcon,
+  TrendingUpIcon,
+  PenToolIcon,
+  CheckCircleIcon,
+  AlertTriangleIcon,
+  KeyRoundIcon,
+  ExternalLinkIcon,
+  LayersIcon,
+  MessageSquareIcon,
+  PlusIcon,
+  XIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ArrowLeftIcon,
+} from "@/components/icons";
 
 /**
  * Build-injected from `package.json` by `next.config.ts`.
@@ -807,7 +835,8 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
             <span className="text-xl font-bold">FormForge</span>
           </div>
           <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300 font-semibold">
-            ✨ Passwordless Authentication
+            <SparklesIcon className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Passwordless Authentication</span>
           </div>
           <h1 className="text-2xl font-black text-white">Sign in with Magic Link</h1>
           <p className="mt-1 text-sm text-slate-400">
@@ -816,7 +845,9 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
 
           {magicSuccess ? (
             <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center space-y-3">
-              <span className="text-3xl">📬</span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mx-auto">
+                <MailIcon className="w-6 h-6" />
+              </span>
               <h3 className="text-base font-bold text-white">Check Your Email Inbox</h3>
               <p className="text-xs text-slate-300 leading-relaxed">{magicSuccess}</p>
               <button
@@ -1069,7 +1100,8 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
             <span className="text-xl font-bold">FormForge</span>
           </div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300 font-semibold">
-            🛡️ Two-Factor Authentication
+            <ShieldCheckIcon className="w-4 h-4 text-emerald-400" />
+            <span>Two-Factor Authentication</span>
           </div>
           <h1 className="text-2xl font-black text-white">Enter 6-Digit Code</h1>
           <p className="mt-1 text-sm text-slate-400">
@@ -1222,7 +1254,7 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
             }}
             className="mt-3 w-full text-center text-xs text-slate-300 hover:text-cyan-300 flex items-center justify-center gap-1.5 transition py-1"
           >
-            <span>✨</span>
+            <SparklesIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span>Sign in with 1-Click Magic Link (Passwordless)</span>
           </button>
         )}
@@ -1512,7 +1544,7 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
             setSubs(freshSubs);
             setTotal(data.data.pagination.total ?? freshSubs.length);
             if (data.data.counts) setCounts(data.data.counts);
-            setLiveBanner("⚡ New submission received just now!");
+            setLiveBanner("New submission received just now!");
             setTimeout(() => setLiveBanner(null), 5000);
           }
         }
@@ -2023,7 +2055,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
             onClick={() => setEmbedWizardOpen(true)}
             className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 px-4 py-3 text-xs hover:bg-cyan-500/20 flex items-center gap-1.5 font-semibold transition shadow-sm"
           >
-            <span>⚡</span>
+            <ZapIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span>Embed Wizard</span>
           </button>
           <button onClick={toggleActive} className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10">{form.isActive ? "Pause" : "Resume"}</button>
@@ -2193,7 +2225,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                 }`}
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-                <span>⚡ Visual Studio &amp; Snippets</span>
+                <span>Visual Studio &amp; Snippets</span>
               </button>
               <button
                 type="button"
@@ -2205,7 +2237,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                 }`}
               >
                 <svg className="w-4 h-4 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                <span>📖 API Guide &amp; Reference</span>
+                <span>API Guide &amp; Reference</span>
                 <span className="rounded-full bg-cyan-400/20 text-cyan-300 text-[10px] px-2 py-0.5 font-mono">Documentation</span>
               </button>
               <button
@@ -2218,7 +2250,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                 }`}
               >
                 <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span>🛡️ Spam &amp; Security Architecture</span>
+                <span>Spam &amp; Security Architecture</span>
               </button>
               <button
                 type="button"
@@ -2278,21 +2310,25 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
 
           {/* Quick-add presets */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">⚡ Quick-Add Presets:</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1.5">
+              <ZapIcon className="w-3 h-3 text-cyan-400" />
+              <span>Quick-Add Presets:</span>
+            </span>
             <div className="flex flex-wrap gap-1.5">
               {[
-                { name: "name", label: "👤 Name" },
-                { name: "email", label: "📧 Email" },
-                { name: "phone", label: "📞 Phone" },
-                { name: "attachment", label: "📎 Attachment/File" },
-                { name: "document", label: "📄 Document" },
-                { name: "message", label: "💬 Message" },
-                { name: "subject", label: "📌 Subject" },
-                { name: "company", label: "🏢 Company" },
-                { name: "website", label: "🌐 Website" },
-                { name: "rating", label: "⭐ Rating" },
-                { name: "country", label: "🌍 Country" },
-                { name: "terms", label: "☑️ Terms Checkbox" },
+                { name: "name", label: "Name" },
+                { name: "email", label: "Email" },
+                { name: "phone", label: "Phone" },
+                { name: "signature", label: "✍️ Digital Signature (Pro)" },
+                { name: "attachment", label: "Attachment / File" },
+                { name: "document", label: "Document" },
+                { name: "message", label: "Message" },
+                { name: "subject", label: "Subject" },
+                { name: "company", label: "Company" },
+                { name: "website", label: "Website" },
+                { name: "rating", label: "Rating" },
+                { name: "country", label: "Country" },
+                { name: "terms", label: "Terms Checkbox" },
               ].map((preset) => {
                 const isActive = snippetFields.includes(preset.name);
                 return (
@@ -2784,9 +2820,10 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                     <button
                       type="button"
                       onClick={handleClearSpam}
-                      className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-500/20 transition"
+                      className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-500/20 transition"
                     >
-                      🗑️ Clear All Spam ({counts.spam})
+                      <TrashIcon className="w-3.5 h-3.5" />
+                      <span>Clear All Spam ({counts.spam})</span>
                     </button>
                   )}
                   <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5 text-xs text-slate-300">
@@ -2823,7 +2860,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                     className="flex items-center gap-1.5 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-cyan-200 hover:bg-white/10 transition"
                     title="Refresh submissions list"
                   >
-                    🔄
+                    <RefreshCwIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -2844,7 +2881,8 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                       onClick={handleBulkDelete}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 font-bold hover:bg-rose-500/30 transition shadow-sm"
                     >
-                      🗑️ Delete Selected ({selectedSubIds.length})
+                      <TrashIcon className="w-3.5 h-3.5" />
+                      <span>Delete Selected ({selectedSubIds.length})</span>
                     </button>
                     <button
                       type="button"
@@ -2859,12 +2897,13 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
 
               {/* Real-time Search Input */}
               <div className="relative">
+                <SearchIcon className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="🔍 Search submissions by email, field name, or payload content..."
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition"
+                  placeholder="Search submissions by email, field name, or payload content..."
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] pl-9 pr-8 py-2 text-xs text-slate-200 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition"
                 />
                 {searchQuery && (
                   <button
@@ -3168,12 +3207,16 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
       </div>
 
       {/* 4. Drop-off Funnel (from saved partial submissions) */}
-      {dropoff && dropoff.partialsStarted > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-              <span>📉 Drop-off Funnel</span>
-            </h3>
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <TrendingUpIcon className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-sm font-semibold text-slate-300">Drop-off &amp; Question Funnel Analytics</h3>
+            <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300 uppercase tracking-wider">
+              Pro Feature · 100% Free
+            </span>
+          </div>
+          {dropoff && dropoff.partialsStarted > 0 && (
             <div className="flex items-center gap-4 text-[11px] text-slate-500">
               <span>
                 Started: <strong className="font-mono text-slate-300">{dropoff.partialsStarted}</strong>
@@ -3183,45 +3226,50 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
                 <strong className="font-mono text-emerald-300">{dropoff.partialsCompleted}</strong>
               </span>
               <span>
-                Rate: <strong className="font-mono text-cyan-300">{dropoff.completionRate}%</strong>
+                Completion Rate: <strong className="font-mono text-cyan-300">{dropoff.completionRate}%</strong>
               </span>
             </div>
-          </div>
-
-          {dropoff.fields.length > 0 ? (
-            <div className="space-y-2.5">
-              {dropoff.fields.map((entry: any) => (
-                <div key={entry.field}>
-                  <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="truncate font-medium text-slate-300">{entry.field}</span>
-                    <span className="font-mono text-[11px] text-slate-500">
-                      {entry.completed}/{entry.started} · {entry.rate}%
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-rose-500 to-amber-400 transition-[width] duration-700 ease-out"
-                      style={{ width: `${Math.max(2, entry.rate)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="py-3 text-xs text-slate-500">
-              No saved progress recorded yet. Enable &quot;Save &amp; resume&quot; in the form
-              settings to start collecting drop-off data.
-            </p>
           )}
         </div>
-      )}
+
+        {dropoff && dropoff.partialsStarted > 0 && dropoff.fields.length > 0 ? (
+          <div className="space-y-3">
+            {dropoff.fields.map((entry: any) => (
+              <div key={entry.field}>
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="truncate font-medium text-slate-300 font-mono">{entry.field}</span>
+                  <span className="font-mono text-[11px] text-slate-400">
+                    {entry.completed} of {entry.started} reached ({entry.rate}%)
+                  </span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-sky-400 to-emerald-400 transition-[width] duration-700 ease-out"
+                    style={{ width: `${Math.max(2, entry.rate)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-white/5 bg-white/[0.01] p-4 text-xs text-slate-400 space-y-2">
+            <p>
+              Tracks where respondents abandon forms step-by-step (normally a <strong>$75–$83/mo</strong> tier feature in Typeform and Fillout).
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Enable &quot;Save &amp; resume&quot; under Form Settings &gt; Behavior to automatically capture abandonment bottlenecks.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* 5. Categorical Breakdowns: Referrers, Submitters, Devices, Browsers */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Referrers */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
           <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-            <span>🌐 Top Referrers</span>
+            <GlobeIcon className="w-4 h-4 text-cyan-400" />
+            <span>Top Referrers</span>
           </h3>
           {data.referrers && data.referrers.length > 0 ? (
             <div className="space-y-2">
@@ -3473,14 +3521,16 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
             download={`${form.slug}-submissions.csv`}
             className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition flex items-center gap-1.5"
           >
-            📥 Export CSV
+            <DownloadIcon className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
           </a>
           <a
             href={`/api/forms/${form.id}/submissions?format=json`}
             download={`${form.slug}-submissions.json`}
             className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition flex items-center gap-1.5"
           >
-            📋 Export JSON
+            <CodeIcon className="w-3.5 h-3.5" />
+            <span>Export JSON</span>
           </a>
           <button
             type="button"
@@ -3493,7 +3543,8 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
             }}
             className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25 transition flex items-center gap-1.5"
           >
-            {copiedDuckDb ? "✓ Copied CLI Command" : "🦆 Copy DuckDB Query"}
+            {copiedDuckDb ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardIcon className="w-3.5 h-3.5" />}
+            <span>{copiedDuckDb ? "Copied CLI Command" : "Copy DuckDB Query"}</span>
           </button>
           <span className="text-[11px] text-slate-500 self-center ml-auto">
             Compatible with DuckDB, MotherDuck, Excel & Pandas.
@@ -3578,16 +3629,18 @@ function SubmissionRow({
               <button
                 type="button"
                 onClick={() => setViewType("table")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${viewType === "table" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5 ${viewType === "table" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
               >
-                📋 Table View
+                <LayersIcon className="w-3.5 h-3.5" />
+                <span>Table View</span>
               </button>
               <button
                 type="button"
                 onClick={() => setViewType("json")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${viewType === "json" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5 ${viewType === "json" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}
               >
-                💻 Raw JSON
+                <CodeIcon className="w-3.5 h-3.5" />
+                <span>Raw JSON</span>
               </button>
             </div>
 
@@ -3595,9 +3648,10 @@ function SubmissionRow({
               <button
                 type="button"
                 onClick={copyPayload}
-                className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition"
+                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 hover:text-white transition"
               >
-                {copiedJson ? "✓ Copied" : "📋 Copy"}
+                {copiedJson ? <CheckIcon className="w-3 h-3 text-emerald-400" /> : <ClipboardIcon className="w-3 h-3" />}
+                <span>{copiedJson ? "Copied" : "Copy"}</span>
               </button>
               {onToggleStatus && (
                 <button
@@ -3616,9 +3670,10 @@ function SubmissionRow({
                 <button
                   type="button"
                   onClick={() => onDelete(sub.id)}
-                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300 hover:bg-rose-500/20 transition"
+                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300 hover:bg-rose-500/20 transition flex items-center gap-1"
                 >
-                  🗑️ Delete
+                  <TrashIcon className="w-3 h-3" />
+                  <span>Delete</span>
                 </button>
               )}
             </div>
@@ -3636,11 +3691,30 @@ function SubmissionRow({
                 <tbody>
                   {Object.entries(payload).map(([k, v]) => {
                     const isFileObj = v && typeof v === "object" && "name" in (v as any) && "size" in (v as any);
+                    const isSignature = typeof v === "string" && (v.startsWith("data:image/png;base64,") || (k.toLowerCase().includes("signature") && v.startsWith("data:image/")));
                     return (
                       <tr key={k} className="border-b border-white/5 last:border-0 hover:bg-white/[0.01]">
                         <td className="py-2.5 px-3 font-bold text-sky-300 font-mono">{k}</td>
                         <td className="py-2.5 px-3 text-slate-200 break-all select-all">
-                          {isFileObj ? (
+                          {isSignature ? (
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className="h-16 w-36 rounded-lg border border-cyan-500/30 bg-black/70 p-1 flex items-center justify-center overflow-hidden shadow-inner">
+                                <img src={v} alt="Digital Signature" className="max-h-full max-w-full object-contain" />
+                              </div>
+                              <a
+                                href={v}
+                                download={`signature-${sub.id.slice(0, 8)}.png`}
+                                className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition inline-flex items-center gap-1.5"
+                              >
+                                <PenToolIcon className="w-3.5 h-3.5" />
+                                <span>Download PNG</span>
+                              </a>
+                              <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                                <CheckCircleIcon className="w-3 h-3 text-emerald-400" />
+                                <span>Verified E-Signature</span>
+                              </span>
+                            </div>
+                          ) : isFileObj ? (
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-emerald-300 font-mono">📎 {(v as any).name}</span>
                               <span className="text-slate-500 text-[11px]">({(((v as any).size || 0) / (1024 * 1024)).toFixed(2)} MB)</span>
@@ -3976,6 +4050,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
   const [closeAt, setCloseAt] = useState(form.closeAt ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [previewAutoresponder, setPreviewAutoresponder] = useState(false);
   const [testingTarget, setTestingTarget] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({});
 
@@ -4185,7 +4260,8 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-white flex items-center gap-1.5">
-              <span>✨ Hosted Form Experience Mode (/f/[slug])</span>
+              <SparklesIcon className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Hosted Form Experience Mode (/f/[slug])</span>
             </span>
             <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full">
               2026 Ready
@@ -4622,7 +4698,10 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
 
       {/* Section 3: Spam & Security */}
       <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
-        <h4 className="text-sm font-bold text-white flex items-center gap-2">🛡️ Spam & Security</h4>
+        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+          <ShieldCheckIcon className="w-4 h-4 text-emerald-400" />
+          <span>Spam &amp; Security Architecture</span>
+        </h4>
         <div>
           <label htmlFor="settings-honeypot" className="mb-1 block text-xs text-slate-400">Honeypot field name (hidden trap for bots)</label>
           <input id="settings-honeypot" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} className="ff-input text-sm" />
@@ -4811,10 +4890,28 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
 
       {/* Section 4: Autoresponder */}
       <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
-        <h4 className="text-sm font-bold text-white flex items-center gap-2">📧 Submitter Autoresponder</h4>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="text-sm font-bold text-white flex items-center gap-2">
+            <MailIcon className="w-4 h-4 text-cyan-400" />
+            <span>Submitter Autoresponder</span>
+          </h4>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+              Formspree Pro Equivalent · Free
+            </span>
+            <button
+              type="button"
+              onClick={() => setPreviewAutoresponder(true)}
+              className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold underline flex items-center gap-1"
+            >
+              Preview Email
+            </button>
+          </div>
+        </div>
+
         <div>
           <label htmlFor="settings-auto-subject" className="mb-1 block text-xs text-slate-400">Email Subject</label>
-          <input id="settings-auto-subject" value={autoresponderSubject} onChange={(e) => setAutoresponderSubject(e.target.value)} className="ff-input text-sm" placeholder="Thank you for contacting us!" />
+          <input id="settings-auto-subject" value={autoresponderSubject} onChange={(e) => setAutoresponderSubject(e.target.value)} className="ff-input text-sm" placeholder="Thank you for contacting us, {{name}}!" />
         </div>
         <div>
           <label htmlFor="settings-auto-replyto" className="mb-1 block text-xs text-slate-400">Reply-To Address (Optional)</label>
@@ -4831,10 +4928,77 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
           </p>
         </div>
         <div>
-          <label htmlFor="settings-auto-body" className="mb-1 block text-xs text-slate-400">Email Message (Use {`{field}`} e.g. {`{name}`} to customize body text)</label>
-          <textarea id="settings-auto-body" value={autoresponderBody} onChange={(e) => setAutoresponderBody(e.target.value)} rows={4} className="ff-input text-sm" placeholder="Hi {name},&#10;&#10;We received your message! We will get back to you soon." />
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor="settings-auto-body" className="block text-xs text-slate-400">Email Message Body</label>
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-slate-500">Insert tag:</span>
+              {["{{name}}", "{{email}}", "{{message}}"].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setAutoresponderBody((prev) => (prev ? `${prev} ${tag}` : tag))}
+                  className="rounded px-1.5 py-0.5 bg-white/5 hover:bg-white/10 text-cyan-300 font-mono text-[10px] transition"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+          <textarea id="settings-auto-body" value={autoresponderBody} onChange={(e) => setAutoresponderBody(e.target.value)} rows={4} className="ff-input text-sm" placeholder="Hi {{name}},&#10;&#10;We received your message: &#34;{{message}}&#34;! We will get back to you soon." />
         </div>
       </div>
+
+      {previewAutoresponder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-white/15 bg-slate-950 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <MailIcon className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white">Auto-Responder Email Live Preview</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewAutoresponder(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/60 p-5 space-y-3 font-sans text-xs">
+              <div className="border-b border-white/10 pb-2 space-y-1">
+                <div className="text-slate-400">Subject: <span className="font-semibold text-white">{autoresponderSubject || `Thank you for reaching out to ${form.name}`}</span></div>
+                <div className="text-slate-400">From: <span className="text-slate-300">FormForge Notifications &lt;notifications@yourform.com&gt;</span></div>
+                {autoresponderReplyTo && <div className="text-slate-400">Reply-To: <span className="text-cyan-300">{autoresponderReplyTo}</span></div>}
+              </div>
+
+              <div className="py-3 text-slate-200 leading-relaxed whitespace-pre-wrap">
+                {autoresponderBody
+                  ? autoresponderBody
+                      .replace(/\{\{name\}\}/gi, "Alex Mercer")
+                      .replace(/\{\{email\}\}/gi, "alex@example.com")
+                      .replace(/\{\{message\}\}/gi, "Looking forward to partnering with your team!")
+                  : `Hi Alex,\n\nThank you for reaching out! We received your submission for ${form.name}.\n\nOur team will review your message and get back to you as soon as possible.`}
+              </div>
+
+              <div className="border-t border-white/10 pt-3 text-[10px] text-slate-500 flex items-center justify-between">
+                <span>Powered by FormForge Engine</span>
+                <span className="text-emerald-400 font-mono">100% Free · Cloudflare D1</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setPreviewAutoresponder(false)}
+                className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 text-xs transition"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Section 5: 100% Free-Tier Realtime Integrations */}
       <div className="rounded-2xl border border-sky-500/20 bg-sky-950/10 p-5 space-y-4">

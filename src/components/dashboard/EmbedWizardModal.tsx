@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ZapIcon, GlobeIcon, CodeIcon, MessageSquareIcon, LayersIcon, XIcon, CheckIcon, ClipboardIcon } from "@/components/icons";
 import type { Form } from "@/db/schema";
 
 export function EmbedWizardModal({
@@ -160,8 +161,8 @@ export function ContactForm() {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/20 text-cyan-400 font-bold text-lg">
-              ⚡
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/20 text-cyan-400 font-bold">
+              <ZapIcon className="w-5 h-5 text-cyan-400" />
             </span>
             <div>
               <h3 className="text-base font-bold text-white">Embed &amp; Integration Wizard</h3>
@@ -173,17 +174,17 @@ export function ContactForm() {
             onClick={onClose}
             className="rounded-xl border border-white/10 p-2 text-slate-400 hover:bg-white/5 hover:text-white transition"
           >
-            ✕
+            <XIcon className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab Selector */}
         <div className="flex items-center gap-2 border-b border-white/5 pb-2">
           {[
-            { id: "html", label: "Pure HTML & AJAX", icon: "🌐" },
-            { id: "react", label: "React / Next.js", icon: "⚛️" },
-            { id: "widget", label: "1-Line Floating Widget", icon: "🎈" },
-            { id: "iframe", label: "Responsive Iframe", icon: "🖼️" },
+            { id: "html", label: "Pure HTML & AJAX", icon: <GlobeIcon className="w-3.5 h-3.5" /> },
+            { id: "react", label: "React / Next.js", icon: <CodeIcon className="w-3.5 h-3.5" /> },
+            { id: "widget", label: "1-Line Floating Widget", icon: <MessageSquareIcon className="w-3.5 h-3.5" /> },
+            { id: "iframe", label: "Responsive Iframe", icon: <LayersIcon className="w-3.5 h-3.5" /> },
           ].map((item) => (
             <button
               key={item.id}
@@ -218,7 +219,8 @@ export function ContactForm() {
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 transition"
             >
-              {copied === tab ? "✓ Copied!" : "📋 Copy Code"}
+              {copied === tab ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardIcon className="w-3.5 h-3.5" />}
+              <span>{copied === tab ? "Copied!" : "Copy Code"}</span>
             </button>
           </div>
 
