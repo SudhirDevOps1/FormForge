@@ -65,7 +65,7 @@ async function deriveKey(): Promise<CryptoKey> {
 }
 
 /** Encrypt bytes and return `iv || ciphertext`. */
-async function sealBytes(plainBytes: Uint8Array): Promise<Uint8Array> {
+async function sealBytes(plainBytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   const cryptoKey = await deriveKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt(
@@ -82,7 +82,7 @@ async function sealBytes(plainBytes: Uint8Array): Promise<Uint8Array> {
 }
 
 /** Reverse of `sealBytes`. Throws when the ciphertext fails authentication. */
-async function openBytes(sealed: Uint8Array): Promise<Uint8Array> {
+async function openBytes(sealed: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   const cryptoKey = await deriveKey();
   const iv = sealed.slice(0, 12);
   const data = sealed.slice(12);
@@ -101,7 +101,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 /** Decode base64 into bytes. */
-function base64ToBytes(value: string): Uint8Array {
+function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   const binaryString = atob(value);
   const bytes = new Uint8Array(binaryString.length);
   for (let index = 0; index < binaryString.length; index += 1) {

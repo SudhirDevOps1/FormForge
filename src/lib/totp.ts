@@ -36,8 +36,11 @@ export function base32Encode(buffer: Uint8Array): string {
 
 /**
  * Decode a Base32 string into a Uint8Array buffer.
+ *
+ * The return type is pinned to an `ArrayBuffer`-backed view because WebCrypto
+ * (`crypto.subtle.importKey`) rejects `SharedArrayBuffer`-backed input.
  */
-export function base32Decode(input: string): Uint8Array {
+export function base32Decode(input: string): Uint8Array<ArrayBuffer> {
   const clean = input.toUpperCase().replace(/=+$/, "").replace(/[\s-]/g, "");
   let bits = 0;
   let value = 0;
@@ -52,7 +55,9 @@ export function base32Decode(input: string): Uint8Array {
       bits -= 8;
     }
   }
-  return new Uint8Array(output);
+  const bytes = new Uint8Array(new ArrayBuffer(output.length));
+  bytes.set(output);
+  return bytes;
 }
 
 /**

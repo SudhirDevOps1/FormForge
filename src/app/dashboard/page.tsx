@@ -2940,7 +2940,14 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
   // Prepare timeline dates
   const timelineDates = Array.from(new Set((data.timeline || []).map((t: any) => t.date))).slice(-14);
   const maxVal = Math.max(
-    ...((data.timeline || []).map((t: any) => (t.total ?? (t.accepted ?? 0) + (t.spam ?? 0) ?? t.count ?? 1))),
+    ...((data.timeline || []).map((t: any) => {
+      if (t.total != null) return t.total;
+      // `accepted + spam` is the aggregate fallback, but only when the row
+      // actually carries those counters; otherwise use the legacy `count`.
+      const hasSplit = typeof t.accepted === "number" || typeof t.spam === "number";
+      if (hasSplit) return (t.accepted ?? 0) + (t.spam ?? 0);
+      return t.count ?? 1;
+    })),
     1
   );
 
