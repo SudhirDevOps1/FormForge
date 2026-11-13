@@ -1160,7 +1160,7 @@ export async function sendSubmissionReply(
           headers: { "Content-Type": "application/json" },
           redirect: "follow",
           body: JSON.stringify({
-            ...(gasSecret ? { secret: gasSecret } : {}),
+            secret: gasSecret,
             event: "send_email",
             emailTo: toEmail,
             to: toEmail,

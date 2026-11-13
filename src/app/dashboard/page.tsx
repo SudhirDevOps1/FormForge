@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TurnstileAltcha } from "@/components/TurnstileAltcha";
@@ -184,23 +185,41 @@ function tokenizeCode(code: string, lang: string): CodeToken[] {
   return tokens;
 }
 
-function CodeHighlight({ code, lang }: { code: string; lang: string }) {
+function CodeHighlight({
+  code,
+  lang,
+  action,
+}: {
+  code: string;
+  lang: string;
+  action?: ReactNode;
+}) {
   const tokens = tokenizeCode(code, lang);
 
   return (
-    <pre className="overflow-x-auto rounded-xl bg-black/40 p-4 text-xs font-mono text-slate-300 border border-white/5 leading-relaxed">
-      <code>
-        {tokens.map((token, index) =>
-          token.tone ? (
-            <span key={index} className={CODE_TONE_CLASS[token.tone]}>
-              {token.text}
-            </span>
-          ) : (
-            token.text
-          ),
-        )}
-      </code>
-    </pre>
+    // `min-w-0` keeps a wide snippet inside its grid/flex column instead of
+    // pushing the column wider than its share and clipping the sibling panel.
+    <div className="min-w-0 overflow-hidden rounded-xl border border-white/5 bg-black/40">
+      <div className="flex items-center justify-between gap-2 border-b border-white/5 bg-black/25 px-3 py-1.5">
+        <span className="truncate font-mono text-[10px] uppercase tracking-wider text-slate-500">
+          {lang}
+        </span>
+        {action}
+      </div>
+      <pre className="max-w-full overflow-x-auto p-4 text-xs font-mono text-slate-300 leading-relaxed">
+        <code>
+          {tokens.map((token, index) =>
+            token.tone ? (
+              <span key={index} className={CODE_TONE_CLASS[token.tone]}>
+                {token.text}
+              </span>
+            ) : (
+              token.text
+            ),
+          )}
+        </code>
+      </pre>
+    </div>
   );
 }
 
@@ -2407,35 +2426,41 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
 
           {/* Grid Layout: Code on Left, Live Preview on Right */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="relative">
-              {snippetTab === "html" && <CodeHighlight code={htmlSnippet} lang="html" />}
-              {snippetTab === "widget" && <CodeHighlight code={widgetSnippet} lang="html" />}
+            <div className="min-w-0 space-y-3">
               {snippetTab === "otp" && (
-                <div className="space-y-3">
-                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-200">
-                    <p className="font-semibold text-amber-300 flex items-center gap-1.5">
-                      <span>💡 1-Line Drop-in Fix for Existing Websites &amp; Portfolios</span>
-                    </p>
-                    <p className="mt-1 text-slate-300 text-[11px] leading-relaxed">
-                      If you already built your website without OTP fields, just paste this 1-line script right before <code className="font-mono text-cyan-300">&lt;/body&gt;</code>. It automatically intercepts submissions, displays an elegant glassmorphic 6-digit OTP popup, sends the code, and verifies the user’s email seamlessly!
-                    </p>
-                  </div>
-                  <CodeHighlight code={otpDropinSnippet} lang="html" />
+                <div className="min-w-0 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-200">
+                  <p className="font-semibold text-amber-300 flex flex-wrap items-center gap-1.5">
+                    <span>💡 1-Line Drop-in Fix for Existing Websites &amp; Portfolios</span>
+                  </p>
+                  <p className="mt-1 text-slate-300 text-[11px] leading-relaxed">
+                    If you already built your website without OTP fields, just paste this 1-line script right before <code className="font-mono text-cyan-300">&lt;/body&gt;</code>. It automatically intercepts submissions, displays an elegant glassmorphic 6-digit OTP popup, sends the code, and verifies the user’s email seamlessly!
+                  </p>
                 </div>
               )}
-              {snippetTab === "js" && <CodeHighlight code={jsSnippet} lang="js" />}
-              {snippetTab === "react" && <CodeHighlight code={reactSnippet} lang="js" />}
-              {snippetTab === "python" && <CodeHighlight code={pythonSnippet} lang="python" />}
-              {snippetTab === "curl" && <CodeHighlight code={curlSnippet} lang="curl" />}
-              <button
-                onClick={() => {
-                  const text = snippetTab === "html" ? htmlSnippet : snippetTab === "widget" ? widgetSnippet : snippetTab === "otp" ? otpDropinSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : snippetTab === "python" ? pythonSnippet : curlSnippet;
-                  copy(text, "copy");
-                }}
-                className="absolute right-3 top-3 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10"
-              >
-                {copied === "copy" ? "✓ Copied" : "Copy"}
-              </button>
+              <CodeHighlight
+                code={
+                  snippetTab === "html" ? htmlSnippet
+                    : snippetTab === "widget" ? widgetSnippet
+                    : snippetTab === "otp" ? otpDropinSnippet
+                    : snippetTab === "js" ? jsSnippet
+                    : snippetTab === "react" ? reactSnippet
+                    : snippetTab === "python" ? pythonSnippet
+                    : curlSnippet
+                }
+                lang={snippetTab === "react" || snippetTab === "js" ? "js" : snippetTab === "otp" ? "html" : snippetTab}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = snippetTab === "html" ? htmlSnippet : snippetTab === "widget" ? widgetSnippet : snippetTab === "otp" ? otpDropinSnippet : snippetTab === "js" ? jsSnippet : snippetTab === "react" ? reactSnippet : snippetTab === "python" ? pythonSnippet : curlSnippet;
+                      copy(text, "copy");
+                    }}
+                    className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-slate-300 transition hover:bg-white/10"
+                  >
+                    {copied === "copy" ? "✓ Copied" : "Copy"}
+                  </button>
+                }
+              />
             </div>
 
             {/* Live Interactive Preview Box */}
@@ -2567,34 +2592,40 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
 
             {/* OTP Verification Live Explainer */}
             {snippetTab === "otp" && (
-              <div className="flex flex-col rounded-2xl border border-white/10 overflow-hidden bg-slate-950/60 p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 text-sm border border-amber-500/30">🔐</span>
-                    <h4 className="text-sm font-bold text-white">How FormForge Drop-in OTP Works</h4>
+              <div className="flex min-w-0 flex-col rounded-2xl border border-white/10 overflow-hidden bg-slate-950/60 p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 text-sm border border-amber-500/30">🔐</span>
+                    <h4 className="min-w-0 text-sm font-bold text-white">How FormForge Drop-in OTP Works</h4>
                   </div>
-                  <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold px-2 py-0.5">
+                  <span className="shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold px-2 py-0.5">
                     Zero Re-coding
                   </span>
                 </div>
                 <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
                   <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex gap-3 items-start">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 font-mono text-[11px] font-bold">1</span>
-                    <div>
+                    <div className="min-w-0">
                       <strong className="text-white block font-semibold">Enable in Form Settings:</strong>
                       <p className="text-slate-400 text-[11px] mt-0.5">In this form&apos;s Settings tab, turn on &quot;Email OTP Verification (2FA)&quot;.</p>
                     </div>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex gap-3 items-start">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 font-mono text-[11px] font-bold">2</span>
-                    <div>
+                    <div className="min-w-0">
                       <strong className="text-white block font-semibold">Paste Drop-in Script Tag:</strong>
-                      <p className="text-slate-400 text-[11px] mt-0.5">Add <code className="text-cyan-300 font-mono">&lt;script src=&quot;{base}/otp.js&quot; defer&gt;&lt;/script&gt;</code> to your existing website HTML (e.g. portfolio &quot;SK&quot;).</p>
+                      <p className="text-slate-400 text-[11px] mt-0.5">
+                        Add{" "}
+                        <code className="block break-all font-mono text-cyan-300 whitespace-pre-wrap">
+                          &lt;script src=&quot;{base}/otp.js&quot; defer&gt;&lt;/script&gt;
+                        </code>{" "}
+                        to your existing website HTML (e.g. portfolio &quot;SK&quot;).
+                      </p>
                     </div>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex gap-3 items-start">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 font-mono text-[11px] font-bold">3</span>
-                    <div>
+                    <div className="min-w-0">
                       <strong className="text-white block font-semibold">Automatic Glassmorphic Modal:</strong>
                       <p className="text-slate-400 text-[11px] mt-0.5">When someone submits your form, the script intercepts it, dispatches a 6-digit code to their email, pops up a verification box, and seamlessly finishes submitting once verified!</p>
                     </div>
@@ -5132,14 +5163,14 @@ function KeysTab() {
 
               <div className="relative">
                 {apiTab === "curl" && (
-                  <pre className="text-[11px] bg-slate-950 p-3.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
+                  <pre className="text-[11px] bg-slate-950 p-3.5 pr-24 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
                     curl -H &quot;Authorization: Bearer {created}&quot; \<br />
                     &nbsp;&nbsp;&quot;{typeof window !== "undefined" ? window.location.origin : ""}/api/forms/{selectedFormId || "YOUR_FORM_ID"}/submissions"
                   </pre>
                 )}
 
                 {apiTab === "js" && (
-                  <pre className="text-[11px] bg-slate-950 p-3.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
+                  <pre className="text-[11px] bg-slate-950 p-3.5 pr-24 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
                     {`fetch("${typeof window !== "undefined" ? window.location.origin : ""}/api/forms/${selectedFormId || "YOUR_FORM_ID"}/submissions", {
   method: "GET",
   headers: {
@@ -5152,7 +5183,7 @@ function KeysTab() {
                 )}
 
                 {apiTab === "python" && (
-                  <pre className="text-[11px] bg-slate-950 p-3.5 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
+                  <pre className="text-[11px] bg-slate-950 p-3.5 pr-24 rounded-lg text-slate-300 font-mono whitespace-pre-wrap break-all leading-5">
                     {`import requests
 
 url = "${typeof window !== "undefined" ? window.location.origin : ""}/api/forms/${selectedFormId || "YOUR_FORM_ID"}/submissions"
@@ -5380,7 +5411,7 @@ function ApiDocumentationView({
             </div>
 
             <div className="relative">
-              <pre className="text-xs bg-slate-950 p-4 rounded-xl text-slate-300 font-mono whitespace-pre-wrap break-all leading-relaxed overflow-x-auto border border-white/5">
+              <pre className="text-xs bg-slate-950 p-4 pr-24 rounded-xl text-slate-300 font-mono whitespace-pre-wrap break-all leading-relaxed overflow-x-auto border border-white/5">
                 {codeLang === "html" && (
                   `<!-- Plain HTML Form -->
 <form method="POST" action="${endpoint}">
