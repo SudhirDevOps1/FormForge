@@ -1,9 +1,32 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { NextConfig } from "next";
 import {
   embedHostedFormHeaders,
   SECURITY_HEADERS,
   contentSecurityPolicy,
 } from "./src/lib/security-headers";
+
+/**
+ * The version is read from `package.json` once, when the config is evaluated,
+ * and inlined into the bundle as `NEXT_PUBLIC_APP_VERSION`.
+ *
+ * This keeps one source of truth without shipping the manifest to the browser:
+ * a client component that imported `package.json` would bundle every
+ * dependency, script and description into the client payload just to render
+ * three numbers. A missing file must not break the build, so the fallback is a
+ * visible `0.0.0` rather than a crash.
+ */
+const appVersion = (() => {
+  try {
+    const manifest = JSON.parse(
+      readFileSync(join(process.cwd(), "package.json"), "utf8"),
+    ) as { version?: string };
+    return manifest.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+})();
 
 /**
  * React's development build calls `eval()` to reconstruct component stacks
@@ -20,6 +43,10 @@ const securityHeaders = SECURITY_HEADERS.map((header) =>
 );
 
 const nextConfig: NextConfig = {
+  env: {
+    // Single version source (package.json) surfaced to client components.
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
   serverExternalPackages: [
     "@libsql/client",
     "@libsql/isomorphic-ws",

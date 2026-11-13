@@ -4,6 +4,7 @@ import { ensureSchema } from "@/db/ensure";
 import { sessions } from "@/db/schema";
 import { getCurrentUser, hashSessionToken } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/http";
+import { cacheKey, invalidateCached } from "@/lib/kv-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -91,11 +92,15 @@ export async function DELETE(request: Request) {
     const deleted = await db
       .delete(sessions)
       .where(and(eq(sessions.id, sessionId), eq(sessions.userId, user.id)))
-      .returning({ id: sessions.id });
+      .returning({ id: sessions.id, tokenHash: sessions.tokenHash });
 
     if (!deleted.length) {
       return jsonError("NOT_FOUND", "Session not found.", 404);
     }
+
+    // Drop the cached session lookup so the revoked device loses access now
+    // rather than up to a minute later.
+    await invalidateCached(deleted.map((row) => cacheKey("session", row.tokenHash)));
 
     return jsonOk({ revoked: true, id: sessionId });
   } catch {
@@ -135,11 +140,15 @@ export async function POST(request: Request) {
       .where(eq(sessions.userId, user.id));
 
     const doomed = rows
-      .filter((row) => (keepCurrent ? row.tokenHash !== currentTokenHash : true))
-      .map((row) => row.id);
+      .filter((row) => (keepCurrent ? row.tokenHash !== currentTokenHash : true));
 
     if (doomed.length) {
       await db.delete(sessions).where(eq(sessions.userId, user.id));
+      // Every revoked token must stop working immediately, not when its cache
+      // entry expires.
+      await invalidateCached(
+        doomed.map((row) => cacheKey("session", row.tokenHash)),
+      );
       // Re-insert the session we want to keep, if any.
       if (keepCurrent && currentTokenHash) {
         const keep = rows.find((row) => row.tokenHash === currentTokenHash);

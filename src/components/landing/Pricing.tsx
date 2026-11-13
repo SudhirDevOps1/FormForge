@@ -73,21 +73,26 @@ export function Pricing() {
               }`}
             >
               {plan.highlight && (
-                <>
-                  <span className="absolute right-6 top-6 rounded-full border border-aurora-400/40 bg-aurora-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-aurora-200">
-                    Recommended
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-aurora-400/15 blur-3xl"
-                  />
-                </>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-aurora-400/15 blur-3xl"
+                />
               )}
 
               <div className="relative">
-                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-400">
-                  {plan.name}
-                </h3>
+                {/* The badge used to be absolutely positioned over the plan
+                    name and collided with it on narrow cards. It is now a
+                    flex sibling that wraps under the name instead. */}
+                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                  <h3 className="min-w-0 text-sm font-bold uppercase tracking-[0.18em] text-slate-400">
+                    {plan.name}
+                  </h3>
+                  {plan.highlight && (
+                    <span className="shrink-0 rounded-full border border-aurora-400/40 bg-aurora-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-aurora-200">
+                      Recommended
+                    </span>
+                  )}
+                </div>
                 <p className="mt-5 flex items-baseline gap-3">
                   <span className="text-5xl font-black tracking-tight text-white">
                     {plan.price}

@@ -21,7 +21,7 @@ This document outlines the architectural limits, security rules (like IP blockin
 
 ## 2. Infrastructure & Multi-Database Engine (Universal Zero-Card Free Tier)
 
-FormForge v1.0.0 Universal dynamically detects and connects to any of the following databases on boot with zero configuration:
+FormForge dynamically detects and connects to any of the following databases on boot with zero configuration:
 
 ### 📊 Supported Database Capacity Matrix
 * **Cloudflare D1:** 500MB storage, 5M reads/day, 100k writes/day (No credit card needed). With FormForge's automated transient payload pruning, a single submission takes only ~350–500 bytes, allowing over **1,000,000 submissions** within the 500MB free quota.

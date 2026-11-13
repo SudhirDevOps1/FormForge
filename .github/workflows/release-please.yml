@@ -1,0 +1,115 @@
+# Release automation — release-please owns the version, the tag and the Release.
+#
+# On every push to `main`:
+#
+#   1. Conventional Commits since the last release are collected.
+#   2. A **Release PR** is opened (or updated) that bumps `package.json`,
+#      `package-lock.json`, `docs/CHANGELOG.md`, `README.md` and `version.md`.
+#      It is never merged automatically — merging it *is* the approval.
+#   3. When that PR is merged, release-please creates the `vX.Y.Z` tag and the
+#      GitHub Release for exactly the merged commit, then this workflow
+#      dispatches `release.yml`, which runs the full gate, generates the SBOM,
+#      signs it with cosign and attaches the assets (behind the `release`
+#      environment approval).
+#
+# Two GitHub behaviours are handled explicitly:
+#
+#   • A PR opened with the default `GITHUB_TOKEN` does **not** trigger
+#     `pull_request` workflows, so the required checks would never start and
+#     the Release PR could never merge. The step below dispatches `ci.yml` and
+#     `security-scan.yml` on the release branch so all required checks report
+#     against its head commit. Defining a `RELEASE_PLEASE_TOKEN` secret (a
+#     fine-grained PAT with `contents` + `pull-requests` write) is the cleaner
+#     option: the token is used automatically when present and the PR then
+#     gets normal `pull_request` events.
+#   • A tag pushed with `GITHUB_TOKEN` does **not** trigger `push` workflows,
+#     so `release.yml` is started with `workflow_dispatch` (the one event type
+#     that is exempt from that suppression), passing the exact tag.
+name: Release please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Required to start `ci.yml` / `security-scan.yml` / `release.yml`.
+  actions: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release please
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          # A PAT makes release-please's own PRs trigger workflows normally.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Start the required checks on the release PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Discover the branch instead of hard-coding release-please's naming
+          # convention, which changes with components and monorepo layouts.
+          BRANCH=$(gh pr list --state open --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("release-please--")) | .headRefName][0] // ""')
+
+          if [ -z "$BRANCH" ]; then
+            echo "::notice::No open release PR — the required checks start on their own."
+            exit 0
+          fi
+
+          HEAD_SHA=$(gh api "repos/$GH_REPO/git/ref/heads/$BRANCH" --jq .object.sha)
+          LAST_SHA=$(gh run list --workflow=ci.yml --branch "$BRANCH" --limit 1 \
+            --json headSha --jq '.[0].headSha // ""')
+
+          if [ "$LAST_SHA" = "$HEAD_SHA" ]; then
+            echo "::notice::CI already evaluated $HEAD_SHA on $BRANCH."
+            exit 0
+          fi
+
+          gh workflow run ci.yml --ref "$BRANCH"
+          gh workflow run security-scan.yml --ref "$BRANCH"
+          echo "Dispatched CI + Security scan for $BRANCH ($HEAD_SHA)."
+
+      - name: Dispatch the release pipeline for the new tag
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TAG" ]; then
+            echo "::error::release-please reported a release without a tag name"
+            exit 1
+          fi
+          gh workflow run release.yml --ref main -f version="$TAG"
+          echo "Dispatched the Release pipeline for $TAG."
+
+      - name: Write summary
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          {
+            echo "## 🚀 Released \`$TAG\`"
+            echo ""
+            echo "The tag and GitHub Release were created by release-please for the"
+            echo "merged Release PR. The \`Release\` workflow now runs the full gate,"
+            echo "generates and signs the SBOM, and attaches the assets."
+          } >> "$GITHUB_STEP_SUMMARY"

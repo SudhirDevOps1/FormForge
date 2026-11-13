@@ -4,6 +4,7 @@ import { ensureSchema } from "@/db/ensure";
 import { auditLogs, forms } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { jsonError, jsonOk, readJson, readString, slugify } from "@/lib/http";
+import { cacheKey, invalidateCached } from "@/lib/kv-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -223,6 +224,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       metadata: JSON.stringify(sanitizedUpdate),
     });
 
+    // The analytics payload embeds the form name and submission counters, so a
+    // saved edit would otherwise keep serving the pre-edit copy for up to five
+    // minutes. Invalidation is one KV delete on a rare, authenticated write.
+    await invalidateCached(cacheKey("analytics", formId));
+
     return jsonOk({ form: { ...result.form, ...sanitizedUpdate } });
   } catch (error) {
     return jsonError("DB_ERROR", "Failed to update form details.", 500);
@@ -245,6 +251,9 @@ export async function DELETE(request: Request, context: RouteContext) {
       action: "form.deleted",
       metadata: JSON.stringify({ formId }),
     });
+
+    // Nothing may keep serving analytics for a form that no longer exists.
+    await invalidateCached(cacheKey("analytics", formId));
 
     return jsonOk({ deleted: true });
   } catch (error) {

@@ -15,6 +15,24 @@
     "APP_NAME": "FormForge",
     "ALLOW_REGISTRATION": "true"
   },
+  // Read-through cache in front of D1 (`src/lib/kv-cache.ts`).
+  //
+  // Without this binding the application still works: the cache degrades to
+  // per-isolate memory and every query falls back to D1. To switch the shared
+  // layer on, create the namespace once and paste its id below:
+  //
+  //   npx wrangler kv namespace create CACHE
+  //
+  // Then uncomment this block and redeploy. `preview_id` is only used by
+  // `wrangler dev`/miniflare. Never commit a real id for a namespace that
+  // another deployment shares.
+  // "kv_namespaces": [
+  //   {
+  //     "binding": "CACHE",
+  //     "id": "<paste the id printed by wrangler>",
+  //     "preview_id": "<paste the preview id printed by wrangler --preview>"
+  //   }
+  // ],
   "d1_databases": [
     {
       "binding": "DB",

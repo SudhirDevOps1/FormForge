@@ -1,0 +1,78 @@
+# Deletes the head branch of a pull request once it has been merged.
+#
+# `delete_branch_on_merge` is already enabled on this repository, so this
+# workflow is the belt-and-braces pass that covers the gaps:
+#
+#   • branches that existed before the setting was switched on,
+#   • release-please's long-lived `release-please--branches--main` branch,
+#   • any merge performed by a tool that does not honour the setting.
+#
+# It is deliberately conservative:
+#
+#   • a *closed but unmerged* PR keeps its branch so the work can be resumed,
+#   • fork heads are skipped because `GITHUB_TOKEN` cannot write to another
+#     repository,
+#   • the default branch is never a candidate,
+#   • the ref is deleted only when it still points at the commit that was
+#     merged, so a re-used branch name is never destroyed by a stale event,
+#   • "already gone" (GitHub deleted it first) counts as success.
+name: Auto-delete merged branch
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-delete-branch-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  delete-branch:
+    name: Delete Merged Head Branch
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref != github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete the branch if it still points at the merged commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # The ref name comes from the event payload, so treat it as untrusted
+          # input: anything outside git's own ref charset is refused rather
+          # than handed to the API as a path segment.
+          if ! printf '%s' "$BRANCH" | grep -Eq '^[A-Za-z0-9._/-]+$'; then
+            echo "::error::refusing to delete an unexpected ref name"
+            exit 1
+          fi
+          case "$BRANCH" in
+            main|master|refs/*|*..*)
+              echo "::notice::refusing to delete protected ref $BRANCH"
+              exit 0
+              ;;
+          esac
+
+          # GitHub may already have deleted it via delete_branch_on_merge.
+          CURRENT_SHA=$(gh api "repos/$GH_REPO/git/ref/heads/$BRANCH" --jq .object.sha 2>/dev/null || true)
+          if [ -z "$CURRENT_SHA" ]; then
+            echo "::notice::$BRANCH is already gone — nothing to delete."
+            exit 0
+          fi
+
+          if [ "$CURRENT_SHA" != "$HEAD_SHA" ]; then
+            echo "::notice::$BRANCH moved after the merge ($CURRENT_SHA != $HEAD_SHA) — leaving it alone."
+            exit 0
+          fi
+
+          gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$BRANCH"
+          echo "Deleted $BRANCH after the merge of PR #${{ github.event.pull_request.number }}."

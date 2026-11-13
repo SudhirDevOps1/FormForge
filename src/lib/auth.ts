@@ -3,6 +3,7 @@ import type { AppDb } from "@/db";
 import { getRuntimeEnv } from "@/db";
 import { sessions, users, type User } from "@/db/schema";
 import { hmacSha256, randomId, randomToken } from "./crypto";
+import { cacheKey, cached, invalidateCached } from "./kv-cache";
 
 const COOKIE_NAME = "ff_session";
 /**
@@ -180,42 +181,71 @@ export async function getCurrentUser(request: Request, db: AppDb): Promise<Authe
     return null;
   }
 
+  /**
+   * Session lookup cache.
+   *
+   * Every authenticated API call (the dashboard fires a dozen on load) used to
+   * run a `sessions ⋈ users` join against D1. The lookup is cached for 60
+   * seconds under the *HMAC* of the token — never the raw cookie — so the KV
+   * key cannot be replayed as a credential even if the namespace is read.
+   *
+   * Logout and explicit session revocation delete the key, so a signed-out
+   * browser stops working immediately; everything else expires within a
+   * minute. That bound is the trade-off for removing a D1 read per request.
+   */
+  const sessionCacheKey = cacheKey("session", tokenHash);
   const now = new Date().toISOString();
-  const rows = await db
-    .select({
-      sessionId: sessions.id,
-      userId: users.id,
-      email: users.email,
-      name: users.name,
-      role: users.role,
-      totpEnabled: users.totpEnabled,
-      createdAt: users.createdAt,
-      lastSeenAt: sessions.lastSeenAt,
-    })
-    .from(sessions)
-    .innerJoin(users, eq(sessions.userId, users.id))
-    .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
-    .limit(1);
 
-  const row = rows[0];
-  if (!row) {
-    return null;
-  }
+  const session = await cached<{ user: AuthenticatedUser | null }>(
+    sessionCacheKey,
+    60,
+    async () => {
+      const rows = await db
+        .select({
+          sessionId: sessions.id,
+          userId: users.id,
+          email: users.email,
+          name: users.name,
+          role: users.role,
+          totpEnabled: users.totpEnabled,
+          createdAt: users.createdAt,
+          lastSeenAt: sessions.lastSeenAt,
+        })
+        .from(sessions)
+        .innerJoin(users, eq(sessions.userId, users.id))
+        .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
+        .limit(1);
 
-  // Throttle updates: Only update if the last activity was > 5 minutes (300,000 ms) ago
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-  if (row.lastSeenAt < fiveMinutesAgo) {
-    await db.update(sessions).set({ lastSeenAt: now }).where(eq(sessions.id, row.sessionId)).catch(() => {});
-  }
+      const row = rows[0];
+      if (!row) {
+        return { user: null };
+      }
 
-  return {
-    id: row.userId,
-    email: row.email,
-    name: row.name,
-    role: row.role,
-    createdAt: row.createdAt,
-    totpEnabled: Boolean(row.totpEnabled),
-  };
+      // Throttle writes: only touch the row when activity is > 5 minutes old,
+      // so a cached session costs zero D1 writes as well.
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      if (row.lastSeenAt < fiveMinutesAgo) {
+        await db
+          .update(sessions)
+          .set({ lastSeenAt: now })
+          .where(eq(sessions.id, row.sessionId))
+          .catch(() => {});
+      }
+
+      return {
+        user: {
+          id: row.userId,
+          email: row.email,
+          name: row.name,
+          role: row.role,
+          createdAt: row.createdAt,
+          totpEnabled: Boolean(row.totpEnabled),
+        },
+      };
+    },
+  );
+
+  return session.user;
 }
 
 export async function deleteCurrentSession(request: Request, db: AppDb): Promise<void> {
@@ -230,4 +260,7 @@ export async function deleteCurrentSession(request: Request, db: AppDb): Promise
   }
 
   await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+  // A signed-out browser must not be able to use the cached session for the
+  // rest of its TTL.
+  await invalidateCached(cacheKey("session", tokenHash));
 }

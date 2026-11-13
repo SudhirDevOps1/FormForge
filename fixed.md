@@ -1,4 +1,4 @@
-# 🚀 FormForge - Feature Status & Security Audit (v1.0.0 Universal)
+# 🚀 FormForge — Feature Status & Security Audit (current release)
 
 This document tracks FormForge's current features, security posture, and zero-card free-tier matrix.
 
@@ -133,7 +133,7 @@ This document tracks FormForge's current features, security posture, and zero-ca
 
 ## 📈 Competitor Comparison (Updated September 2026)
 
-| Feature | FormForge (v1.0.0 Universal) | FormZero | FormRoute | Formspree |
+| Feature | FormForge (current release) | FormZero | FormRoute | Formspree |
 |---|---|---|---|---|
 | **Score** | **100/100 (A+)** | 55/100 (C-) | 72/100 (B) | 85/100 (A) |
 | Zero-Card Multi-DB | ✅ D1, Neon, Turso, SQLite | ❌ | ❌ | ❌ (Proprietary) |
@@ -152,4 +152,4 @@ This document tracks FormForge's current features, security posture, and zero-ca
 | Multi-Format Export | ✅ CSV, JSON, TXT, PDF report | ❌ | ✅ CSV only | ✅ CSV only |
 | Privacy & Encryption | ✅ Best-in-class AES-GCM + SHA-256 | ❌ | ❌ | ❌ Vendor stored |
 
-> **निष्कर्ष:** FormForge v1.0.0 Universal अब Formspree, FormRoute, और FormZero तीनों से काफ़ी आगे है।
+> **निष्कर्ष:** FormForge (current release) अब Formspree, FormRoute, और FormZero तीनों से काफ़ी आगे है।

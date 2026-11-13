@@ -1,4 +1,4 @@
-<h1 align="center">FormForge v1.0.0 Universal</h1>
+<h1 align="center">FormForge Universal</h1>
 
 <div align="center">
   A forever-free, open-source, universal form backend & analytics engine for static sites, modern web applications, and document intake pipelines.
@@ -9,7 +9,7 @@
   <br /><br />
   🔓 <em>No paid database required.</em> 📀 <em>Own your data.</em> ⚡️ <em>Zero-card forever free.</em>
   <br /><br />
-  <img src="https://img.shields.io/badge/Version-1.1.0%20Aurora-blue?style=for-the-badge" alt="Version 1.1.0 Aurora" />
+  <img src="https://img.shields.io/github/package-json/v/SudhirDevOps1/FormForge?label=version&style=for-the-badge&color=blue" alt="Current version" />
   <img src="https://img.shields.io/badge/Platforms-Cloudflare%20%7C%20Vercel%20%7C%20Netlify-success?style=for-the-badge&logo=cloudflare&color=f38020" alt="Platforms: Cloudflare | Vercel | Netlify" />
   <img src="https://img.shields.io/badge/Databases-D1%20%7C%20Neon%20%7C%20Turso%20%7C%20SQLite-blueviolet?style=for-the-badge" alt="Databases: D1 | Neon | Turso | SQLite" />
   <img src="https://img.shields.io/badge/Tests-130%2F130%20Passed-brightgreen?style=for-the-badge" alt="Tests: 130/130 Passed (66 security + 40 feature + 24 end-to-end)" />
@@ -24,11 +24,70 @@
 
 <br />
 
-> 🚀 **v1.0.0 Universal Release Status:** Fully tested on Cloudflare Workers (`*.workers.dev`), Cloudflare Pages (`*.pages.dev`), Vercel, Netlify, and local development. FormForge is a feature-complete alternative to Formspree, Typeform, and Basin that runs entirely on free-tier infrastructure.
+> 🚀 **Release `v1.1.1` Universal** <!-- x-release-please-version --> — fully tested on Cloudflare Workers (`*.workers.dev`), Cloudflare Pages (`*.pages.dev`), Vercel, Netlify, and local development. FormForge is a feature-complete alternative to Formspree, Typeform, and Basin that runs entirely on free-tier infrastructure.
 
 ---
 
-## ⚡ 1-Click Deploy to Cloudflare
+## 🛠️ Setup
+
+### Prerequisites
+
+| Requirement | Version | Why |
+| :--- | :--- | :--- |
+| Node.js | **22 LTS** (CI pins 22) | `next` 16, the OpenNext Cloudflare adapter and the test harness all target it. |
+| npm | 10+ | The repository ships a `package-lock.json`; `npm ci` reproduces CI exactly. |
+| Cloudflare account | free tier | Only needed for production; local development needs nothing external. |
+
+### Local development
+
+```bash
+git clone https://github.com/SudhirDevOps1/FormForge.git
+cd FormForge
+npm ci
+cp .env.example .env.local     # then edit AUTH_SECRET (32+ chars)
+npm run dev                    # http://localhost:3000
+```
+
+* **`AUTH_SECRET` is mandatory.** Generate one with `openssl rand -hex 32`.
+  It is the HMAC key behind password hashes, session tokens and API keys.
+* **No database to install.** With no `POSTGRES_URL`, `NEON_DATABASE_URL` or
+  `TURSO_DATABASE_URL` set, the app opens `file:./formforge.db` (override with
+  `DATABASE_URL=file:./my.db`) and creates the schema on first request.
+* Open `/dashboard` and register the first account. Set
+  `ALLOW_REGISTRATION=false` afterwards to keep the deployment single-tenant.
+
+### Local database commands
+
+```bash
+npm run db:setup:local   # apply migrations to the local D1/miniflare database
+npm run db:generate      # regenerate migrations after editing src/db/schema.ts
+npm run db:migrate:local # apply the generated migrations locally
+```
+
+### Quality gates (the same commands CI runs)
+
+```bash
+npm run typecheck
+npm run lint              # zero warnings allowed
+npm run test:security     # security regression suite
+npm run test:features     # feature regression suite
+npm run test:pins         # every action pin must resolve on GitHub
+npm run build             # real OpenNext + Cloudflare Worker build
+```
+
+End-to-end tests need a running dev server:
+
+```bash
+npm run dev -- --port 3100
+# in a second terminal
+npm run test:e2e
+```
+
+---
+
+## 🚀 Deployment
+
+### 1-Click Deploy to Cloudflare
 
 Deploy your private serverless form backend in seconds directly to your Cloudflare account (100% within the free tier):
 
@@ -43,6 +102,56 @@ Deploy your private serverless form backend in seconds directly to your Cloudfla
 2. Prompts you for your **Project Name**, **Database Name**, and a secure `AUTH_SECRET`.
 3. Builds and provisions the Cloudflare Worker and D1 Database automatically.
 4. You get a production URL (e.g., `https://formforge.YOUR-SUBDOMAIN.workers.dev/dashboard`) with zero credit card required!
+
+### Manual Cloudflare deployment
+
+```bash
+npx wrangler login
+npx wrangler d1 create formforge-db        # once — paste the id into wrangler.jsonc
+npx wrangler secret put AUTH_SECRET        # paste a 32+ character secret
+npm run deploy                             # OpenNext build + wrangler deploy
+```
+
+`npm run deploy` runs `node build-cf.js`, which builds the Next.js app with the
+OpenNext Cloudflare adapter and deploys the resulting Worker. D1 migrations are
+applied additively and idempotently on the first request (`src/db/auto-migrate.ts`),
+so a fresh database needs no manual SQL.
+
+### Optional: shared KV cache (recommended)
+
+The read-through cache in `src/lib/kv-cache.ts` removes the most frequently
+repeated D1 reads (public counters, session lookups, analytics, settings). It
+runs on per-isolate memory alone until a KV namespace is bound:
+
+```bash
+npx wrangler kv namespace create CACHE     # prints the namespace id
+# uncomment the kv_namespaces block in wrangler.jsonc and paste the id
+npm run deploy
+```
+
+The binding is optional by design: with no namespace every query simply falls
+back to D1, and nothing fails. See "Cost & request budget" under Architecture.
+
+### Vercel, Netlify and Docker
+
+The app is a standard Next.js application, so `npm run build:vercel` +
+`npm start` work on any Node host. The Cloudflare path is the one exercised by
+CI, and the free-tier walkthroughs for the other platforms live in
+[`docs/FREE_TIER_MASTERY_GUIDE.md`](./docs/FREE_TIER_MASTERY_GUIDE.md).
+
+### Releases
+
+Versioning is automatic and approval-gated:
+
+1. Merge changes to `main` using [Conventional Commits](./CONTRIBUTING.md).
+2. `release-please` opens a **Release PR** that bumps `package.json`,
+   `package-lock.json`, `docs/CHANGELOG.md`, `README.md` and `version.md`
+   together — the version is never edited by hand.
+3. Merging that PR is the approval. The `vX.Y.Z` tag and GitHub Release are
+   created for the merged commit, then the `Release` workflow re-runs the full
+   gate, generates an SPDX SBOM, signs it with cosign and attaches both assets.
+
+Details, rollback and hotfix procedures: [`docs/RELEASES.md`](./docs/RELEASES.md).
 
 ---
 
@@ -127,7 +236,7 @@ Deploy your private serverless form backend in seconds directly to your Cloudfla
 
 ---
 
-## ⚡ System Architecture Flow
+## 🏗️ Architecture
 
 ```mermaid
 sequenceDiagram
@@ -160,6 +269,24 @@ sequenceDiagram
         Site-->>Visitor: Displays success confirmation card
     end
 ```
+
+### Cost & request budget
+
+Free-tier Cloudflare allows **100,000 Worker requests per day** and D1 bills
+every row it reads, so the hot paths are deliberately cheap:
+
+| Path | Strategy | Effect |
+| :--- | :--- | :--- |
+| `GET /api/public-stats` | 120 s KV cache + 15 s isolate memory, invalidated on submit | three `count(*)` scans become zero reads while warm. |
+| Authenticated requests | session lookup cached 60 s under the **HMAC** of the token | removes one `sessions ⋈ users` join per API call; logout/revoke deletes the key. |
+| `GET /api/forms/:id/analytics` | 300 s cache per form, dropped on submit | five aggregate scans become one per five minutes. |
+| `GET /api/user/settings` | 300 s cache per user, dropped on save | no re-read every time the panel opens. |
+| `webhook_logs` writes | batched: one multi-row INSERT per 8 rows / 30 s | turns per-delivery writes into one statement per batch. |
+| `GET /api/health` | **not** cached | a health probe must fail when D1 fails. |
+
+Audit logs, notifications and rate-limit counters are intentionally **not**
+cached or batched: they are security records, and a read-after-write must see
+the truth.
 
 ---
 
@@ -250,7 +377,7 @@ Drop this single line before `</body>` in Webflow, WordPress, Shopify, Squarespa
 
 ---
 
-## ⚙️ Environment Variables Reference
+## ⚙️ Environment Variables
 
 ### Core Configuration
 | Variable | Required | Description |

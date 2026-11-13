@@ -12,6 +12,17 @@ import { SecurityPanel } from "@/components/dashboard/SecurityPanel";
 import { SubmissionInbox } from "@/components/dashboard/SubmissionInbox";
 import { CommandPalette, type CommandAction } from "@/components/dashboard/CommandPalette";
 
+/**
+ * Build-injected from `package.json` by `next.config.ts`.
+ *
+ * A client component must not `import "../../package.json"`: that would copy
+ * the whole manifest (every dependency and script) into the browser bundle to
+ * render one string. `NEXT_PUBLIC_APP_VERSION` is replaced by a literal at
+ * build time, so the footer, the health probe and the OpenAPI document can
+ * never drift apart again.
+ */
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0";
+
 type User = { id: string; email: string; name: string; role: string; totpEnabled?: boolean };
 type Form = {
   id: string;
@@ -1134,8 +1145,8 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
           </>
         )}
 
-        <div className="mt-3 flex items-center justify-between">
-          <label htmlFor="auth-password" className="block text-sm text-slate-300">Password (min 10 chars)</label>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <label htmlFor="auth-password" className="min-w-0 text-sm text-slate-300">Password (min 10 chars)</label>
           {mode === "login" && (
             <button
               type="button"
@@ -1291,8 +1302,8 @@ function FormsTab() {
           <StatCard label="Active" value={String(forms.filter((f) => f.isActive).length)} />
           <StatCard label="Inactive" value={String(forms.filter((f) => !f.isActive).length)} />
         </div>
-        <div className="text-[10px] text-slate-500 text-center border-t border-white/5 pt-3">
-          FormForge Engine v1.0.0 Universal · D1 • Neon • Turso • DuckDB
+        <div className="break-words border-t border-white/5 pt-3 text-center text-[10px] text-slate-500">
+          FormForge Engine v{APP_VERSION} Universal · D1 • Neon • Turso • DuckDB
         </div>
       </aside>
 
@@ -2032,7 +2043,7 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
       </div>
 
       {/* Primary Navigation Tabs */}
-      <div role="tablist" aria-label="Form navigation" className="flex items-center gap-1 border-b border-white/10 px-5 pt-1 overflow-x-auto">
+      <div role="tablist" aria-label="Form navigation" className="flex items-center gap-1 overflow-x-auto border-b border-white/10 px-5 pt-1 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <button
           role="tab"
           aria-selected={view === "submissions"}
@@ -4716,7 +4727,7 @@ function FormSettingsPanel({ form, onSaved }: { form: Form; onSaved: () => void 
                   )}
                 </div>
                 {!smtpUser.trim().toLowerCase().endsWith("@gmail.com") && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label htmlFor="smtp-host" className="mb-1 block text-xs text-slate-400">SMTP Host</label>
                       <input id="smtp-host" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} className="ff-input text-sm" placeholder="smtp.example.com" />
