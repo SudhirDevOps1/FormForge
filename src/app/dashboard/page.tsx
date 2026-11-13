@@ -8,6 +8,8 @@ import { TurnstileAltcha } from "@/components/TurnstileAltcha";
 import { classifyIntent, getIntentMeta } from "@/lib/intent";
 import { RulesEditor } from "@/components/dashboard/RulesEditor";
 import { PrefillsEditor } from "@/components/dashboard/PrefillsEditor";
+import { WorkflowsEditor } from "@/components/dashboard/WorkflowsEditor";
+import { EmbedWizardModal } from "@/components/dashboard/EmbedWizardModal";
 import { SecurityPanel } from "@/components/dashboard/SecurityPanel";
 import { SubmissionInbox } from "@/components/dashboard/SubmissionInbox";
 import { CommandPalette, type CommandAction } from "@/components/dashboard/CommandPalette";
@@ -1367,7 +1369,8 @@ function CreateFormInline({ onCreated }: { onCreated: () => void }) {
 
 function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) {
   const confirm = useConfirm();
-  const [view, setView] = useState<"submissions" | "connect" | "logic" | "analytics" | "settings">("submissions");
+  const [view, setView] = useState<"submissions" | "connect" | "workflows" | "logic" | "analytics" | "settings">("submissions");
+  const [embedWizardOpen, setEmbedWizardOpen] = useState(false);
   const [subs, setSubs] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -2015,7 +2018,14 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
           </div>
           <p className="text-sm text-slate-400">/{form.slug} · Created {timeAgo(form.createdAt)}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setEmbedWizardOpen(true)}
+            className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 px-4 py-3 text-xs hover:bg-cyan-500/20 flex items-center gap-1.5 font-semibold transition shadow-sm"
+          >
+            <span>⚡</span>
+            <span>Embed Wizard</span>
+          </button>
           <button onClick={toggleActive} className="rounded-xl border border-white/15 px-4 py-3 text-xs hover:bg-white/10">{form.isActive ? "Pause" : "Resume"}</button>
           <button onClick={deleteForm} className="rounded-xl border border-rose-400/30 text-rose-200 px-4 py-3 text-xs hover:bg-rose-400/10">Delete</button>
           <div className="relative group">
@@ -2078,6 +2088,22 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
           <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           <span>Connect &amp; Snippets</span>
           <span className="rounded-full bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 text-[10px] text-amber-300 font-medium">Embed</span>
+        </button>
+
+        <button
+          role="tab"
+          aria-selected={view === "workflows"}
+          aria-controls="view-workflows-panel"
+          onClick={() => setView("workflows")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            view === "workflows"
+              ? "border-cyan-400 text-cyan-300"
+              : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+          }`}
+        >
+          <svg className="w-4 h-4 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>Automations</span>
+          <span className="rounded-full bg-violet-400/10 border border-violet-400/20 px-1.5 py-0.5 text-[10px] text-violet-300 font-medium">Workflows</span>
         </button>
 
         <button
@@ -2915,6 +2941,11 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
             })()}
           </div>
         )}
+        {view === "workflows" && (
+          <div id="view-workflows-panel" role="tabpanel" aria-label="Workflows and Automations">
+            <WorkflowsEditor formId={form.id} form={form} />
+          </div>
+        )}
         {view === "logic" && (
           <div id="view-logic-panel" role="tabpanel" aria-label="Conditional Logic and Prefill" className="space-y-6 pt-2">
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
@@ -2947,6 +2978,12 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
           </div>
         )}
       </div>
+      <EmbedWizardModal
+        form={form}
+        endpoint={endpoint}
+        isOpen={embedWizardOpen}
+        onClose={() => setEmbedWizardOpen(false)}
+      />
     </section>
   );
 }

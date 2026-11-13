@@ -399,6 +399,25 @@ export async function autoMigrate(db: any): Promise<void> {
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS submission_notes_submission_id_idx ON submission_notes (submission_id);`);
     await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS submission_notes_created_at_idx ON submission_notes (created_at);`);
 
+    // 16. Form workflows (visual automations)
+    await executeQuery(db, sql`
+      CREATE TABLE IF NOT EXISTS form_workflows (
+        id TEXT PRIMARY KEY NOT NULL,
+        form_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        trigger_event TEXT DEFAULT 'submission.created' NOT NULL,
+        trigger_conditions TEXT DEFAULT '{}' NOT NULL,
+        actions_definition TEXT DEFAULT '[]' NOT NULL,
+        is_active INTEGER DEFAULT 1 NOT NULL,
+        position INTEGER DEFAULT 0 NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY (form_id) REFERENCES forms(id) ON UPDATE NO ACTION ON DELETE CASCADE
+      );
+    `);
+
+    await executeQuery(db, sql`CREATE INDEX IF NOT EXISTS form_workflows_form_trigger_idx ON form_workflows (form_id, trigger_event, is_active);`);
+
     // Safe column additions for existing databases (SQLite & Postgres compatible)
     const columnsToAdd = [
       "ALTER TABLE forms ADD COLUMN gas_url TEXT;",

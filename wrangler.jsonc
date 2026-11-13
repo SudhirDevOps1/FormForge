@@ -15,6 +15,9 @@
     "APP_NAME": "FormForge",
     "ALLOW_REGISTRATION": "true"
   },
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
   // Read-through cache in front of D1 (`src/lib/kv-cache.ts`).
   //
   // Without this binding the application still works: the cache degrades to
