@@ -152,15 +152,15 @@ export async function setupKvNamespace() {
   }
 
   // 4. Update wrangler.jsonc
-  if (fs.existsSync(WRANGLER_CONFIG)) {
+  try {
     const rawConfig = fs.readFileSync(WRANGLER_CONFIG, "utf-8");
     const updated = updateWranglerKvBinding(rawConfig, prodId, previewId || prodId);
     fs.writeFileSync(WRANGLER_CONFIG, updated, "utf-8");
     log(`✔ Successfully auto-bound KV cache in wrangler.jsonc (ID: ${prodId})`);
     return { ok: true, prodId, previewId: previewId || prodId };
+  } catch (err) {
+    return { ok: false, error: err.message };
   }
-
-  return { ok: false, error: "wrangler.jsonc not found" };
 }
 
 // Auto-run if executed directly

@@ -12,7 +12,7 @@
  *   node scripts/admin-recover.mjs (interactive)
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import readline from "node:readline";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +22,7 @@ const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, "..");
 
 const encoder = new TextEncoder();
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 function toBase64Url(bytes) {
   let binary = "";
@@ -55,9 +56,15 @@ export async function hashPasswordPbkdf2(password) {
   return `pbkdf2_sha256$${iterations}$${toBase64Url(salt)}$${toBase64Url(new Uint8Array(bits))}`;
 }
 
-function runCapture(cmd) {
+function runWrangler(args) {
   try {
-    const res = execSync(cmd, { encoding: "utf-8", stdio: "pipe", cwd: REPO_ROOT });
+    const isWin = process.platform === "win32";
+    const npxCmd = isWin ? "npx.cmd" : "npx";
+    const res = execFileSync(npxCmd, ["wrangler", ...args], {
+      encoding: "utf-8",
+      stdio: "pipe",
+      cwd: REPO_ROOT,
+    });
     return { ok: true, output: res };
   } catch (err) {
     return { ok: false, output: (err.stdout || "") + (err.stderr || "") + err.message };
@@ -66,30 +73,37 @@ function runCapture(cmd) {
 
 export async function listUsers(remote = true) {
   const flag = remote ? "--remote" : "--local";
-  const cmd = `npx wrangler d1 execute DB ${flag} --command "SELECT id, email, name, role, created_at FROM users"`;
-  const res = runCapture(cmd);
-  if (!res.ok) {
-    return { ok: false, error: res.output };
-  }
-  return { ok: true, output: res.output };
+  return runWrangler([
+    "d1",
+    "execute",
+    "DB",
+    flag,
+    "--command",
+    "SELECT id, email, name, role, created_at FROM users",
+  ]);
 }
 
 export async function resetPassword(email, newPassword, remote = true) {
-  if (!email || !newPassword) {
-    throw new Error("Email and new password are required");
+  if (!email || !EMAIL_REGEX.test(email)) {
+    throw new Error("Valid email format is required");
   }
-  if (newPassword.length < 10) {
+  if (!newPassword || newPassword.length < 10) {
     throw new Error("Password must be at least 10 characters long");
   }
 
   const hash = await hashPasswordPbkdf2(newPassword);
   const flag = remote ? "--remote" : "--local";
-  // Escape single quotes for SQL safety
-  const safeEmail = email.replace(/'/g, "''").toLowerCase().trim();
-  const safeHash = hash.replace(/'/g, "''");
+  const safeEmail = email.toLowerCase().trim();
 
-  const cmd = `npx wrangler d1 execute DB ${flag} --command "UPDATE users SET password_hash = '${safeHash}', updated_at = CURRENT_TIMESTAMP WHERE lower(email) = '${safeEmail}'"`;
-  const res = runCapture(cmd);
+  const res = runWrangler([
+    "d1",
+    "execute",
+    "DB",
+    flag,
+    "--command",
+    `UPDATE users SET password_hash = '${hash}', updated_at = CURRENT_TIMESTAMP WHERE lower(email) = '${safeEmail}'`,
+  ]);
+
   if (!res.ok) {
     return { ok: false, error: res.output };
   }
@@ -97,22 +111,28 @@ export async function resetPassword(email, newPassword, remote = true) {
 }
 
 export async function createOwner(email, password, name = "Owner", remote = true) {
-  if (!email || !password) {
-    throw new Error("Email and password are required");
+  if (!email || !EMAIL_REGEX.test(email)) {
+    throw new Error("Valid email format is required");
   }
-  if (password.length < 10) {
+  if (!password || password.length < 10) {
     throw new Error("Password must be at least 10 characters long");
   }
 
   const hash = await hashPasswordPbkdf2(password);
   const flag = remote ? "--remote" : "--local";
-  const safeEmail = email.replace(/'/g, "''").toLowerCase().trim();
-  const safeName = (name || "Owner").replace(/'/g, "''");
-  const safeHash = hash.replace(/'/g, "''");
+  const safeEmail = email.toLowerCase().trim();
+  const safeName = (name || "Owner").replace(/[^a-zA-Z0-9 _-]/g, "");
   const userId = `user_${toBase64Url(randomBytes(18))}`;
 
-  const cmd = `npx wrangler d1 execute DB ${flag} --command "INSERT INTO users (id, email, name, password_hash, role, created_at, updated_at) VALUES ('${userId}', '${safeEmail}', '${safeName}', '${safeHash}', 'owner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"`;
-  const res = runCapture(cmd);
+  const res = runWrangler([
+    "d1",
+    "execute",
+    "DB",
+    flag,
+    "--command",
+    `INSERT INTO users (id, email, name, password_hash, role, created_at, updated_at) VALUES ('${userId}', '${safeEmail}', '${safeName}', '${hash}', 'owner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+  ]);
+
   if (!res.ok) {
     return { ok: false, error: res.output };
   }
