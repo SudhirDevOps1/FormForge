@@ -18,7 +18,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -664,6 +664,51 @@ await test("F9", "workflow builder generates valid JSON actions payload", async 
   const parsed = JSON.parse(serialized);
   assertEqual(parsed[0].type, "autoresponder");
   assertEqual(parsed[0].id, "act-1");
+});
+
+await test("F9", "setup-kv config updater injects active KV binding correctly", async () => {
+  const { updateWranglerKvBinding, extractKvId } = await import("../scripts/setup-kv.mjs");
+  const sampleConfig = `{
+  "name": "test-app",
+  // "kv_namespaces": [
+  //   {
+  //     "binding": "CACHE",
+  //     "id": "<paste the id printed by wrangler>",
+  //     "preview_id": "<paste the preview id printed by wrangler --preview>"
+  //   }
+  // ],
+  "d1_databases": []
+}`;
+  const updated = updateWranglerKvBinding(sampleConfig, "0123456789abcdef0123456789abcdef", "fedcba9876543210fedcba9876543210");
+  assert(updated.includes('"binding": "CACHE"'), "must include CACHE binding");
+  assert(updated.includes("0123456789abcdef0123456789abcdef"), "must include prod ID");
+  assert(updated.includes("fedcba9876543210fedcba9876543210"), "must include preview ID");
+
+  const parsedId = extractKvId('Success! Created KV namespace "CACHE" with id: 8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d');
+  assertEqual(parsedId, "8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d", "must extract hex KV namespace ID");
+});
+
+await test("F9", "admin recovery PBKDF2 hash verifies with core verifyPassword engine", async () => {
+  const { hashPasswordPbkdf2 } = await import("../scripts/admin-recover.mjs");
+  const { verifyPassword } = await import("../src/lib/crypto.ts");
+  const testPassword = "VerySecurePassword123!@#";
+  const hash = await hashPasswordPbkdf2(testPassword);
+  assert(hash.startsWith("pbkdf2_sha256$100000$"), "must use PBKDF2 100k iterations");
+  const valid = await verifyPassword(testPassword, hash);
+  assertEqual(valid, true, "generated hash must successfully verify against verifyPassword");
+  const invalid = await verifyPassword("WrongPassword!", hash);
+  assertEqual(invalid, false, "different password must be rejected");
+});
+
+await test("F9", "migration SQL statements use idempotent IF NOT EXISTS guards", async () => {
+  const migrationSql = readFileSync(join(REPO_ROOT, "migrations", "0001_smooth_nightmare.sql"), "utf-8");
+  const createTableMatches = migrationSql.match(/CREATE TABLE/g) || [];
+  const createTableIfNotExists = migrationSql.match(/CREATE TABLE IF NOT EXISTS/g) || [];
+  assertEqual(createTableMatches.length, createTableIfNotExists.length, "every CREATE TABLE must have IF NOT EXISTS");
+
+  const createIndexMatches = migrationSql.match(/CREATE (?:UNIQUE )?INDEX/g) || [];
+  const createIndexIfNotExists = migrationSql.match(/CREATE (?:UNIQUE )?INDEX IF NOT EXISTS/g) || [];
+  assertEqual(createIndexMatches.length, createIndexIfNotExists.length, "every CREATE INDEX must have IF NOT EXISTS");
 });
 
 /* ------------------------------ summary ---------------------------- */
