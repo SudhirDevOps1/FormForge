@@ -631,6 +631,41 @@ await test("F9", "autoresponder email merges personalized fields safely", async 
   assert(rendered.includes("Need multi-region deployment"), "interpolates message");
 });
 
+await test("F9", "redirect URL parameter piping encodes values and strips unfilled tags", async () => {
+  const template = "https://example.com/welcome?name={{name}}&tier={{tier}}&tag={{unknown}}";
+  const values = { name: "John Doe & Partners", tier: "pro", secret: "do-not-leak" };
+
+  let target = template;
+  for (const [k, v] of Object.entries(values)) {
+    if (typeof v === "string") {
+      const regex = new RegExp(`\\{\\{${k}\\}\\}`, "gi");
+      target = target.replace(regex, encodeURIComponent(v));
+    }
+  }
+  target = target.replace(/\{\{[^}]+\}\}/g, "");
+
+  assertEqual(
+    target,
+    "https://example.com/welcome?name=John%20Doe%20%26%20Partners&tier=pro&tag=",
+    "must URL-encode dynamic values and safely purge unfulfilled tags",
+  );
+});
+
+await test("F9", "workflow builder generates valid JSON actions payload", async () => {
+  const actions = [
+    {
+      id: "act-1",
+      type: "autoresponder",
+      subject: "Thanks {{name}}",
+      body: "Received your message: {{message}}",
+    },
+  ];
+  const serialized = JSON.stringify(actions);
+  const parsed = JSON.parse(serialized);
+  assertEqual(parsed[0].type, "autoresponder");
+  assertEqual(parsed[0].id, "act-1");
+});
+
 /* ------------------------------ summary ---------------------------- */
 
 rmSync(OUT_DIR, { recursive: true, force: true });

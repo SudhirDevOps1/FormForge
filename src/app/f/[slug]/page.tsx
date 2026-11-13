@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { TurnstileAltcha } from "@/components/TurnstileAltcha";
 import { HostedFormEngine } from "@/components/HostedFormEngine";
+import { ForgeLoader } from "@/components/ForgeLoader";
 import type { FormRule } from "@/lib/rules";
 
 interface HostedPrefill {
@@ -230,8 +231,14 @@ export default function HostedFormPage({
       if (res.ok && data?.ok !== false) {
         setSubmitted(true);
         if (form.redirectUrl) {
+          let target = form.redirectUrl;
+          target = target.replace(/\{\{name\}\}/gi, encodeURIComponent(name));
+          target = target.replace(/\{\{email\}\}/gi, encodeURIComponent(email));
+          target = target.replace(/\{\{subject\}\}/gi, encodeURIComponent(subject));
+          target = target.replace(/\{\{message\}\}/gi, encodeURIComponent(message));
+          target = target.replace(/\{\{[^}]+\}\}/g, "");
           setTimeout(() => {
-            window.location.href = form.redirectUrl!;
+            window.location.href = target;
           }, 1500);
         }
       } else {
@@ -247,13 +254,7 @@ export default function HostedFormPage({
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="flex items-center gap-3 text-cyan-400 font-mono text-sm">
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-          </svg>
-          <span>Loading form…</span>
-        </div>
+        <ForgeLoader message="Loading form..." size="md" />
       </div>
     );
   }

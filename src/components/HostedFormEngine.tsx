@@ -42,6 +42,19 @@ export interface HostedFormEngineProps {
 
 type Values = Record<string, string>;
 
+function computeTotalQuizScore(vals: Values): number {
+  let sum = 0;
+  for (const val of Object.values(vals)) {
+    if (typeof val === "string") {
+      const match = val.match(/(?:\[score:|\+|score:)(\d+)\]?/i);
+      if (match) {
+        sum += parseInt(match[1], 10) || 0;
+      }
+    }
+  }
+  return sum;
+}
+
 /**
  * Dynamic hosted form.
  *
@@ -77,6 +90,7 @@ export function HostedFormEngine(props: HostedFormEngineProps) {
   } = props;
 
   const [values, setValues] = useState<Values>({});
+  const totalQuizScore = computeTotalQuizScore(values);
   const [files, setFiles] = useState<Record<string, File>>({});
   const [altchaPayload, setAltchaPayload] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -303,8 +317,19 @@ export function HostedFormEngine(props: HostedFormEngineProps) {
       if (res.ok && data?.ok !== false) {
         setSubmitted(true);
         if (redirectUrl) {
+          let target = redirectUrl;
+          for (const [k, v] of Object.entries(values)) {
+            if (typeof v === "string" && !k.startsWith("_") && !v.startsWith("data:")) {
+              const regex = new RegExp(`\\{\\{${k}\\}\\}`, "gi");
+              target = target.replace(regex, encodeURIComponent(v));
+            }
+          }
+          if (totalQuizScore > 0) {
+            target = target.replace(/\{\{score\}\}/gi, String(totalQuizScore));
+          }
+          target = target.replace(/\{\{[^}]+\}\}/g, "");
           window.setTimeout(() => {
-            window.location.href = redirectUrl;
+            window.location.href = target;
           }, 1500);
         }
       } else {
@@ -318,23 +343,6 @@ export function HostedFormEngine(props: HostedFormEngineProps) {
       setSubmitting(false);
     }
   }
-
-  /* ---------------------------------------------------------------- */
-  /* Quiz & Assessment Scoring Engine                                 */
-  /* ---------------------------------------------------------------- */
-
-  const totalQuizScore = useMemo(() => {
-    let sum = 0;
-    for (const val of Object.values(values)) {
-      if (typeof val === "string") {
-        const match = val.match(/(?:\[score:|\+|score:)(\d+)\]?/i);
-        if (match) {
-          sum += parseInt(match[1], 10) || 0;
-        }
-      }
-    }
-    return sum;
-  }, [values]);
 
   /* ---------------------------------------------------------------- */
   /* Render                                                           */
