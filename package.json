@@ -48,7 +48,7 @@
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
     "@eslint/eslintrc": "^3.0.0",
-    "@opennextjs/cloudflare": "1.20.16",
+    "@opennextjs/cloudflare": "1.20.17",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "22.20.5",
     "@types/nodemailer": "^6.4.17",
