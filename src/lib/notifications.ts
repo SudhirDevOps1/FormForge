@@ -218,6 +218,8 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
 
   if (shouldNotifyEmail && targetEmail) {
     const smtp = getSmtpConfig(form, env as Record<string, string | undefined>, ownerUser);
+    let emailDelivered = false;
+
     if (smtp.enabled && (smtp.hasDbPass || smtp.envPass)) {
       try {
         let decryptedPass = "";
@@ -238,15 +240,21 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           text,
           html
         );
-        results.push(
-          res.success
-            ? { channel: "email", status: "sent" }
-            : { channel: "email", status: "failed", error: res.error }
-        );
+        if (res.success) {
+          results.push({ channel: "email", status: "sent" });
+          emailDelivered = true;
+        } else {
+          console.warn(`SMTP delivery failed (${res.error}), checking HTTP failover...`);
+        }
       } catch (error) {
-        results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
+        console.warn(
+          `SMTP connection threw (${error instanceof Error ? error.message : "error"}), checking HTTP failover...`
+        );
       }
-    } else if (env.RESEND_API_KEY && env.RESEND_FROM) {
+    }
+
+    // HTTP Failover to Resend (for Cloudflare Workers Free Tier raw socket restrictions or SMTP outage)
+    if (!emailDelivered && env.RESEND_API_KEY && env.RESEND_FROM) {
       try {
         const response = await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -263,15 +271,18 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           }),
         });
 
-        results.push(
-          response.ok
-            ? { channel: "email", status: "sent" }
-            : { channel: "email", status: "failed", error: await response.text() },
-        );
-      } catch (error) {
-        results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
+        if (response.ok) {
+          results.push({ channel: "email", status: "sent" });
+          emailDelivered = true;
+        } else {
+          results.push({ channel: "email", status: "failed", error: await response.text() });
+        }
+      } catch (err: any) {
+        results.push({ channel: "email", status: "failed", error: err?.message || "Resend error" });
       }
-    } else if (env.BREVO_API_KEY && env.BREVO_FROM) {
+    }
+
+    if (!emailDelivered && env.BREVO_API_KEY && env.BREVO_FROM) {
       try {
         const response = await fetch("https://api.brevo.com/v3/smtp/email", {
           method: "POST",
@@ -287,15 +298,18 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
             htmlContent: html,
           }),
         });
-        results.push(
-          response.ok
-            ? { channel: "email", status: "sent" }
-            : { channel: "email", status: "failed", error: await response.text() }
-        );
+        if (response.ok) {
+          results.push({ channel: "email", status: "sent" });
+          emailDelivered = true;
+        } else {
+          results.push({ channel: "email", status: "failed", error: await response.text() });
+        }
       } catch (error) {
         results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
       }
-    } else if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
+    }
+
+    if (!emailDelivered && env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
       try {
         const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
           method: "POST",
@@ -309,19 +323,22 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
             subject,
             content: [
               { type: "text/plain", value: text },
-              { type: "text/html", value: html }
+              { type: "text/html", value: html },
             ],
           }),
         });
-        results.push(
-          response.status === 202
-            ? { channel: "email", status: "sent" }
-            : { channel: "email", status: "failed", error: await response.text() }
-        );
+        if (response.status === 202) {
+          results.push({ channel: "email", status: "sent" });
+          emailDelivered = true;
+        } else {
+          results.push({ channel: "email", status: "failed", error: await response.text() });
+        }
       } catch (error) {
         results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
       }
-    } else if (env.MAILGUN_API_KEY && env.MAILGUN_DOMAIN && env.MAILGUN_FROM) {
+    }
+
+    if (!emailDelivered && env.MAILGUN_API_KEY && env.MAILGUN_DOMAIN && env.MAILGUN_FROM) {
       try {
         const formData = new FormData();
         formData.append("from", env.MAILGUN_FROM);
@@ -337,15 +354,18 @@ export async function deliverNotifications(db: AppDb, form: Form, submission: Su
           },
           body: formData,
         });
-        results.push(
-          response.ok
-            ? { channel: "email", status: "sent" }
-            : { channel: "email", status: "failed", error: await response.text() }
-        );
+        if (response.ok) {
+          results.push({ channel: "email", status: "sent" });
+          emailDelivered = true;
+        } else {
+          results.push({ channel: "email", status: "failed", error: await response.text() });
+        }
       } catch (error) {
         results.push({ channel: "email", status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
       }
-    } else {
+    }
+
+    if (!emailDelivered && !smtp.enabled && !env.RESEND_API_KEY && !env.BREVO_API_KEY && !env.SENDGRID_API_KEY && !env.MAILGUN_API_KEY) {
       results.push({ channel: "email", status: "skipped" });
     }
   } else {

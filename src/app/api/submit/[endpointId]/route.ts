@@ -42,11 +42,19 @@ async function parsePayload(request: Request, submissionId: string, form?: any):
 
   for (const [key, value] of formData.entries()) {
     if (value instanceof File) {
-      const fileMeta = {
+      const fileMeta: {
+        name: string;
+        size: number;
+        type: string;
+        url?: string;
+        data?: string;
+        storage?: string;
+        storageWarning?: string;
+      } = {
         name: value.name,
         size: value.size,
         type: value.type,
-        url: undefined as string | undefined,
+        url: undefined,
       };
 
       if (value.size > 0) {
@@ -81,15 +89,32 @@ async function parsePayload(request: Request, submissionId: string, form?: any):
           throw new Error(`Upload rejected: ${sigResult.reason || "File signature verification failed"}`);
         }
 
+        const safeName = value.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         try {
           const { uploadFile, getStorageConfig } = await import("@/lib/storage");
           const storageConfig = getStorageConfig();
           if (storageConfig.type !== "none") {
-            const safeName = value.name.replace(/[^a-zA-Z0-9._-]/g, "_");
             const storageKey = `uploads/${submissionId}/${safeName}`;
             const uploaded = await uploadFile(storageKey, fileBuffer, value.type || "application/octet-stream");
             if (uploaded) {
               fileMeta.url = `/api/submissions/${submissionId}/files/${encodeURIComponent(safeName)}`;
+            }
+          } else {
+            // Zero-loss fallback for free-tier setups without R2/S3:
+            // Store attachments <= 2MB safely inline in submission payload
+            if (fileBuffer.byteLength <= 2 * 1024 * 1024) {
+              const bytes = new Uint8Array(fileBuffer);
+              let binary = "";
+              const len = bytes.byteLength;
+              for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+              }
+              const b64 = btoa(binary);
+              fileMeta.data = `data:${value.type || "application/octet-stream"};base64,${b64}`;
+              fileMeta.url = `/api/submissions/${submissionId}/files/${encodeURIComponent(safeName)}`;
+              fileMeta.storage = "inline";
+            } else {
+              fileMeta.storageWarning = "Storage backend not configured. Bind Cloudflare R2 or S3 for files > 2MB.";
             }
           }
         } catch (err) {
