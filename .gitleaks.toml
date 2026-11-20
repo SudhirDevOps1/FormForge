@@ -1,0 +1,27 @@
+# Gitleaks configuration for FormForge.
+#
+# The full default ruleset is kept. The only addition is a narrow allowlist for
+# the sample credentials that `.env.example` shipped in commit 0220986
+# ("feat: add multi-platform support…"). They are documented placeholders —
+# `0123456789abcdef…`, `re_123456789_abcdef`, `xkeysib-…`, `SG.…` and `key-…` —
+# not real credentials, but the `generic-api-key` rule matches them on entropy
+# alone. Because gitleaks scans the whole history, that one old commit kept the
+# scheduled scan red on every run, which is worse than useless: a permanently
+# failing gate trains everyone to ignore it.
+#
+# The allowlist is *value-exact* on purpose. A path-wide exclusion for
+# `.env.example` would also hide a real key pasted into that file later, and
+# those are exactly the values an operator is most likely to paste there.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Documented placeholder values in .env.example (commit 0220986) and its later sample text"
+regexTarget = "match"
+regexes = [
+  '''0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef''',
+  '''\bre_123456789_abcdef\b''',
+  '''\bxkeysib-123456789abcdef\b''',
+  '''\bSG\.123456789abcdef\b''',
+  '''\bkey-123456789abcdef\b''',
+]

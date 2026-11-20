@@ -59,15 +59,20 @@ approval.
 ### Why required checks still run on the Release PR
 
 A PR opened with the default `GITHUB_TOKEN` does **not** emit `pull_request`
-events, so no workflow would start and the required checks would never report —
-the Release PR could never merge. `release-please.yml` therefore dispatches
-`ci.yml` and `security-scan.yml` on the release branch, which reports every
-required check against its head commit.
+events. GitHub still creates the check runs, but parks them in
+`action_required`, so they never execute and the required checks never report —
+the Release PR could never merge. `release-please.yml` therefore approves the
+parked runs on the release branch, which starts them against the PR head.
+
+Dispatching `ci.yml` at the branch does **not** work: those check runs belong to
+the dispatch, not to the PR's `statusCheckRollup`, so branch protection keeps
+waiting for the required contexts. Approval is the event that puts the runs into
+the PR's rollup.
 
 The cleaner long-term setup is a `RELEASE_PLEASE_TOKEN` repository secret: a
 fine-grained PAT with `contents: write` and `pull-requests: write`. The workflow
-uses it automatically when present, and release-please's PRs then trigger normal
-`pull_request` events.
+uses it automatically when present, release-please's PRs then trigger normal
+`pull_request` events, and there is nothing to approve.
 
 ```bash
 gh secret set RELEASE_PLEASE_TOKEN   # paste the PAT when prompted
