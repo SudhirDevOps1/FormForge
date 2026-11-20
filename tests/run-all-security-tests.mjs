@@ -1001,6 +1001,20 @@ await test("P6", "release-please owns the version, tag and Release (approval = m
     !workflow.includes("gh workflow run ci.yml"),
     "dispatching CI does not satisfy PR-required checks",
   );
+  /*
+   * Every earlier head of the release branch also leaves runs parked in
+   * `action_required`. Approving without a SHA filter rebuilt a dozen dead
+   * commits (and their Cloudflare preview builds) the first time this ran, so
+   * the run list must be narrowed to the PR's current head.
+   */
+  assert(
+    workflow.includes("headRefOid"),
+    "the release PR's head commit must be read",
+  );
+  assert(
+    workflow.includes("head_sha == $sha"),
+    "only the current head's runs may be approved",
+  );
   assert(!workflow.includes("--auto"), "the Release PR must never merge itself");
 
   const config = JSON.parse(readSrc("release-please-config.json"));

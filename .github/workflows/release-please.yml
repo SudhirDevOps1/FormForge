@@ -19,8 +19,8 @@
 #     `action_required`; because they never execute, the required checks stay
 #     unreported and the Release PR can never merge. Dispatching `ci.yml` at the
 #     branch does *not* help — those check runs belong to the dispatch, not to
-#     the PR's rollup. The step below approves the parked runs for the release
-#     branch, which starts them against the PR head. Defining a
+#     the PR's rollup. The step below approves the parked runs **for the PR's
+#     current head commit**, which starts them against the PR head. Defining a
 #     `RELEASE_PLEASE_TOKEN` secret (a fine-grained PAT with `contents` +
 #     `pull-requests` write) is the cleaner option: the token is used
 #     automatically when present, the PR gets normal `pull_request` events and
@@ -67,15 +67,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Discover the branch instead of hard-coding release-please's naming
-          # convention, which changes with components and monorepo layouts.
-          BRANCH=$(gh pr list --state open --json headRefName \
-            --jq '[.[] | select(.headRefName | startswith("release-please--")) | .headRefName][0] // ""')
+          # Branch and head SHA together. Approving a run only helps when it
+          # belongs to the commit branch protection is evaluating; every earlier
+          # head of this branch also left runs parked in `action_required`, and
+          # approving those would rebuild long-dead commits for no reason.
+          PR=$(gh pr list --state open --json headRefName,headRefOid \
+            --jq '[.[] | select(.headRefName | startswith("release-please--")) | "\(.headRefName) \(.headRefOid)"][0] // ""')
 
-          if [ -z "$BRANCH" ]; then
+          if [ -z "$PR" ]; then
             echo "::notice::No open release PR — the required checks start on their own."
             exit 0
           fi
+
+          BRANCH=${PR% *}
+          HEAD_SHA=${PR#* }
+          if [ -z "$HEAD_SHA" ]; then
+            echo "::error::Could not resolve the head commit of $BRANCH"
+            exit 1
+          fi
+          echo "Release PR head: $BRANCH @ $HEAD_SHA"
 
           # `action_required` is the state GitHub parks a run in when the actor
           # is not trusted enough to start workflows on its own — which is
@@ -84,13 +94,13 @@ jobs:
           # report and branch protection can evaluate the PR.
           #
           # The runs are created asynchronously after release-please force-pushes
-          # the branch, so poll briefly rather than racing them. A release PR
-          # that already has its checks running simply falls through.
+          # the branch, so poll briefly rather than racing them.
           RUNS=""
           for _attempt in $(seq 1 12); do
             RUNS=$(gh api \
               "repos/$GH_REPO/actions/runs?branch=$BRANCH&status=action_required&per_page=100" \
-              --jq '.workflow_runs[] | select(.event == "pull_request") | .id')
+              | jq -r --arg sha "$HEAD_SHA" \
+                  '.workflow_runs[] | select(.event == "pull_request" and .head_sha == $sha) | .id')
             if [ -n "$RUNS" ]; then
               break
             fi
