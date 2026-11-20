@@ -1279,6 +1279,7 @@ function FormsTab() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const initialLoad = useRef(true);
 
   const loadForms = useCallback(async () => {
@@ -1313,53 +1314,111 @@ function FormsTab() {
   const selected = forms.find((f) => f.id === selectedId) ?? null;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
-      {/* Sidebar */}
-      <aside className="glass-panel space-y-4 rounded-3xl p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white">Forms</h2>
-          <button onClick={() => setShowCreate(!showCreate)} className="rounded-xl bg-cyan-300 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-200">{showCreate ? "Cancel" : "+ New"}</button>
+    <div>
+      {/* Mobile Form Switcher Bar */}
+      <div className="lg:hidden flex items-center justify-between p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 mb-4 shadow-lg backdrop-blur-xl">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-400 font-bold text-sm">
+            📋
+          </span>
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">Active Form</span>
+            <span className="text-sm font-bold text-white truncate block">{selected?.name || "Select a Form"}</span>
+          </div>
         </div>
-        {showCreate && <CreateFormInline onCreated={() => { setShowCreate(false); loadForms(); }} />}
-        <input placeholder="Search forms…" value={search} onChange={(e) => setSearch(e.target.value)} className="ff-input text-sm" />
-        <div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
-          {filtered.length === 0 && <p className="py-4 text-center text-sm text-slate-500">No forms found.</p>}
-          {filtered.map((form) => (
-            <button key={form.id} onClick={() => setSelectedId(form.id)} className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition hover-lift ${selectedId === form.id ? "border-cyan-300/60 bg-cyan-300/10 shadow-lg shadow-cyan-950/20" : "border-white/10 bg-white/5 hover:bg-white/10"}`}>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-white">{form.name}</p>
-                <p className="text-xs text-slate-400">{form.submissionsCount} submissions</p>
-              </div>
-              {!form.isActive && <span className="ml-2 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] text-amber-200">off</span>}
-            </button>
-          ))}
-        </div>
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-2 border-t border-white/10 pt-4">
-          <StatCard label="Total forms" value={String(forms.length)} />
-          <StatCard label="All submissions" value={String(forms.reduce((a, f) => a + f.submissionsCount, 0))} />
-          <StatCard label="Active" value={String(forms.filter((f) => f.isActive).length)} />
-          <StatCard label="Inactive" value={String(forms.filter((f) => !f.isActive).length)} />
-        </div>
-        <div className="break-words border-t border-white/5 pt-3 text-center text-[10px] text-slate-500">
-          FormForge Engine v{APP_VERSION} Universal · D1 • Neon • Turso • DuckDB
-        </div>
-      </aside>
+        <button
+          type="button"
+          onClick={() => setMobileDrawerOpen(true)}
+          className="rounded-xl bg-cyan-400/10 hover:bg-cyan-400/20 px-3 py-2 text-xs font-bold text-cyan-300 border border-cyan-400/30 flex items-center gap-1.5 shrink-0 transition"
+        >
+          <span>Switch Form ({forms.length})</span>
+          <span>▼</span>
+        </button>
+      </div>
 
-      {/* Detail */}
-      {selected ? (
-        <FormDetail form={selected} onChanged={loadForms} />
-      ) : loading ? (
-        <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 min-h-[360px]">
-          <ForgeLoader message="Loading form details..." size="md" />
-        </div>
-      ) : (
-        <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 text-center min-h-[360px] space-y-2">
-          <svg className="w-12 h-12 text-slate-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          <p className="text-base font-bold text-white">No form selected</p>
-          <p className="text-xs text-slate-400 max-w-sm">Select an existing form from the sidebar or click &quot;+ New&quot; to create your first endpoint.</p>
-        </div>
-      )}
+      <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
+        {/* Mobile Backdrop */}
+        {mobileDrawerOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm lg:hidden animate-fade-in"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+        )}
+
+        {/* Sidebar (Slide-over drawer on mobile, persistent on desktop) */}
+        <aside
+          className={`${
+            mobileDrawerOpen
+              ? "fixed inset-y-0 left-0 z-50 w-full sm:w-80 flex flex-col bg-slate-950 p-5 shadow-2xl border-r border-white/10 overflow-y-auto animate-slide-up"
+              : "hidden"
+          } lg:block lg:static glass-panel space-y-4 rounded-3xl p-5`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-white">Forms</h2>
+              <span className="rounded-full bg-cyan-400/10 px-2 py-0.5 text-xs font-mono text-cyan-300 border border-cyan-400/20">{forms.length}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setShowCreate(!showCreate)} className="rounded-xl bg-cyan-300 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-200 transition">{showCreate ? "Cancel" : "+ New"}</button>
+              {mobileDrawerOpen && (
+                <button
+                  type="button"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="lg:hidden rounded-xl bg-white/5 hover:bg-white/10 px-2.5 py-1.5 text-xs text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+          {showCreate && <CreateFormInline onCreated={() => { setShowCreate(false); loadForms(); }} />}
+          <input placeholder="Search forms…" value={search} onChange={(e) => setSearch(e.target.value)} className="ff-input text-sm" />
+          <div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
+            {filtered.length === 0 && <p className="py-4 text-center text-sm text-slate-500">No forms found.</p>}
+            {filtered.map((form) => (
+              <button
+                key={form.id}
+                onClick={() => {
+                  setSelectedId(form.id);
+                  setMobileDrawerOpen(false);
+                }}
+                className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition hover-lift ${selectedId === form.id ? "border-cyan-300/60 bg-cyan-300/10 shadow-lg shadow-cyan-950/20" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-white">{form.name}</p>
+                  <p className="text-xs text-slate-400">{form.submissionsCount} submissions</p>
+                </div>
+                {!form.isActive && <span className="ml-2 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] text-amber-200">off</span>}
+              </button>
+            ))}
+          </div>
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-2 border-t border-white/10 pt-4">
+            <StatCard label="Total forms" value={String(forms.length)} />
+            <StatCard label="All submissions" value={String(forms.reduce((a, f) => a + f.submissionsCount, 0))} />
+            <StatCard label="Active" value={String(forms.filter((f) => f.isActive).length)} />
+            <StatCard label="Inactive" value={String(forms.filter((f) => !f.isActive).length)} />
+          </div>
+          <div className="break-words border-t border-white/5 pt-3 text-center text-[10px] text-slate-500">
+            FormForge Engine v{APP_VERSION} Universal · D1 • Neon • Turso • DuckDB
+          </div>
+        </aside>
+
+        {/* Detail */}
+        {selected ? (
+          <FormDetail form={selected} onChanged={loadForms} />
+        ) : loading ? (
+          <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 min-h-[360px]">
+            <ForgeLoader message="Loading form details..." size="md" />
+          </div>
+        ) : (
+          <div className="glass-panel flex flex-col items-center justify-center rounded-3xl p-16 text-center">
+            <p className="text-lg font-semibold text-slate-300">No forms yet</p>
+            <p className="mt-1 text-sm text-slate-500">Create your first form to start collecting responses.</p>
+            <button onClick={() => setShowCreate(true)} className="mt-4 rounded-2xl bg-cyan-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-cyan-200">+ Create a form</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1509,7 +1568,7 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   const [liveBanner, setLiveBanner] = useState<string | null>(null);
 
   const [snippetTab, setSnippetTab] = useState<"html" | "widget" | "otp" | "react" | "js" | "python" | "curl">("html");
-  const [connectSubView, setConnectSubView] = useState<"studio" | "docs" | "security" | "webhooks">("studio");
+  const [connectSubView, setConnectSubView] = useState<"studio" | "fields" | "docs" | "security" | "webhooks">("studio");
   const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
   const [apiTestLoading, setApiTestLoading] = useState(false);
   const [apiTestResult, setApiTestResult] = useState<{ status: number; ok: boolean; data: any } | null>(null);
@@ -1519,6 +1578,126 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
   const [widgetBtnText, setWidgetBtnText] = useState("Feedback");
   const [snippetFields, setSnippetFields] = useState<string[]>(["email", "message"]);
   const [newFieldName, setNewFieldName] = useState("");
+
+  // Dynamic Form Fields state (backed by D1 form_fields table)
+  interface FormFieldItem {
+    id?: number;
+    key: string;
+    label: string;
+    type: string;
+    required: boolean;
+  }
+  const [formFieldsList, setFormFieldsList] = useState<FormFieldItem[]>([]);
+  const [savingFields, setSavingFields] = useState(false);
+  const [fieldsSavedStatus, setFieldsSavedStatus] = useState<string | null>(null);
+  const [newFieldKey, setNewFieldKey] = useState("");
+  const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [newFieldType, setNewFieldType] = useState("text");
+  const [newFieldRequired, setNewFieldRequired] = useState(false);
+
+  // Load custom fields for this form from /api/forms/[formId]/fields
+  useEffect(() => {
+    let active = true;
+    async function loadFormFields() {
+      try {
+        const res = await fetch(`/api/forms/${form.id}/fields`, { credentials: "include" });
+        const json = await res.json();
+        if (json.ok && Array.isArray(json.data?.fields) && json.data.fields.length > 0) {
+          if (active) {
+            setFormFieldsList(json.data.fields);
+            setSnippetFields(json.data.fields.map((f: FormFieldItem) => f.key));
+          }
+        } else if (active) {
+          const defaults: FormFieldItem[] = [
+            { key: "name", label: "Full Name", type: "text", required: true },
+            { key: "email", label: "Email Address", type: "email", required: true },
+            { key: "subject", label: "Subject", type: "text", required: false },
+            { key: "message", label: "Message", type: "textarea", required: true },
+          ];
+          setFormFieldsList(defaults);
+          setSnippetFields(defaults.map((f) => f.key));
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+    loadFormFields();
+    return () => {
+      active = false;
+    };
+  }, [form.id]);
+
+  const handleSaveFormFields = async (listToSave = formFieldsList) => {
+    setSavingFields(true);
+    setFieldsSavedStatus(null);
+    try {
+      const res = await fetch(`/api/forms/${form.id}/fields`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ fields: listToSave }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setFieldsSavedStatus(`✓ Saved ${listToSave.length} fields to database! Hosted form /f/${form.slug || form.endpointId} updated live.`);
+        setTimeout(() => setFieldsSavedStatus(null), 5000);
+        onChanged();
+      } else {
+        setFieldsSavedStatus(`❌ Error: ${json.message || "Failed to save fields"}`);
+      }
+    } catch {
+      setFieldsSavedStatus("❌ Network error saving form fields.");
+    } finally {
+      setSavingFields(false);
+    }
+  };
+
+  const addFieldPreset = (key: string, label: string, type: string, req = false) => {
+    const cleanKey = key.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!cleanKey) return;
+    if (formFieldsList.some((f) => f.key === cleanKey)) return;
+    const next = [...formFieldsList, { key: cleanKey, label, type, required: req }];
+    setFormFieldsList(next);
+    setSnippetFields(next.map((f) => f.key));
+  };
+
+  const handleAddCustomField = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanKey = (newFieldKey || newFieldLabel).trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!cleanKey) return;
+    if (formFieldsList.some((f) => f.key === cleanKey)) return;
+    const next = [
+      ...formFieldsList,
+      {
+        key: cleanKey,
+        label: newFieldLabel.trim() || cleanKey,
+        type: newFieldType,
+        required: newFieldRequired,
+      },
+    ];
+    setFormFieldsList(next);
+    setSnippetFields(next.map((f) => f.key));
+    setNewFieldKey("");
+    setNewFieldLabel("");
+    setNewFieldType("text");
+    setNewFieldRequired(false);
+  };
+
+  const moveFormField = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= formFieldsList.length) return;
+    const next = [...formFieldsList];
+    const [removed] = next.splice(index, 1);
+    next.splice(targetIndex, 0, removed);
+    setFormFieldsList(next);
+    setSnippetFields(next.map((f) => f.key));
+  };
+
+  const removeFormFieldItem = (key: string) => {
+    const next = formFieldsList.filter((f) => f.key !== key);
+    setFormFieldsList(next);
+    setSnippetFields(next.map((f) => f.key));
+  };
 
   // Automatically adapt snippets to include document/attachment field when attachments are configured in Form Settings
   useEffect(() => {
@@ -1628,13 +1807,13 @@ function FormDetail({ form, onChanged }: { form: Form; onChanged: () => void }) 
     e.preventDefault();
     const clean = newFieldName.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
     if (clean && !snippetFields.includes(clean)) {
-      setSnippetFields([...snippetFields, clean]);
+      addFieldPreset(clean, clean.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), "text", false);
       setNewFieldName("");
     }
   };
 
   const removeSnippetField = (field: string) => {
-    setSnippetFields(snippetFields.filter(f => f !== field));
+    removeFormFieldItem(field);
   };
 
   const hasAttachment = snippetFields.some(f => ["attachment", "file", "image", "upload", "document", "resume"].includes(f));
@@ -2302,98 +2481,230 @@ ${snippetFields.map(f => `    "${f}": "test_${f}_value"`).join(",\n")}
                   </div>
                 )}
 
-                {/* Dynamic Fields Embed Generator Selector */}
-                <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.01] p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-              <span>Form Fields Generator (Customize HTML / React fields)</span>
-            </p>
-            <span className="text-[10px] text-slate-500 font-mono">Active fields dynamically update templates & previews</span>
-          </div>
+                {/* Dynamic Fields & Form Builder Studio */}
+                <div className="mt-5 rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-cyan-950/20 to-slate-950/40 p-5 space-y-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-2">
+                        <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                        <span>Dynamic Form Fields &amp; Hosted Form Builder</span>
+                        <span className="rounded-full bg-cyan-400/20 text-cyan-300 text-[10px] px-2 py-0.5 font-mono">D1 Database Persisted</span>
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Define custom inputs for your hosted link (<code className="font-mono text-cyan-300">/f/{form.slug || form.endpointId}</code>) and HTML/React embeds.
+                      </p>
+                    </div>
 
-          {/* Quick-add presets */}
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1.5">
-              <ZapIcon className="w-3 h-3 text-cyan-400" />
-              <span>Quick-Add Presets:</span>
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { name: "name", label: "Name" },
-                { name: "email", label: "Email" },
-                { name: "phone", label: "Phone" },
-                { name: "signature", label: "✍️ Digital Signature (Pro)" },
-                { name: "attachment", label: "Attachment / File" },
-                { name: "document", label: "Document" },
-                { name: "message", label: "Message" },
-                { name: "subject", label: "Subject" },
-                { name: "company", label: "Company" },
-                { name: "website", label: "Website" },
-                { name: "rating", label: "Rating" },
-                { name: "country", label: "Country" },
-                { name: "terms", label: "Terms Checkbox" },
-              ].map((preset) => {
-                const isActive = snippetFields.includes(preset.name);
-                return (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    disabled={isActive}
-                    onClick={() => {
-                      if (!snippetFields.includes(preset.name)) {
-                        setSnippetFields([...snippetFields, preset.name]);
-                      }
-                    }}
-                    className={`rounded-lg px-2.5 py-1 text-xs transition border ${
-                      isActive
-                        ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed"
-                        : "bg-slate-950 hover:bg-slate-900 border-white/10 text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`/f/${form.slug || form.endpointId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-xl bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <span>🔗 Open Hosted Form</span>
+                        <span>↗</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveFormFields()}
+                        disabled={savingFields}
+                        className="rounded-xl bg-gradient-to-r from-cyan-400 to-sky-500 hover:from-cyan-300 hover:to-sky-400 text-slate-950 font-bold px-4 py-1.5 text-xs transition flex items-center gap-1.5 shadow-md shadow-cyan-500/20 disabled:opacity-60"
+                      >
+                        {savingFields ? (
+                          <>
+                            <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>💾 Save Fields to Form</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
 
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">📋 Active Fields:</span>
-            <div className="flex flex-wrap gap-2 items-center min-h-[36px] p-2 bg-black/20 rounded-xl border border-white/5">
-              {snippetFields.length === 0 ? (
-                <span className="text-xs text-slate-500 italic pl-1">No fields. Click presets or add custom fields below.</span>
-              ) : (
-                snippetFields.map(f => (
-                  <span key={f} className="inline-flex items-center gap-1 rounded-lg bg-slate-950 border border-white/10 pl-2.5 pr-1 py-0.5 text-xs text-slate-200">
-                    <span className="font-mono">{f}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeSnippetField(f)}
-                      className="text-slate-500 hover:text-rose-400 font-bold ml-1 text-sm leading-none h-5 w-5 flex items-center justify-center rounded-md hover:bg-white/5 transition"
-                      title={`Remove ${f}`}
+                  {fieldsSavedStatus && (
+                    <div className={`p-3 rounded-xl text-xs font-semibold animate-fade-in ${fieldsSavedStatus.startsWith("✓") ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-300" : "bg-rose-500/10 border border-rose-500/30 text-rose-300"}`}>
+                      {fieldsSavedStatus}
+                    </div>
+                  )}
+
+                  {/* Quick-add presets */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-1.5">
+                      <ZapIcon className="w-3 h-3 text-cyan-400" />
+                      <span>1-Click Presets:</span>
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { key: "name", label: "Full Name", type: "text", req: true },
+                        { key: "email", label: "Work Email", type: "email", req: true },
+                        { key: "phone", label: "Phone Number", type: "tel", req: false },
+                        { key: "message", label: "Message / Comments", type: "textarea", req: true },
+                        { key: "signature", label: "✍️ Digital Signature (Pro)", type: "signature", req: false },
+                        { key: "attachment", label: "📁 File / Resume Upload", type: "file", req: false },
+                        { key: "rating", label: "⭐ Rating (1-5 Stars)", type: "select", req: false },
+                        { key: "subject", label: "Subject", type: "text", req: false },
+                        { key: "company", label: "Company", type: "text", req: false },
+                        { key: "website", label: "Website URL", type: "url", req: false },
+                        { key: "terms", label: "☑️ Terms Agreement", type: "checkbox", req: true },
+                      ].map((preset) => {
+                        const isActive = formFieldsList.some((f) => f.key === preset.key);
+                        return (
+                          <button
+                            key={preset.key}
+                            type="button"
+                            disabled={isActive}
+                            onClick={() => addFieldPreset(preset.key, preset.label, preset.type, preset.req)}
+                            className={`rounded-lg px-2.5 py-1 text-xs transition border flex items-center gap-1 ${
+                              isActive
+                                ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed"
+                                : "bg-slate-900 hover:bg-slate-800 border-white/10 text-slate-200 hover:text-white"
+                            }`}
+                          >
+                            <span>{preset.label}</span>
+                            {isActive && <span className="text-[10px] text-emerald-400">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Field list with reordering, type tags & required toggles */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      📋 Form Schema ({formFieldsList.length} Fields Configured):
+                    </span>
+                    {formFieldsList.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic p-4 bg-black/20 rounded-xl border border-white/5 text-center">
+                        No fields configured. Click presets above or add custom fields below.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
+                        {formFieldsList.map((f, idx) => (
+                          <div
+                            key={f.key}
+                            className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-900/80 border border-white/10 hover:border-white/20 transition"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/5 text-[10px] font-mono text-slate-400 shrink-0">
+                                {idx + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs font-bold text-cyan-300">{f.key}</span>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-white/5 border border-white/10 text-slate-400 uppercase">
+                                    {f.type}
+                                  </span>
+                                  {f.required && (
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold text-rose-300 bg-rose-500/10 border border-rose-500/20">
+                                      Required
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[11px] text-slate-400 truncate block">{f.label}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <label className="flex items-center gap-1 text-[11px] text-slate-400 mr-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={f.required}
+                                  onChange={(e) => {
+                                    const next = [...formFieldsList];
+                                    next[idx] = { ...f, required: e.target.checked };
+                                    setFormFieldsList(next);
+                                  }}
+                                  className="h-3.5 w-3.5 accent-cyan-400 rounded"
+                                />
+                                <span className="text-[10px]">Req</span>
+                              </label>
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => moveFormField(idx, "up")}
+                                title="Move up"
+                                className="h-6 w-6 rounded-md bg-white/5 hover:bg-white/10 disabled:opacity-30 text-slate-300 flex items-center justify-center text-xs"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === formFieldsList.length - 1}
+                                onClick={() => moveFormField(idx, "down")}
+                                title="Move down"
+                                className="h-6 w-6 rounded-md bg-white/5 hover:bg-white/10 disabled:opacity-30 text-slate-300 flex items-center justify-center text-xs"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeFormFieldItem(f.key)}
+                                title={`Remove ${f.key}`}
+                                className="h-6 w-6 rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 flex items-center justify-center text-xs ml-1"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Custom Field Form */}
+                  <form onSubmit={handleAddCustomField} className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5">
+                    <input
+                      required
+                      placeholder="Field Key (e.g. city)"
+                      value={newFieldKey}
+                      onChange={(e) => setNewFieldKey(e.target.value)}
+                      className="ff-input text-xs py-1.5 px-3 rounded-lg w-32 font-mono"
+                    />
+                    <input
+                      placeholder="Display Label (e.g. Your City)"
+                      value={newFieldLabel}
+                      onChange={(e) => setNewFieldLabel(e.target.value)}
+                      className="ff-input text-xs py-1.5 px-3 rounded-lg flex-1 min-w-[120px]"
+                    />
+                    <select
+                      value={newFieldType}
+                      onChange={(e) => setNewFieldType(e.target.value)}
+                      className="ff-input text-xs py-1.5 px-2 rounded-lg bg-slate-900"
                     >
-                      ×
+                      <option value="text">Text Input</option>
+                      <option value="email">Email</option>
+                      <option value="number">Number</option>
+                      <option value="tel">Phone</option>
+                      <option value="url">Website URL</option>
+                      <option value="date">Date</option>
+                      <option value="textarea">Textarea</option>
+                      <option value="select">Dropdown</option>
+                      <option value="radio">Radio Options</option>
+                      <option value="checkbox">Checkbox</option>
+                      <option value="file">File Upload</option>
+                      <option value="signature">Digital Signature</option>
+                    </select>
+                    <label className="flex items-center gap-1.5 text-xs text-slate-300 px-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newFieldRequired}
+                        onChange={(e) => setNewFieldRequired(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-cyan-400 rounded"
+                      />
+                      <span>Required</span>
+                    </label>
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-1.5 text-xs transition shrink-0"
+                    >
+                      + Add Field
                     </button>
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-
-          <form onSubmit={addSnippetField} className="flex gap-2 max-w-sm">
-            <input
-              required
-              placeholder="Or add custom (e.g. age, address)"
-              value={newFieldName}
-              onChange={(e) => setNewFieldName(e.target.value)}
-              className="ff-input text-xs py-1.5 px-3 rounded-lg"
-            />
-            <button type="submit" className="rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-1.5 text-xs transition shrink-0">
-              + Add Custom
-            </button>
-          </form>
-        </div>
+                  </form>
+                </div>
 
         {/* Code Snippet Tabs */}
         <div className="mt-5 space-y-4">
@@ -3038,6 +3349,7 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
   const [selectedQueryIndex, setSelectedQueryIndex] = useState(0);
   const [queryResult, setQueryResult] = useState<any[] | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
+  const [customFilterQuery, setCustomFilterQuery] = useState("");
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   useEffect(() => {
@@ -3406,6 +3718,7 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
                 { label: "Daily Volume", query: "timeline" },
                 { label: "Top Referrers", query: "referrers" },
                 { label: "Top Submitters", query: "submitters" },
+                { label: "🔍 Live Filter & Search", query: "custom" },
               ].map((p, idx) => (
                 <button
                   key={idx}
@@ -3426,6 +3739,17 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
             </div>
           </div>
 
+          {selectedQueryIndex === 3 && (
+            <div className="pt-1">
+              <input
+                value={customFilterQuery}
+                onChange={(e) => setCustomFilterQuery(e.target.value)}
+                placeholder="Type keyword or field to filter client-side dataset (e.g. gmail, spam, accepted, google)..."
+                className="ff-input text-xs py-1.5 px-3 rounded-lg w-full font-mono bg-slate-900 border border-emerald-500/30 text-white placeholder:text-slate-500"
+              />
+            </div>
+          )}
+
           <div className="relative">
             <CodeHighlight
               code={
@@ -3433,7 +3757,9 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
                   ? `SELECT date, status, sum(count) as total\nFROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv')\nGROUP BY 1, 2\nORDER BY 1 DESC;`
                   : selectedQueryIndex === 1
                   ? `SELECT referer, count\nFROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv')\nGROUP BY 1\nORDER BY 2 DESC\nLIMIT 10;`
-                  : `SELECT email, count\nFROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv')\nGROUP BY 1\nORDER BY 2 DESC\nLIMIT 10;`
+                  : selectedQueryIndex === 2
+                  ? `SELECT email, count\nFROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv')\nGROUP BY 1\nORDER BY 2 DESC\nLIMIT 10;`
+                  : `SELECT * FROM read_csv_auto('${origin}/api/forms/${form.id}/export?format=csv')\nWHERE email LIKE '%${customFilterQuery}%' OR date LIKE '%${customFilterQuery}%' OR status LIKE '%${customFilterQuery}%';`
               }
               lang="sql"
             />
@@ -3447,8 +3773,33 @@ function FormAnalyticsPanel({ form }: { form: Form }) {
                   setQueryResult(data.timeline || []);
                 } else if (selectedQueryIndex === 1) {
                   setQueryResult(data.referrers || []);
-                } else {
+                } else if (selectedQueryIndex === 2) {
                   setQueryResult(data.submitters || []);
+                } else {
+                  const q = customFilterQuery.trim().toLowerCase();
+                  const allRows: any[] = [];
+                  if (data.timeline) {
+                    for (const row of data.timeline) {
+                      if (!q || JSON.stringify(row).toLowerCase().includes(q)) {
+                        allRows.push({ ...row, category: "timeline" });
+                      }
+                    }
+                  }
+                  if (data.submitters) {
+                    for (const row of data.submitters) {
+                      if (!q || JSON.stringify(row).toLowerCase().includes(q)) {
+                        allRows.push({ ...row, category: "submitter" });
+                      }
+                    }
+                  }
+                  if (data.referrers) {
+                    for (const row of data.referrers) {
+                      if (!q || JSON.stringify(row).toLowerCase().includes(q)) {
+                        allRows.push({ ...row, category: "referrer" });
+                      }
+                    }
+                  }
+                  setQueryResult(allRows);
                 }
               }}
               className="rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 text-xs transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
