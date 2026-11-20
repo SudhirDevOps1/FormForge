@@ -987,7 +987,20 @@ await test("P6", "release-please owns the version, tag and Release (approval = m
   );
   assert(workflow.includes("release_created"), "a created release must be detected");
   assert(workflow.includes("gh workflow run release.yml"), "the new tag must dispatch the release pipeline");
-  assert(workflow.includes("gh workflow run ci.yml"), "required checks must be started for the release PR");
+  /*
+   * Dispatching `ci.yml` at the release branch left the PR blocked: those check
+   * runs belong to the dispatch, not to the PR's `statusCheckRollup`, so the six
+   * required checks stayed "Expected". The runs GitHub parks in `action_required`
+   * for a `GITHUB_TOKEN`-authored PR have to be approved instead.
+   */
+  assert(
+    workflow.includes("/actions/runs/$RUN_ID/approve"),
+    "the parked checks on the release PR must be approved, not dispatched",
+  );
+  assert(
+    !workflow.includes("gh workflow run ci.yml"),
+    "dispatching CI does not satisfy PR-required checks",
+  );
   assert(!workflow.includes("--auto"), "the Release PR must never merge itself");
 
   const config = JSON.parse(readSrc("release-please-config.json"));
@@ -1095,6 +1108,64 @@ await test("P6", "every startup index is created after the column it needs exist
   assert(
     submissionsTable.includes("submissions_form_created_idx"),
     "the composite submissions index must be created with the table",
+  );
+});
+
+await test("P6", "the secret scan ignores placeholders without blinding itself", async () => {
+  /*
+   * The scheduled scan was red on every run because gitleaks' `generic-api-key`
+   * rule entropy-matches the sample values `.env.example` shipped in commit
+   * 0220986. The fix is a value-exact allowlist, not a path exclusion: the path
+   * exclusion would also hide a real key pasted into the file an operator is
+   * most likely to paste one into.
+   */
+  assert(existsSync(join(REPO_ROOT, ".gitleaks.toml")), ".gitleaks.toml must exist");
+
+  const config = readSrc(".gitleaks.toml");
+  assert(config.includes("useDefault = true"), "the default ruleset must stay enabled");
+  assert(config.includes('regexTarget = "match"'), "the allowlist must match values, not paths");
+  assert(!/^\s*paths\s*=/m.test(config), "a path allowlist would hide real secrets");
+
+  for (const placeholder of [
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "re_123456789_abcdef",
+    "xkeysib-123456789abcdef",
+    "SG\\.123456789abcdef",
+    "key-123456789abcdef",
+  ]) {
+    assert(config.includes(placeholder), `the allowlist must cover ${placeholder}`);
+  }
+
+  // Both gitleaks entry points must use the same config, or one stays red.
+  for (const workflow of [".github/workflows/security-scan.yml", ".github/workflows/security.yml"]) {
+    assert(
+      readSrc(workflow).includes("GITLEAKS_CONFIG"),
+      `${workflow} must point gitleaks at the config`,
+    );
+  }
+});
+
+await test("P6", "only Dependabot owns scheduled dependency updates", async () => {
+  /*
+   * `dependency-update.yml` ran on the same Monday schedule as Dependabot and
+   * opened a duplicate PR that could never merge: a PR created with
+   * `GITHUB_TOKEN` gets no `pull_request` check suite for branch protection to
+   * read, so the required checks never report.
+   */
+  const updater = readSrc(".github/workflows/dependency-update.yml");
+  assert(updater.includes("workflow_dispatch"), "the workflow must stay manually runnable");
+  assert(!/^\s*schedule:/m.test(updater), "the duplicate schedule must be gone");
+  assert(
+    updater.includes("secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN"),
+    "a PAT must be used when configured so the PR gets normal checks",
+  );
+
+  const dependabot = readSrc(".github/dependabot.yml");
+  assert(/^\s*schedule:/m.test(dependabot), "Dependabot must keep the schedule");
+  assert(dependabot.includes("package-ecosystem: npm"), "npm updates must stay covered");
+  assert(
+    dependabot.includes("package-ecosystem: github-actions"),
+    "action updates must stay covered",
   );
 });
 

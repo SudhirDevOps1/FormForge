@@ -36,19 +36,19 @@
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
-    "@neondatabase/serverless": "^1.1.0",
+    "@neondatabase/serverless": "^1.2.1",
     "drizzle-orm": "0.45.4",
     "next": "16.4.6",
-    "nodemailer": "^10.5.0",
+    "nodemailer": "^10.6.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.0.0",
+    "@cloudflare/workers-types": "^5.20261117.1",
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
     "@eslint/eslintrc": "^3.0.0",
-    "@opennextjs/cloudflare": "1.20.16",
+    "@opennextjs/cloudflare": "1.20.17",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "22.20.5",
     "@types/nodemailer": "^6.4.17",
@@ -59,7 +59,7 @@
     "eslint-config-next": "16.4.6",
     "husky": "^9.0.0",
     "lint-staged": "^15.0.0",
-    "postcss": "^8.4.0",
+    "postcss": "^8.5.33",
     "typescript": "5.9.3",
     "wrangler": "^4.125.0"
   },

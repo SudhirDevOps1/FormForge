@@ -1,14 +1,41 @@
-# FormForge Dependency Update — weekly automated dependency bump with auto-PR.
+# FormForge Dependency Update — on-demand minor/patch refresh.
+#
+# Scheduled dependency updates are owned by Dependabot (`.github/dependabot.yml`).
+# This workflow used to run on the same Monday 09:00 UTC schedule, and every run
+# produced a PR that could never be merged:
+#
+#   • a PR created with `GITHUB_TOKEN` is not given a `pull_request` check
+#     suite that the branch protection rule can see, so the six required checks
+#     stay "Expected — Waiting for status to be reported" forever. Dispatching
+#     `ci.yml` at the branch does not help: those check runs belong to the
+#     dispatch, not to the PR's rollup.
+#   • it duplicated Dependabot's grouped minor/patch PR, opened at the same
+#     minute, with a fixed branch name that collided on every rerun.
+#
+# It is kept as a manual escape hatch for the two things Dependabot does not
+# do: applying `npm audit fix` results inside the existing ranges, and repairing
+# a lockfile that drifted between Dependabot runs. Configure the
+# `RELEASE_PLEASE_TOKEN` secret (a fine-grained PAT with `contents` and
+# `pull-requests` write) and a manual run produces a PR whose CI runs normally;
+# without it the workflow still works, it just needs the check runs approved.
 name: Dependency Update
 
 on:
-  schedule:
-    - cron: '0 9 * * 1'   # Monday 09:00 UTC
   workflow_dispatch:
+    inputs:
+      audit_fix:
+        description: 'Also apply npm audit fix for fixable advisories'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
   pull-requests: write
+
+# A second run before the first finishes would fight over the same branch.
+concurrency:
+  group: dependency-update
+  cancel-in-progress: false
 
 jobs:
   update-dependencies:
@@ -20,7 +47,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # A PAT makes the resulting PR look like an ordinary branch push, so
+          # branch protection's required checks report against it.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js 22
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -32,9 +61,13 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Update minor/patch dependencies
+        env:
+          AUDIT_FIX: ${{ inputs.audit_fix }}
         run: |
           npm update --save
-          npm audit fix --audit-level=high || true
+          if [ "$AUDIT_FIX" = "true" ]; then
+            npm audit fix --audit-level=high || true
+          fi
 
       - name: Run security test suite to validate updates
         run: npm run test:security
@@ -55,21 +88,27 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           commit-message: 'chore(deps): automated minor/patch dependency updates'
           title: 'chore(deps): automated dependency updates'
           body: |
             ## Automated Dependency Updates
 
-            This PR was created automatically by the dependency-update workflow.
+            Opened by the **Dependency Update** workflow (`workflow_dispatch`).
 
-            **Changes:** minor and patch version bumps for npm dependencies.
+            **Changes:** minor and patch bumps inside the existing ranges, plus
+            `npm audit fix` when requested.
 
-            **Validation:** security test suite and TypeScript typecheck passed.
+            **Validation:** the security suite and `tsc --noEmit` passed before
+            the PR was opened.
 
             **Review checklist:**
-            - [ ] Check `package.json` diff for unexpected major bumps
-            - [ ] Verify no breaking changes in updated packages
+            - [ ] Check the `package.json` diff for unexpected bumps
+            - [ ] Confirm no breaking changes in the updated packages
+            - [ ] Close this PR if Dependabot already covers the same updates
+
+            Scheduled updates are owned by Dependabot; use this only when a
+            Dependabot PR is not enough.
           branch: chore/automated-dependency-update
           delete-branch: true
           labels: 'dependencies,automated'

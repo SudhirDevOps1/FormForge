@@ -114,6 +114,9 @@ jobs:
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The default ruleset plus a value-exact allowlist for the sample
+          # credentials `.env.example` shipped in history (see the file).
+          GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml
 
       - name: Private-key / token pattern sweep (defense in depth)
         run: |
