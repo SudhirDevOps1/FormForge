@@ -728,6 +728,50 @@ await test("F9", "setup-env formatEnvFile and generateCryptoKey format environme
   assertEqual(parsed.ALLOW_REGISTRATION, "false", "parsed registration must match");
 });
 
+await test("F9", "form fields API exposes allowed field types and validates custom fields input", async () => {
+  const { ALLOWED_FIELD_TYPES, sanitizeFields } = await import("../src/lib/fields.ts");
+  assert(Array.isArray(ALLOWED_FIELD_TYPES), "ALLOWED_FIELD_TYPES must be an array");
+  assert(ALLOWED_FIELD_TYPES.includes("signature"), "must support signature field type");
+  assert(ALLOWED_FIELD_TYPES.includes("file"), "must support file field type");
+  assert(ALLOWED_FIELD_TYPES.includes("select"), "must support select field type");
+  assert(ALLOWED_FIELD_TYPES.includes("radio"), "must support radio field type");
+  assert(ALLOWED_FIELD_TYPES.includes("date"), "must support date field type");
+  assert(ALLOWED_FIELD_TYPES.includes("textarea"), "must support textarea field type");
+
+  const sanitized = sanitizeFields([
+    { key: "custom_input!@#$", label: "My Input", type: "signature", required: true },
+    { key: "unknown_type", label: "Invalid Type Input", type: "malicious_type", required: false },
+  ]);
+  assertEqual(sanitized.length, 2, "must sanitize valid fields");
+  assertEqual(sanitized[0].key, "custom_input", "must clean field key");
+  assertEqual(sanitized[0].type, "signature", "must keep valid type");
+  assertEqual(sanitized[1].type, "text", "must fallback unknown types to text");
+});
+
+await test("F9", "inline file storage fallback safely roundtrips file buffer via base64 data URI", async () => {
+  const testBytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01, 0x02]);
+  let binary = "";
+  for (let i = 0; i < testBytes.length; i++) {
+    binary += String.fromCharCode(testBytes[i]);
+  }
+  const b64 = Buffer.from(binary, "binary").toString("base64");
+  const dataUri = `data:image/png;base64,${b64}`;
+
+  const match = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+  assert(Boolean(match), "data URI must match regex");
+  assertEqual(match[1], "image/png", "content type must be image/png");
+
+  const decodedBinary = Buffer.from(match[2], "base64").toString("binary");
+  const decodedBytes = new Uint8Array(decodedBinary.length);
+  for (let i = 0; i < decodedBinary.length; i++) {
+    decodedBytes[i] = decodedBinary.charCodeAt(i);
+  }
+  assertEqual(decodedBytes.length, testBytes.length, "decoded byte length must match original");
+  for (let i = 0; i < testBytes.length; i++) {
+    assertEqual(decodedBytes[i], testBytes[i], `byte at index ${i} must match`);
+  }
+});
+
 /* ------------------------------ summary ---------------------------- */
 
 rmSync(OUT_DIR, { recursive: true, force: true });
