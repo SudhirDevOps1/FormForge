@@ -522,11 +522,15 @@ export function WorkflowsEditor({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500 text-[10px] font-bold text-white">3</span>
-                      <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Automated Actions (Max 5)</span>
+                      <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Automated Actions Pipeline</span>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${currentActions.length >= 5 ? "border-amber-500/40 bg-amber-500/20 text-amber-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"}`}>
+                        {currentActions.length} / 5 actions
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <select
+                        disabled={currentActions.length >= 5}
                         onChange={(e) => {
                           const actionType = e.target.value as WorkflowAction["type"];
                           if (!actionType) return;
