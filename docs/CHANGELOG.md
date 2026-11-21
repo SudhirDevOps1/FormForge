@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 and the `Release` workflow extracts the section matching each `v*` tag to build
 the GitHub Release notes.
 
+## [1.3.0](https://github.com/SudhirDevOps1/FormForge/compare/v1.2.0...v1.3.0) (2026-11-20)
+
+
+### Features
+
+* **db:** automate kv setup, zero-loss d1 migrations & account recovery ([#37](https://github.com/SudhirDevOps1/FormForge/issues/37)) ([543683b](https://github.com/SudhirDevOps1/FormForge/commit/543683b2e83c012fe26096852d209a20ef9c0b9d))
+* **forms:** add custom fields builder, storage fallback & smtp failover ([#50](https://github.com/SudhirDevOps1/FormForge/issues/50)) ([bd23c02](https://github.com/SudhirDevOps1/FormForge/commit/bd23c02d317286194c5063c0b732841a6eb9aff2))
+* **ui:** add signature pad, quiz scores, email customizer & svg icons ([#35](https://github.com/SudhirDevOps1/FormForge/issues/35)) ([4c38488](https://github.com/SudhirDevOps1/FormForge/commit/4c38488ffc210f0da4a6c1d32aa97e6f5b956298))
+* **workflows:** add visual automations engine, merge tags, embed wizard and harden CI workflows ([#32](https://github.com/SudhirDevOps1/FormForge/issues/32)) ([97af31a](https://github.com/SudhirDevOps1/FormForge/commit/97af31ae8967ac36d6475a8c7b0b4c2b1db1392a))
+
+
+### Bug Fixes
+
+* **ci:** approve only the release PR's current head ([#49](https://github.com/SudhirDevOps1/FormForge/issues/49)) ([3d30085](https://github.com/SudhirDevOps1/FormForge/commit/3d30085aad3ea02dc7effefa433c229a7ee6ee06))
+* **ci:** green the secret scan and unblock the release PR ([#48](https://github.com/SudhirDevOps1/FormForge/issues/48)) ([a7f65a3](https://github.com/SudhirDevOps1/FormForge/commit/a7f65a394bb634b988108422084265511cf53834))
+* **workflows:** resolve new workflow auto-reload and add forge loader ([#36](https://github.com/SudhirDevOps1/FormForge/issues/36)) ([97a7c8d](https://github.com/SudhirDevOps1/FormForge/commit/97a7c8d53d3990db0c573680d5d8a413a757b165))
+* **workflows:** resolve workflow state wipe on save and add env wizard ([#38](https://github.com/SudhirDevOps1/FormForge/issues/38)) ([8b49b23](https://github.com/SudhirDevOps1/FormForge/commit/8b49b231da83f180f3bfad54501c67b7c6dcca4a))
+
 ## [1.2.0](https://github.com/SudhirDevOps1/FormForge/compare/v1.1.1...v1.2.0) (2026-11-13)
 
 
