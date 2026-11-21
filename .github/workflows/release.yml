@@ -48,7 +48,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout the release
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
@@ -72,7 +72,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
 
@@ -111,7 +111,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout the release (full history for the changelog)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -136,7 +136,7 @@ jobs:
           output-file: ./formforge-sbom.spdx.json
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3.8.1
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v3.8.1
 
       - name: Sign the SBOM (Sigstore keyless OIDC)
         run: |
