@@ -61,7 +61,7 @@
     "lint-staged": "^15.0.0",
     "postcss": "^8.5.33",
     "typescript": "5.9.3",
-    "wrangler": "^4.163.0"
+    "wrangler": "^4.165.0"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs}": [
